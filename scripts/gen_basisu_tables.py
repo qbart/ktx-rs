@@ -27,6 +27,7 @@ INC = [
 INLINE = [
     ("ETC1_G_TO_DXT5A", "g_etc1_g_to_dxt5a", ("u8", "u8", "u16")),
     ("ETC1_G_TO_ETC2_A8", "s_etc1_g_to_etc2_a8", ("u8", "u8", "u16")),
+    ("BC7_M5_EQUALS_1", "g_bc7_m5_equals_1", ("u8", "u8")),
     ("ETC1_G_TO_ETC2_R11", "s_etc1_g_to_etc2_r11", ("u8", "u8", "u16")),
 ]
 

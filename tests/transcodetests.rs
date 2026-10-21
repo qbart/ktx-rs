@@ -83,6 +83,13 @@ fn implemented(f: TranscodeFmt) -> bool {
     matches!(
         f,
         TranscodeFmt::ETC1_RGB
+            | TranscodeFmt::ETC2_RGBA
+            | TranscodeFmt::ETC2_EAC_RG11
+            | TranscodeFmt::BC1_RGB
+            | TranscodeFmt::BC3_RGBA
+            | TranscodeFmt::BC4_R
+            | TranscodeFmt::BC5_RG
+            | TranscodeFmt::BC7_RGBA
             | TranscodeFmt::RGBA32
             | TranscodeFmt::RGB565
             | TranscodeFmt::BGR565
@@ -117,12 +124,12 @@ fn test_texture_set(
     golden: &HashMap<String, (usize, String)>,
     ts: &TextureSet,
     format: &FormatFeature,
-) {
+) -> bool {
     if !ts.has_alpha && !format.supports_non_alpha {
-        return;
+        return false;
     }
     if !ts.is_po2 && !format.supports_non_po2 {
-        return;
+        return false;
     }
     let key = format!("{}_{}.bin", ts.basisu_file, format.format.0);
     let Some((final_size, hash)) = golden.get(&key) else {
@@ -154,14 +161,52 @@ fn test_texture_set(
         hash,
         "{key}: transcoded data differs from basisu"
     );
+    true
 }
 
 #[test]
 fn texture_combinations_test_basic() {
     let golden = golden();
+    let mut checked = 0;
     for ts in &ALL_TEXTURE_SETS {
         for format in all_formats().iter().filter(|f| implemented(f.format)) {
-            test_texture_set(&golden, ts, format);
+            if test_texture_set(&golden, ts, format) {
+                checked += 1;
+            }
         }
     }
+    // Guard against silently skipping comparisons.
+    let expected = ALL_TEXTURE_SETS.len()
+        * all_formats()
+            .iter()
+            .filter(|f| implemented(f.format))
+            .count();
+    assert_eq!(checked, expected);
+}
+
+/// Not in the C suite: proves the ETC1S->BC7 chroma filter is exercised by the
+/// golden comparison (disabling it must change the output of at least one set).
+#[test]
+fn bc7_chroma_filter_is_exercised() {
+    let golden = golden();
+    let mut differs = 0;
+    for ts in &ALL_TEXTURE_SETS {
+        let Some((_, hash)) = golden.get(&format!("{}_6.bin", ts.basisu_file)) else {
+            panic!("no golden")
+        };
+        let data = std::fs::read(common::ktx2_path().join(ts.ktx_file)).unwrap_or_default();
+        let mut tex =
+            match Texture2::create_from_memory(&data, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+                Ok(t) => t,
+                Err(e) => panic!("{}", ktx_error_string(e)),
+            };
+        const NO_ETC1S_CHROMA_FILTERING: u32 = 64;
+        if let Err(e) = tex.transcode_basis(TranscodeFmt::BC7_RGBA, NO_ETC1S_CHROMA_FILTERING) {
+            panic!("{}: {}", ts.ktx_file, ktx_error_string(e));
+        }
+        if &hex(&Sha256::digest(tex.get_data().unwrap_or_default())) != hash {
+            differs += 1;
+        }
+    }
+    assert!(differs > 0, "chroma filter never changed any output");
 }

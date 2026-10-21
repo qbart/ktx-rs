@@ -4,6 +4,9 @@
 //! indices/alpha helpers). Other targets report [`TranscodeStatus::Unsupported`]
 //! until their block encoders are ported.
 
+use super::bc7m5::{
+    Bc7Mode5, chroma_filter_bc7_mode5, convert_etc1s_to_bc7_m5_alpha, convert_etc1s_to_bc7_m5_color,
+};
 use super::bitreader::{ApproxMoveToFront, BitwiseDecoder, HuffmanDecodingTable};
 use super::dxt::{Dxt1Block, Dxt5aBlock, convert_etc1s_to_dxt1, convert_etc1s_to_dxt5a};
 use super::eac::{EacBlock, convert_etc1s_to_etc2_eac_a8, convert_etc1s_to_etc2_eac_r11};
@@ -241,7 +244,7 @@ impl LowlevelEtc1sTranscoder {
         state: &mut TranscoderState,
         _transcode_alpha: bool,
         mut output_rows_in_pixels: u32,
-        _decode_flags: u32,
+        decode_flags_in: u32,
     ) -> TranscodeStatus {
         if !Self::block_format_supported(fmt) {
             return TranscodeStatus::Unsupported;
@@ -287,6 +290,19 @@ impl LowlevelEtc1sTranscoder {
             if v.len() < total_blocks as usize {
                 v.resize(total_blocks as usize, 0);
             }
+        }
+
+        let bc7_chroma_filtering = decode_flags_in & decode_flags::NO_ETC1S_CHROMA_FILTERING == 0
+            && (fmt == BlockFormat::Bc7M5Color || fmt == BlockFormat::Bc7);
+        let mut decoded_endpoints: Vec<u16> = Vec::new();
+        if bc7_chroma_filtering {
+            if decoded_endpoints
+                .try_reserve_exact(total_blocks as usize)
+                .is_err()
+            {
+                return TranscodeStatus::Failed;
+            }
+            decoded_endpoints.resize(total_blocks as usize, 0);
         }
 
         let mut cur_pred_bits: u32 = 0;
@@ -476,6 +492,28 @@ impl LowlevelEtc1sTranscoder {
                         }
                         dst.write(block_ofs, &b.bytes)
                     }
+                    BlockFormat::Bc7 | BlockFormat::Bc7M5Color => {
+                        if bc7_chroma_filtering
+                            && let Some(d) = decoded_endpoints
+                                .get_mut((block_x + block_y * num_blocks_x) as usize)
+                        {
+                            *d = endpoint_index as u16;
+                        }
+                        let mut b = Bc7Mode5::default();
+                        convert_etc1s_to_bc7_m5_color(&mut b, ep, sel);
+                        dst.write(block_ofs, &b.to_bytes())
+                    }
+                    BlockFormat::Bc7M5Alpha => {
+                        let start = dst.offset + block_ofs;
+                        match dst.buf.get(start..start + 16) {
+                            Some(existing) => {
+                                let mut b = Bc7Mode5::from_bytes(existing);
+                                convert_etc1s_to_bc7_m5_alpha(&mut b, ep, sel);
+                                dst.write(block_ofs, &b.to_bytes())
+                            }
+                            None => false,
+                        }
+                    }
                     BlockFormat::Indices => {
                         let mut out = [0u8; 4];
                         out[..2].copy_from_slice(&(endpoint_index as u16).to_le_bytes());
@@ -564,6 +602,18 @@ impl LowlevelEtc1sTranscoder {
         if endpoint_pred_repeat_count != 0 {
             return TranscodeStatus::Failed;
         }
+        if bc7_chroma_filtering {
+            let off = dst.offset;
+            chroma_filter_bc7_mode5(
+                &decoded_endpoints,
+                dst.buf,
+                off,
+                num_blocks_x,
+                num_blocks_y,
+                output_row_pitch_in_blocks_or_pixels,
+                endpoints,
+            );
+        }
         TranscodeStatus::Ok
     }
 
@@ -571,7 +621,14 @@ impl LowlevelEtc1sTranscoder {
         use BlockFormat::*;
         matches!(
             fmt,
-            Etc1 | Indices
+            Etc1 | Bc1
+                | Bc4
+                | Bc7
+                | Bc7M5Color
+                | Bc7M5Alpha
+                | Etc2EacA8
+                | Etc2EacR11
+                | Indices
                 | A32
                 | Rgb32
                 | Rgba32
@@ -667,7 +724,7 @@ impl LowlevelEtc1sTranscoder {
                 src,
                 fmt,
                 stride,
-                false,
+                fmt == BlockFormat::Bc1 && target_format == F::BC1_RGB,
                 is_video,
                 alpha,
                 level_index,
@@ -750,6 +807,31 @@ impl LowlevelEtc1sTranscoder {
                 } else {
                     TranscodeStatus::Failed
                 }
+            }
+            F::BC7_RGBA | F::BC7_ALT => {
+                // Color slice: opaque mode 5 blocks.
+                let s = run(
+                    output,
+                    0,
+                    rgb_data,
+                    BlockFormat::Bc7M5Color,
+                    bytes_per_block_or_pixel,
+                    false,
+                    state,
+                );
+                if s != TranscodeStatus::Ok || !basis_file_has_alpha_slices {
+                    return s;
+                }
+                // Alpha slice updates the mode 5 blocks with alpha.
+                run(
+                    output,
+                    0,
+                    alpha_data,
+                    BlockFormat::Bc7M5Alpha,
+                    bytes_per_block_or_pixel,
+                    true,
+                    state,
+                )
             }
             F::ETC2_RGBA => {
                 if basis_file_has_alpha_slices {
