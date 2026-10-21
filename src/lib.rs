@@ -4,6 +4,7 @@
 //! The library never panics on malformed input.
 
 pub mod defs;
+pub mod dfd;
 pub mod error;
 pub mod hashlist;
 pub mod ktxint;

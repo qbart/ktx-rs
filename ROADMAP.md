@@ -15,7 +15,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] Endian swap — `swap.c`
 
 ## Data Format Descriptor (external/dfdutils)
-- [ ] createdfd, interpretdfd, queries
+- [x] khr_df constants + accessors, createdfd
+- [ ] interpretdfd, queries
 - [ ] vk2dfd / dfd2vk tables
 - [ ] printdfd
 - [ ] colourspaces
@@ -51,8 +52,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
-- [x] unittests: HashList, MemStream, CheckHeader1
-- [ ] unittests: DFD, Swizzle, WriterTestHelper
+- [x] unittests: HashList, MemStream, CheckHeader1, createDFD
+- [ ] unittests: DFDVkFormatList, Swizzle, WriterTestHelper
 - [ ] texturetests
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)

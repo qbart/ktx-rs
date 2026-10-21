@@ -378,3 +378,196 @@ mod swap_test {
         assert_eq!(d, [2, 1, 4, 3, 5]);
     }
 }
+
+//////////////////////////////
+// createDFD tests.
+//////////////////////////////
+
+mod create_dfd_test {
+    use ktx::dfd::khr_df::*;
+    use ktx::dfd::*;
+
+    /// Mirrors `sampleType` of the C fixture.
+    struct S(u32, u32, u32, u32, u32, u32, u32, u32, u32);
+
+    /// Builds the expected DFD words (including the leading size word).
+    #[allow(clippy::too_many_arguments)]
+    fn expected(
+        bytes_plane: u32,
+        model: u32,
+        primaries: u32,
+        transfer: u32,
+        flags: u32,
+        dims: [u32; 4],
+        samples: &[S],
+    ) -> Vec<u32> {
+        let block_size = 4 * (6 + 4 * samples.len() as u32);
+        let mut v = vec![block_size + 4];
+        v.push(KHR_DF_VENDORID_KHRONOS | (KHR_DF_KHR_DESCRIPTORTYPE_BASICFORMAT << 17));
+        v.push(KHR_DF_VERSIONNUMBER_1_3 | (block_size << 16));
+        v.push(model | (primaries << 8) | (transfer << 16) | (flags << 24));
+        v.push(dims[0] | (dims[1] << 8) | (dims[2] << 16) | (dims[3] << 24));
+        v.push(bytes_plane);
+        v.push(0);
+        for s in samples {
+            v.push(s.0 | (s.1 << 16) | (s.2 << 24));
+            v.push(s.3 | (s.4 << 8) | (s.5 << 16) | (s.6 << 24));
+            v.push(s.7);
+            v.push(s.8);
+        }
+        v
+    }
+
+    fn df_channel_type(id: u32, q: u32) -> u32 {
+        id | q
+    }
+
+    fn check(dfd: Option<Vec<u32>>, exp: Vec<u32>) {
+        let dfd = match dfd {
+            Some(d) => d,
+            None => panic!("createDFD returned None"),
+        };
+        assert_eq!(dfd[0], exp[0]);
+        assert_eq!(dfd, exp);
+    }
+
+    #[test]
+    fn unpacked_test4_format_srgba8() {
+        let exp = expected(4, KHR_DF_MODEL_RGBSDA, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_SRGB, KHR_DF_FLAG_ALPHA_STRAIGHT, [0; 4], &[
+            S(0, 7, KHR_DF_CHANNEL_RGBSDA_RED, 0, 0, 0, 0, 0, 255),
+            S(8, 7, KHR_DF_CHANNEL_RGBSDA_GREEN, 0, 0, 0, 0, 0, 255),
+            S(16, 7, KHR_DF_CHANNEL_RGBSDA_BLUE, 0, 0, 0, 0, 0, 255),
+            S(24, 7, df_channel_type(KHR_DF_CHANNEL_RGBSDA_ALPHA, KHR_DF_SAMPLE_DATATYPE_LINEAR), 0, 0, 0, 0, 0, 255),
+        ]);
+        check(create_dfd_unpacked(false, 4, 1, false, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn unpacked_test4_format_sbgra8() {
+        let exp = expected(4, KHR_DF_MODEL_RGBSDA, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_SRGB, KHR_DF_FLAG_ALPHA_STRAIGHT, [0; 4], &[
+            S(0, 7, KHR_DF_CHANNEL_RGBSDA_BLUE, 0, 0, 0, 0, 0, 255),
+            S(8, 7, KHR_DF_CHANNEL_RGBSDA_GREEN, 0, 0, 0, 0, 0, 255),
+            S(16, 7, KHR_DF_CHANNEL_RGBSDA_RED, 0, 0, 0, 0, 0, 255),
+            S(24, 7, df_channel_type(KHR_DF_CHANNEL_RGBSDA_ALPHA, KHR_DF_SAMPLE_DATATYPE_LINEAR), 0, 0, 0, 0, 0, 255),
+        ]);
+        check(create_dfd_unpacked(false, 4, 1, true, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn unpacked_test4_format_rgba8() {
+        let exp = expected(4, KHR_DF_MODEL_RGBSDA, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_LINEAR, KHR_DF_FLAG_ALPHA_STRAIGHT, [0; 4], &[
+            S(0, 7, KHR_DF_CHANNEL_RGBSDA_RED, 0, 0, 0, 0, 0, 255),
+            S(8, 7, KHR_DF_CHANNEL_RGBSDA_GREEN, 0, 0, 0, 0, 0, 255),
+            S(16, 7, KHR_DF_CHANNEL_RGBSDA_BLUE, 0, 0, 0, 0, 0, 255),
+            S(24, 7, KHR_DF_CHANNEL_RGBSDA_ALPHA, 0, 0, 0, 0, 0, 255),
+        ]);
+        check(create_dfd_unpacked(false, 4, 1, false, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn unpacked_test3_format_srgb8() {
+        let exp = expected(3, KHR_DF_MODEL_RGBSDA, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_SRGB, KHR_DF_FLAG_ALPHA_STRAIGHT, [0; 4], &[
+            S(0, 7, KHR_DF_CHANNEL_RGBSDA_RED, 0, 0, 0, 0, 0, 255),
+            S(8, 7, KHR_DF_CHANNEL_RGBSDA_GREEN, 0, 0, 0, 0, 0, 255),
+            S(16, 7, KHR_DF_CHANNEL_RGBSDA_BLUE, 0, 0, 0, 0, 0, 255),
+        ]);
+        check(create_dfd_unpacked(false, 3, 1, false, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn packed_test3_format_rgb565() {
+        let exp = expected(2, KHR_DF_MODEL_RGBSDA, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_LINEAR, KHR_DF_FLAG_ALPHA_STRAIGHT, [0; 4], &[
+            S(0, 4, KHR_DF_CHANNEL_RGBSDA_BLUE, 0, 0, 0, 0, 0, 31),
+            S(5, 5, KHR_DF_CHANNEL_RGBSDA_GREEN, 0, 0, 0, 0, 0, 63),
+            S(11, 4, KHR_DF_CHANNEL_RGBSDA_RED, 0, 0, 0, 0, 0, 31),
+        ]);
+        // In order from LSB.
+        let bits = [5, 6, 5, 0];
+        let channels = [KHR_DF_CHANNEL_RGBSDA_BLUE, KHR_DF_CHANNEL_RGBSDA_GREEN, KHR_DF_CHANNEL_RGBSDA_RED, 0];
+        check(create_dfd_packed(false, 3, &bits, &channels, VkSuffix::Unorm), exp);
+    }
+
+    fn comp1(model: u32, transfer: u32, dims: [u32; 4], ch: u32, bits: u32, bytes: u32) -> Vec<u32> {
+        expected(bytes, model, KHR_DF_PRIMARIES_BT709, transfer, KHR_DF_FLAG_ALPHA_STRAIGHT, dims, &[
+            S(0, bits, ch, 0, 0, 0, 0, 0, 0xFFFFFFFF),
+        ])
+    }
+
+    #[test]
+    fn compressed_test1_format_etc1s_r8b8g8() {
+        let exp = comp1(KHR_DF_MODEL_ETC1S, KHR_DF_TRANSFER_LINEAR, [3, 3, 0, 0], KHR_DF_CHANNEL_ETC1S_RGB, 63, 8);
+        check(create_dfd_compressed(VkCompScheme::Etc1s, 4, 4, 1, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test1_format_etc1s_sr8b8g8() {
+        let exp = comp1(KHR_DF_MODEL_ETC1S, KHR_DF_TRANSFER_SRGB, [3, 3, 0, 0], KHR_DF_CHANNEL_ETC1S_RGB, 63, 8);
+        check(create_dfd_compressed(VkCompScheme::Etc1s, 4, 4, 1, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn compressed_test1_format_etc2_r8b8g8() {
+        let exp = comp1(KHR_DF_MODEL_ETC2, KHR_DF_TRANSFER_LINEAR, [3, 3, 0, 0], KHR_DF_CHANNEL_ETC2_COLOR, 63, 8);
+        check(create_dfd_compressed(VkCompScheme::Etc2R8G8B8, 4, 4, 1, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test2_format_etc2_r8g8b8a8() {
+        let exp = expected(16, KHR_DF_MODEL_ETC2, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_LINEAR, KHR_DF_FLAG_ALPHA_STRAIGHT, [3, 3, 0, 0], &[
+            S(0, 63, KHR_DF_CHANNEL_ETC2_ALPHA, 0, 0, 0, 0, 0, 0xFFFFFFFF),
+            S(64, 63, KHR_DF_CHANNEL_ETC2_COLOR, 0, 0, 0, 0, 0, 0xFFFFFFFF),
+        ]);
+        check(create_dfd_compressed(VkCompScheme::Etc2R8G8B8A8, 4, 4, 1, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test1_format_etc2_sr8b8g8() {
+        let exp = comp1(KHR_DF_MODEL_ETC2, KHR_DF_TRANSFER_SRGB, [3, 3, 0, 0], KHR_DF_CHANNEL_ETC2_COLOR, 63, 8);
+        check(create_dfd_compressed(VkCompScheme::Etc2R8G8B8, 4, 4, 1, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn compressed_test2_format_etc2_sr8g8b8a8() {
+        let exp = expected(16, KHR_DF_MODEL_ETC2, KHR_DF_PRIMARIES_BT709, KHR_DF_TRANSFER_SRGB, KHR_DF_FLAG_ALPHA_STRAIGHT, [3, 3, 0, 0], &[
+            S(0, 63, df_channel_type(KHR_DF_CHANNEL_RGBSDA_ALPHA, KHR_DF_SAMPLE_DATATYPE_LINEAR), 0, 0, 0, 0, 0, 0xFFFFFFFF),
+            S(64, 63, KHR_DF_CHANNEL_ETC2_COLOR, 0, 0, 0, 0, 0, 0xFFFFFFFF),
+        ]);
+        check(create_dfd_compressed(VkCompScheme::Etc2R8G8B8A8, 4, 4, 1, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn compressed_test1x16_format_astc_12x12_srgb() {
+        let exp = comp1(KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_SRGB, [11, 11, 0, 0], KHR_DF_CHANNEL_ASTC_DATA, 127, 16);
+        check(create_dfd_compressed(VkCompScheme::Astc, 12, 12, 1, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn compressed_test1x16_format_astc_10x5_srgb() {
+        let exp = comp1(KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_SRGB, [9, 4, 0, 0], KHR_DF_CHANNEL_ASTC_DATA, 127, 16);
+        check(create_dfd_compressed(VkCompScheme::Astc, 10, 5, 1, VkSuffix::Srgb), exp);
+    }
+
+    #[test]
+    fn compressed_test1x16_format_astc_5x4() {
+        let exp = comp1(KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_LINEAR, [4, 3, 0, 0], KHR_DF_CHANNEL_ASTC_DATA, 127, 16);
+        check(create_dfd_compressed(VkCompScheme::Astc, 5, 4, 1, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test1x16_format_astc_10x8() {
+        let exp = comp1(KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_LINEAR, [9, 7, 0, 0], KHR_DF_CHANNEL_ASTC_DATA, 127, 16);
+        check(create_dfd_compressed(VkCompScheme::Astc, 10, 8, 1, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test1x16_format_astc_3x3x3() {
+        let exp = comp1(KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_LINEAR, [2, 2, 2, 0], KHR_DF_CHANNEL_ASTC_DATA, 127, 16);
+        check(create_dfd_compressed(VkCompScheme::Astc, 3, 3, 3, VkSuffix::Unorm), exp);
+    }
+
+    #[test]
+    fn compressed_test1_format_bc1() {
+        let exp = comp1(KHR_DF_MODEL_BC1A, KHR_DF_TRANSFER_LINEAR, [3, 3, 0, 0], KHR_DF_CHANNEL_BC1A_COLOR, 63, 8);
+        check(create_dfd_compressed(VkCompScheme::Bc1Rgb, 4, 4, 1, VkSuffix::Unorm), exp);
+    }
+}
