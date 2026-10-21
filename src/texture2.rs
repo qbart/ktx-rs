@@ -45,7 +45,7 @@ pub struct Texture2Private {
 /// Port of `ktxTexture2`.
 #[derive(Debug)]
 pub struct Texture2 {
-    base: Texture,
+    pub(crate) base: Texture,
     pub vk_format: VkFormat,
     /// Data format descriptor (`pDfd`), `p_dfd[0]` = total size in bytes.
     pub p_dfd: Vec<u32>,

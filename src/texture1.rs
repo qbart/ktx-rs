@@ -35,7 +35,7 @@ pub struct Texture1Private {
 /// Port of `ktxTexture1`.
 #[derive(Debug)]
 pub struct Texture1 {
-    base: Texture,
+    pub(crate) base: Texture,
     pub gl_format: u32,
     pub gl_internalformat: u32,
     pub gl_base_internalformat: u32,

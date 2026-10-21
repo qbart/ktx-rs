@@ -1,0 +1,19 @@
+# basisu (Basis Universal transcoder)
+
+Source: `external/basis_universal/transcoder/*`, `lib/src/basis_transcode.cpp`, `basis_sgd.h`.
+
+- `basisu::bitreader`: `HuffmanDecodingTable`, `BitwiseDecoder` (zero bits past end,
+  corrupt tree refs decode to 0), `ApproxMoveToFront`.
+- `basisu::etc`: `Color32`, `Endpoint`, `Selector`, `DecoderEtcBlock`, inten tables.
+- `basisu::etc1s::LowlevelEtc1sTranscoder`: `decode_palettes`, `decode_tables`,
+  `transcode_slice` (block writes are bounds checked; out-of-range -> `Failed`),
+  `transcode_image`. `TranscodeStatus { Ok, Failed, Unsupported }`.
+- `basis_transcode`: `Texture2::transcode_basis(fmt, flags)` (ktxTexture2_TranscodeBasis),
+  BasisLZ SGD parsing (`BasisLzGlobalHeader`, `BasisLzEtc1sImageDesc`).
+- Verification: `tests/transcodetests.rs` compares SHA-256 of the output with the original
+  C++ basisu transcode of the matching `.basis` (goldens from
+  `scripts/golden/gen_transcode_golden.sh`, needs g++ + `./ref/ktx`).
+
+Status (ETC1S targets): ETC1, RGBA32, RGB565, BGR565, RGBA4444 done (byte exact).
+Todo: BC1, BC3, BC4, BC5, BC7, ETC2 RGBA, EAC R11/RG11, ASTC 4x4, PVRTC1/2, ATC, FXT1;
+UASTC LDR/HDR transcoders; video P-frames untested.

@@ -36,10 +36,11 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] `info.c` (ktxPrintInfo, JSON)
 
 ## Basis Universal (pure Rust port)
-- [ ] BasisLZ/ETC1S transcoder (all target formats)
+- [~] BasisLZ/ETC1S transcoder: core + ETC1, RGBA32, RGB565, BGR565, RGBA4444 (byte exact vs C++);
+  todo BC1/3/4/5/7, ETC2, EAC, ASTC, PVRTC1/2
 - [ ] UASTC LDR 4x4 transcoder (all target formats)
 - [ ] UASTC HDR 4x4 / 6x6 intermediate transcoder
-- [ ] `ktxTexture2_TranscodeBasis`
+- [~] `ktxTexture2_TranscodeBasis` (ETC1S path)
 - [ ] ETC1S encoder (`ktxTexture2_CompressBasis`)
 - [ ] UASTC encoder + RDO
 
@@ -63,5 +64,5 @@ Legend: [x] done, [~] partial, [ ] todo.
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
   unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
   Null-pointer tests are not applicable in Rust.
-- [ ] transcodetests
+- [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [ ] CLI tests (tests/cts)

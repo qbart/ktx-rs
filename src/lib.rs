@@ -3,6 +3,8 @@
 //! Fallible functions return [`KtxResult`]; `KTX_SUCCESS` maps to `Ok`.
 //! The library never panics on malformed input.
 
+pub mod basis_transcode;
+pub mod basisu;
 pub mod defs;
 pub mod dfd;
 pub mod error;

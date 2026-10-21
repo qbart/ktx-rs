@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Regenerates tests/resources/golden/transcode_basis.txt (sha256 + size of the
+# reference Basis Universal transcodes). Requires g++ and ./ref/ktx.
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+REF=$ROOT/ref/ktx
+WORK=${WORK:-$(mktemp -d)}
+mkdir -p "$WORK"
+BU=$REF/external/basis_universal
+g++ -O2 -std=c++17 -w \
+  -DBASISD_SUPPORT_KTX2=0 -DBASISD_SUPPORT_KTX2_ZSTD=0 \
+  -I"$BU" -I"$BU/transcoder" -I"$REF/interface/basisu_c_binding/inc" -I"$REF/lib/src" -I"$REF/lib/include" -I"$REF/other_include" -I"$REF/utils" \
+  "$ROOT/scripts/golden/transcode_golden.cpp" \
+  "$REF/interface/basisu_c_binding/src/basisu_c_binding.cpp" \
+  "$BU/transcoder/basisu_transcoder.cpp" \
+  -o "$WORK/transcode_golden"
+mkdir -p "$WORK/out"
+"$WORK/transcode_golden" "$REF/tests/resources/basis" "$WORK/out"
+mkdir -p "$ROOT/tests/resources/golden"
+( cd "$WORK/out" && for f in $(ls | sort); do
+    echo "$f $(stat -c %s "$f") $(sha256sum "$f" | cut -d' ' -f1)"
+  done ) > "$ROOT/tests/resources/golden/transcode_basis.txt"
+echo "wrote tests/resources/golden/transcode_basis.txt"
