@@ -4,6 +4,7 @@
 //! indices/alpha helpers). Other targets report [`TranscodeStatus::Unsupported`]
 //! until their block encoders are ported.
 
+use super::astc::convert_etc1s_to_astc_4x4;
 use super::bc7m5::{
     Bc7Mode5, chroma_filter_bc7_mode5, convert_etc1s_to_bc7_m5_alpha, convert_etc1s_to_bc7_m5_color,
 };
@@ -242,7 +243,7 @@ impl LowlevelEtc1sTranscoder {
         orig_height: u32,
         mut output_row_pitch_in_blocks_or_pixels: u32,
         state: &mut TranscoderState,
-        _transcode_alpha: bool,
+        transcode_alpha: bool,
         mut output_rows_in_pixels: u32,
         decode_flags_in: u32,
     ) -> TranscodeStatus {
@@ -514,6 +515,27 @@ impl LowlevelEtc1sTranscoder {
                             None => false,
                         }
                     }
+                    BlockFormat::AstcLdr4x4 => {
+                        let start = dst.offset + block_ofs;
+                        let mut b = [0u8; 16];
+                        match dst.buf.get(start..start + 16) {
+                            Some(existing) => b.copy_from_slice(existing),
+                            None => return TranscodeStatus::Failed,
+                        }
+                        // The alpha pass stored endpoint/selector indices here.
+                        let alpha = if transcode_alpha {
+                            let ei = u16::from_le_bytes([b[0], b[1]]) as usize;
+                            let si = u16::from_le_bytes([b[2], b[3]]) as usize;
+                            match (endpoints.get(ei), selectors.get(si)) {
+                                (Some(e), Some(s)) => Some((e, s)),
+                                _ => return TranscodeStatus::Failed,
+                            }
+                        } else {
+                            None
+                        };
+                        convert_etc1s_to_astc_4x4(&mut b, ep, sel, alpha);
+                        dst.write(block_ofs, &b)
+                    }
                     BlockFormat::Indices => {
                         let mut out = [0u8; 4];
                         out[..2].copy_from_slice(&(endpoint_index as u16).to_le_bytes());
@@ -623,6 +645,7 @@ impl LowlevelEtc1sTranscoder {
             fmt,
             Etc1 | Bc1
                 | Bc4
+                | AstcLdr4x4
                 | Bc7
                 | Bc7M5Color
                 | Bc7M5Alpha
@@ -709,13 +732,14 @@ impl LowlevelEtc1sTranscoder {
                 (rgb_data, false)
             };
 
-        let run = |out: &mut [u8],
-                   offset: usize,
-                   src: &[u8],
-                   fmt: BlockFormat,
-                   stride: u32,
-                   alpha: bool,
-                   st: &mut TranscoderState| {
+        let run_ta = |out: &mut [u8],
+                      offset: usize,
+                      src: &[u8],
+                      fmt: BlockFormat,
+                      stride: u32,
+                      alpha: bool,
+                      st: &mut TranscoderState,
+                      transcode_alpha: bool| {
             let mut so = SliceOutput { buf: out, offset };
             self.transcode_slice(
                 &mut so,
@@ -732,10 +756,19 @@ impl LowlevelEtc1sTranscoder {
                 orig_height,
                 output_row_pitch_in_blocks_or_pixels,
                 st,
-                false,
+                transcode_alpha,
                 output_rows_in_pixels,
                 decode_flags_in,
             )
+        };
+        let run = |out: &mut [u8],
+                   offset: usize,
+                   src: &[u8],
+                   fmt: BlockFormat,
+                   stride: u32,
+                   alpha: bool,
+                   st: &mut TranscoderState| {
+            run_ta(out, offset, src, fmt, stride, alpha, st, false)
         };
 
         match target_format {
@@ -917,6 +950,43 @@ impl LowlevelEtc1sTranscoder {
                     BlockFormat::Rgba32
                 };
                 run(output, 0, rgb_data, fmt, 4, false, state)
+            }
+            F::ASTC_LDR_4x4_RGBA => {
+                if basis_file_has_alpha_slices {
+                    // Alpha indices go to the output first (used as a temp buffer).
+                    let s = run(
+                        output,
+                        0,
+                        alpha_data,
+                        BlockFormat::Indices,
+                        bytes_per_block_or_pixel,
+                        true,
+                        state,
+                    );
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                    run_ta(
+                        output,
+                        0,
+                        rgb_data,
+                        BlockFormat::AstcLdr4x4,
+                        bytes_per_block_or_pixel,
+                        false,
+                        state,
+                        true,
+                    )
+                } else {
+                    run(
+                        output,
+                        0,
+                        rgb_data,
+                        BlockFormat::AstcLdr4x4,
+                        bytes_per_block_or_pixel,
+                        false,
+                        state,
+                    )
+                }
             }
             F::RGB565 | F::BGR565 => {
                 let fmt = if target_format == F::RGB565 {

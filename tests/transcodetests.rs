@@ -94,6 +94,7 @@ fn implemented(f: TranscodeFmt) -> bool {
             | TranscodeFmt::RGB565
             | TranscodeFmt::BGR565
             | TranscodeFmt::RGBA4444
+            | TranscodeFmt::ASTC_4x4_RGBA
     )
 }
 

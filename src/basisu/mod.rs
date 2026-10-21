@@ -3,6 +3,7 @@
 //! Only the parts reachable from libktx are ported. Functions keep basisu's
 //! `bool` success convention internally; libktx maps failures to `KtxResult`.
 
+pub mod astc;
 pub mod bc7m5;
 pub mod bitreader;
 pub mod dxt;
