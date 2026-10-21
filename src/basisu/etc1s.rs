@@ -6,6 +6,7 @@
 
 use super::bitreader::{ApproxMoveToFront, BitwiseDecoder, HuffmanDecodingTable};
 use super::dxt::{Dxt1Block, Dxt5aBlock, convert_etc1s_to_dxt1, convert_etc1s_to_dxt5a};
+use super::eac::{EacBlock, convert_etc1s_to_etc2_eac_a8, convert_etc1s_to_etc2_eac_r11};
 use super::etc::{Color32, DecoderEtcBlock, Endpoint, Selector, mul_8};
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
@@ -466,6 +467,15 @@ impl LowlevelEtc1sTranscoder {
                         convert_etc1s_to_dxt5a(&mut b, ep, sel);
                         dst.write(block_ofs, &b.bytes)
                     }
+                    BlockFormat::Etc2EacA8 | BlockFormat::Etc2EacR11 => {
+                        let mut b = EacBlock::default();
+                        if fmt == BlockFormat::Etc2EacA8 {
+                            convert_etc1s_to_etc2_eac_a8(&mut b, ep, sel);
+                        } else {
+                            convert_etc1s_to_etc2_eac_r11(&mut b, ep, sel);
+                        }
+                        dst.write(block_ofs, &b.bytes)
+                    }
                     BlockFormat::Indices => {
                         let mut out = [0u8; 4];
                         out[..2].copy_from_slice(&(endpoint_index as u16).to_le_bytes());
@@ -741,6 +751,77 @@ impl LowlevelEtc1sTranscoder {
                     TranscodeStatus::Failed
                 }
             }
+            F::ETC2_RGBA => {
+                if basis_file_has_alpha_slices {
+                    let s = run(
+                        output,
+                        0,
+                        alpha_data,
+                        BlockFormat::Etc2EacA8,
+                        16,
+                        true,
+                        state,
+                    );
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                } else if !write_opaque_alpha_blocks(
+                    num_blocks_x,
+                    num_blocks_y,
+                    output,
+                    0,
+                    BlockFormat::Etc2EacA8,
+                    16,
+                    output_row_pitch_in_blocks_or_pixels,
+                ) {
+                    return TranscodeStatus::Failed;
+                }
+                run(output, 8, rgb_data, BlockFormat::Etc1, 16, false, state)
+            }
+            F::ETC2_EAC_R11 => run(
+                output,
+                0,
+                data,
+                BlockFormat::Etc2EacR11,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::ETC2_EAC_RG11 => {
+                if basis_file_has_alpha_slices {
+                    let s = run(
+                        output,
+                        8,
+                        alpha_data,
+                        BlockFormat::Etc2EacR11,
+                        16,
+                        true,
+                        state,
+                    );
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                } else if !write_opaque_alpha_blocks(
+                    num_blocks_x,
+                    num_blocks_y,
+                    output,
+                    8,
+                    BlockFormat::Etc2EacR11,
+                    16,
+                    output_row_pitch_in_blocks_or_pixels,
+                ) {
+                    return TranscodeStatus::Failed;
+                }
+                run(
+                    output,
+                    0,
+                    rgb_data,
+                    BlockFormat::Etc2EacR11,
+                    16,
+                    false,
+                    state,
+                )
+            }
             F::RGBA32 => {
                 if basis_file_has_alpha_slices {
                     let s = run(output, 0, alpha_data, BlockFormat::A32, 4, true, state);
@@ -795,7 +876,7 @@ impl LowlevelEtc1sTranscoder {
     }
 }
 
-/// Port of `basisu_transcoder::write_opaque_alpha_blocks` (BC4 variant; EAC A8 to come).
+/// Port of `basisu_transcoder::write_opaque_alpha_blocks`.
 pub fn write_opaque_alpha_blocks(
     num_blocks_x: u32,
     num_blocks_y: u32,
@@ -810,6 +891,7 @@ pub fn write_opaque_alpha_blocks(
     }
     let blk: [u8; 8] = match fmt {
         BlockFormat::Bc4 => Dxt5aBlock::opaque().bytes,
+        BlockFormat::Etc2EacA8 | BlockFormat::Etc2EacR11 => EacBlock::opaque().bytes,
         _ => return true,
     };
     for y in 0..num_blocks_y as usize {

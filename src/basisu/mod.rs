@@ -5,6 +5,7 @@
 
 pub mod bitreader;
 pub mod dxt;
+pub mod eac;
 pub mod etc;
 pub mod etc1s;
 pub mod tables;
