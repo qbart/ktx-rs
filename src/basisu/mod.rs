@@ -4,8 +4,10 @@
 //! `bool` success convention internally; libktx maps failures to `KtxResult`.
 
 pub mod bitreader;
+pub mod dxt;
 pub mod etc;
 pub mod etc1s;
+pub mod tables;
 
 /// Port of `transcoder_texture_format`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

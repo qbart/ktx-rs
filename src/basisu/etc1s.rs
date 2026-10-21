@@ -5,6 +5,7 @@
 //! until their block encoders are ported.
 
 use super::bitreader::{ApproxMoveToFront, BitwiseDecoder, HuffmanDecodingTable};
+use super::dxt::{Dxt1Block, Dxt5aBlock, convert_etc1s_to_dxt1, convert_etc1s_to_dxt5a};
 use super::etc::{Color32, DecoderEtcBlock, Endpoint, Selector, mul_8};
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
@@ -229,7 +230,7 @@ impl LowlevelEtc1sTranscoder {
         image_data: &[u8],
         fmt: BlockFormat,
         output_block_or_pixel_stride_in_bytes: u32,
-        _bc1_allow_threecolor_blocks: bool,
+        bc1_allow_threecolor_blocks: bool,
         is_video: bool,
         is_alpha_slice: bool,
         level_index: u32,
@@ -455,6 +456,16 @@ impl LowlevelEtc1sTranscoder {
                         out[4..].copy_from_slice(&sel.bytes);
                         dst.write(block_ofs, &out)
                     }
+                    BlockFormat::Bc1 => {
+                        let mut b = Dxt1Block::default();
+                        convert_etc1s_to_dxt1(&mut b, ep, sel, bc1_allow_threecolor_blocks);
+                        dst.write(block_ofs, &b.bytes)
+                    }
+                    BlockFormat::Bc4 => {
+                        let mut b = Dxt5aBlock::default();
+                        convert_etc1s_to_dxt5a(&mut b, ep, sel);
+                        dst.write(block_ofs, &b.bytes)
+                    }
                     BlockFormat::Indices => {
                         let mut out = [0u8; 4];
                         out[..2].copy_from_slice(&(endpoint_index as u16).to_le_bytes());
@@ -670,6 +681,66 @@ impl LowlevelEtc1sTranscoder {
                 is_alpha_slice,
                 state,
             ),
+            F::BC1_RGB => run(
+                output,
+                0,
+                data,
+                BlockFormat::Bc1,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::BC4_R => run(
+                output,
+                0,
+                data,
+                BlockFormat::Bc4,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::BC3_RGBA => {
+                // First decode the alpha data
+                if basis_file_has_alpha_slices {
+                    let s = run(output, 0, alpha_data, BlockFormat::Bc4, 16, true, state);
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                } else if !write_opaque_alpha_blocks(
+                    num_blocks_x,
+                    num_blocks_y,
+                    output,
+                    0,
+                    BlockFormat::Bc4,
+                    16,
+                    output_row_pitch_in_blocks_or_pixels,
+                ) {
+                    return TranscodeStatus::Failed;
+                }
+                // Now decode the color data. 3 color blocks are not allowed in BC3.
+                run(output, 8, rgb_data, BlockFormat::Bc1, 16, false, state)
+            }
+            F::BC5_RG => {
+                let s = run(output, 0, rgb_data, BlockFormat::Bc4, 16, false, state);
+                if s != TranscodeStatus::Ok {
+                    return s;
+                }
+                if basis_file_has_alpha_slices {
+                    run(output, 8, alpha_data, BlockFormat::Bc4, 16, true, state)
+                } else if write_opaque_alpha_blocks(
+                    num_blocks_x,
+                    num_blocks_y,
+                    output,
+                    8,
+                    BlockFormat::Bc4,
+                    16,
+                    output_row_pitch_in_blocks_or_pixels,
+                ) {
+                    TranscodeStatus::Ok
+                } else {
+                    TranscodeStatus::Failed
+                }
+            }
             F::RGBA32 => {
                 if basis_file_has_alpha_slices {
                     let s = run(output, 0, alpha_data, BlockFormat::A32, 4, true, state);
@@ -722,6 +793,37 @@ impl LowlevelEtc1sTranscoder {
     pub fn default_state(&mut self) -> &mut TranscoderState {
         self.def_state.get_or_insert_with(Default::default)
     }
+}
+
+/// Port of `basisu_transcoder::write_opaque_alpha_blocks` (BC4 variant; EAC A8 to come).
+pub fn write_opaque_alpha_blocks(
+    num_blocks_x: u32,
+    num_blocks_y: u32,
+    output: &mut [u8],
+    offset: usize,
+    fmt: BlockFormat,
+    block_stride_in_bytes: u32,
+    mut output_row_pitch_in_blocks_or_pixels: u32,
+) -> bool {
+    if output_row_pitch_in_blocks_or_pixels == 0 {
+        output_row_pitch_in_blocks_or_pixels = num_blocks_x;
+    }
+    let blk: [u8; 8] = match fmt {
+        BlockFormat::Bc4 => Dxt5aBlock::opaque().bytes,
+        _ => return true,
+    };
+    for y in 0..num_blocks_y as usize {
+        let mut dst_ofs = offset
+            + y * output_row_pitch_in_blocks_or_pixels as usize * block_stride_in_bytes as usize;
+        for _ in 0..num_blocks_x {
+            match output.get_mut(dst_ofs..dst_ofs + blk.len()) {
+                Some(d) => d.copy_from_slice(&blk),
+                None => return false,
+            }
+            dst_ofs += block_stride_in_bytes as usize;
+        }
+    }
+    true
 }
 
 /// Packs a color for the 16-bit uncompressed formats.
