@@ -11,6 +11,8 @@ name = "ktx"
 path = "src/lib.rs"
 
 [dependencies]
+miniz_oxide = "0.9.1"
+ruzstd = "0.9.1"
 
 [lints.rust]
 unsafe_code = "forbid"

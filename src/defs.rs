@@ -32,28 +32,34 @@ pub const KTX_HEADER_SIZE: usize = 64;
 /// Size of a KTX 2 header.
 pub const KTX2_HEADER_SIZE: usize = 80;
 
-/// Port of `ktxOrientationX`.
+/// Port of `ktxOrientationX`. Transparent `u8` (the character stored in metadata).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum OrientationX {
-    Left = b'l',
-    Right = b'r',
+#[repr(transparent)]
+pub struct OrientationX(pub u8);
+
+impl OrientationX {
+    pub const LEFT: OrientationX = OrientationX(b'l');
+    pub const RIGHT: OrientationX = OrientationX(b'r');
 }
 
 /// Port of `ktxOrientationY`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum OrientationY {
-    Up = b'u',
-    Down = b'd',
+#[repr(transparent)]
+pub struct OrientationY(pub u8);
+
+impl OrientationY {
+    pub const UP: OrientationY = OrientationY(b'u');
+    pub const DOWN: OrientationY = OrientationY(b'd');
 }
 
 /// Port of `ktxOrientationZ`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum OrientationZ {
-    In = b'i',
-    Out = b'o',
+#[repr(transparent)]
+pub struct OrientationZ(pub u8);
+
+impl OrientationZ {
+    pub const IN: OrientationZ = OrientationZ(b'i');
+    pub const OUT: OrientationZ = OrientationZ(b'o');
 }
 
 /// Port of `struct ktxOrientation`.
@@ -66,7 +72,7 @@ pub struct Orientation {
 
 impl Default for Orientation {
     fn default() -> Self {
-        Orientation { x: OrientationX::Right, y: OrientationY::Down, z: OrientationZ::Out }
+        Orientation { x: OrientationX::RIGHT, y: OrientationY::DOWN, z: OrientationZ::OUT }
     }
 }
 
