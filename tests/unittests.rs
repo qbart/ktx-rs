@@ -118,3 +118,100 @@ mod hash_list_test {
         compare_list(&copy, true);
     }
 }
+
+//////////////////////////////
+// MemStreamTest
+//////////////////////////////
+
+mod mem_stream_test {
+    use ktx::stream::{MemStream, Stream};
+
+    #[test]
+    fn read() {
+        let data: &[u8] = b"28 bytes of rubbish to read.";
+        let size = 28;
+        let mut read_buf = vec![0u8; size];
+        let mut stream = match MemStream::construct_ro(data) {
+            Ok(s) => s,
+            Err(e) => panic!("construct_ro failed: {e}"),
+        };
+        assert_eq!(stream.read(&mut read_buf), Ok(()));
+        assert_eq!(&data[..size], read_buf.as_slice());
+    }
+
+    #[test]
+    fn write() {
+        let data: &[u8] = b"29 bytes of rubbish to write.";
+        let count = 29;
+        let mut stream = match MemStream::construct() {
+            Ok(s) => s,
+            Err(e) => panic!("construct failed: {e}"),
+        };
+        assert_eq!(stream.write(data, 1, count), Ok(()));
+        let returned_count = stream.getsize();
+        assert_eq!(returned_count, Ok(count as u64));
+        assert_eq!(&stream.getdata()[..count], &data[..count]);
+    }
+
+    #[test]
+    fn write_expand() {
+        let data: &[u8] = b"29 bytes of rubbish to write.";
+        let data2: &[u8] = b" 26 more bytes of rubbish.";
+        let count = 29;
+        let count2 = 26;
+        let mut stream = match MemStream::construct() {
+            Ok(s) => s,
+            Err(e) => panic!("construct failed: {e}"),
+        };
+        assert_eq!(stream.write(data, 1, count), Ok(()));
+        assert_eq!(stream.write(data2, 1, count2), Ok(()));
+        assert_eq!(stream.getsize(), Ok((count + count2) as u64));
+        let returned = stream.getdata();
+        assert_eq!(&returned[..count], data);
+        assert_eq!(&returned[count..count + count2], data2);
+    }
+
+    // Not in the C suite: writing beyond the default allocation forces expansion.
+    #[test]
+    fn write_expand_beyond_default_allocation() {
+        let mut stream = match MemStream::construct() {
+            Ok(s) => s,
+            Err(e) => panic!("construct failed: {e}"),
+        };
+        let big = vec![7u8; 1000];
+        assert_eq!(stream.write(&big, 1, big.len()), Ok(()));
+        assert_eq!(stream.getdata(), big.as_slice());
+        assert_eq!(stream.read(&mut [0u8; 1]), Err(ktx::ErrorCode::FileUnexpectedEof));
+    }
+}
+
+mod file_stream_test {
+    use ktx::stream::{FileStream, Stream};
+
+    #[test]
+    fn write_then_read() {
+        let dir = std::env::temp_dir().join(format!("ktx-rs-fs-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("stream.bin");
+        {
+            let mut s = match FileStream::create(&path) {
+                Ok(s) => s,
+                Err(e) => panic!("create failed: {e}"),
+            };
+            assert_eq!(s.write(b"abcdefgh", 4, 2), Ok(()));
+            assert_eq!(s.getsize(), Ok(8));
+        }
+        let mut s = match FileStream::open(&path) {
+            Ok(s) => s,
+            Err(e) => panic!("open failed: {e}"),
+        };
+        let mut buf = [0u8; 3];
+        assert_eq!(s.skip(2), Ok(()));
+        assert_eq!(s.read(&mut buf), Ok(()));
+        assert_eq!(&buf, b"cde");
+        assert_eq!(s.getpos(), Ok(5));
+        assert_eq!(s.setpos(9), Err(ktx::ErrorCode::InvalidOperation));
+        assert_eq!(s.skip(10), Err(ktx::ErrorCode::FileUnexpectedEof));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

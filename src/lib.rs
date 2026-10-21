@@ -6,6 +6,7 @@
 pub mod defs;
 pub mod error;
 pub mod hashlist;
+pub mod stream;
 pub mod strings;
 pub mod vkformat;
 
