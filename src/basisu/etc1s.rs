@@ -12,6 +12,7 @@ use super::bitreader::{ApproxMoveToFront, BitwiseDecoder, HuffmanDecodingTable};
 use super::dxt::{Dxt1Block, Dxt5aBlock, convert_etc1s_to_dxt1, convert_etc1s_to_dxt5a};
 use super::eac::{EacBlock, convert_etc1s_to_etc2_eac_a8, convert_etc1s_to_etc2_eac_r11};
 use super::etc::{Color32, DecoderEtcBlock, Endpoint, Selector, mul_8};
+use super::pvrtc;
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
     basis_get_bytes_per_block_or_pixel, basis_validate_output_buffer_size, decode_flags,
@@ -244,6 +245,7 @@ impl LowlevelEtc1sTranscoder {
         mut output_row_pitch_in_blocks_or_pixels: u32,
         state: &mut TranscoderState,
         transcode_alpha: bool,
+        alpha_blocks: Option<&[u8]>,
         mut output_rows_in_pixels: u32,
         decode_flags_in: u32,
     ) -> TranscodeStatus {
@@ -291,6 +293,24 @@ impl LowlevelEtc1sTranscoder {
             if v.len() < total_blocks as usize {
                 v.resize(total_blocks as usize, 0);
             }
+        }
+
+        // PVRTC1 work memory: ETC1 blocks + packed PVRTC endpoints per block.
+        let is_pvrtc1 = matches!(fmt, BlockFormat::Pvrtc1_4Rgb | BlockFormat::Pvrtc1_4Rgba);
+        let mut pvrtc_etc_blocks: Vec<DecoderEtcBlock> = Vec::new();
+        let mut pvrtc_endpoints: Vec<u32> = Vec::new();
+        if is_pvrtc1 {
+            if pvrtc_etc_blocks
+                .try_reserve_exact(total_blocks as usize)
+                .is_err()
+                || pvrtc_endpoints
+                    .try_reserve_exact(total_blocks as usize)
+                    .is_err()
+            {
+                return TranscodeStatus::Failed;
+            }
+            pvrtc_etc_blocks.resize(total_blocks as usize, DecoderEtcBlock::default());
+            pvrtc_endpoints.resize(total_blocks as usize, 0);
         }
 
         let bc7_chroma_filtering = decode_flags_in & decode_flags::NO_ETC1S_CHROMA_FILTERING == 0
@@ -515,6 +535,56 @@ impl LowlevelEtc1sTranscoder {
                             None => false,
                         }
                     }
+                    BlockFormat::Pvrtc1_4Rgb | BlockFormat::Pvrtc1_4Rgba => {
+                        let bi = (block_x + block_y * num_blocks_x) as usize;
+                        block.set_base5_color(DecoderEtcBlock::pack_color5(&ep.color5, false));
+                        block.set_inten_table(0, ep.inten5 as u32);
+                        block.set_inten_table(1, ep.inten5 as u32);
+                        let rgba = fmt == BlockFormat::Pvrtc1_4Rgba;
+                        // RGB keeps ETC-packed selectors, RGBA linear ones.
+                        block.set_raw_selector_bits(if rgba { sel.selectors } else { sel.bytes });
+                        let bounds = DecoderEtcBlock::get_block_colors5_bounds(
+                            &ep.color5,
+                            ep.inten5 as u32,
+                            sel.lo_selector as u32,
+                            sel.hi_selector as u32,
+                        );
+                        let (mut c0, mut c1) = (bounds[0].c, bounds[1].c);
+                        let mut temp = 0u32;
+                        if rgba {
+                            let Some(ai) = alpha_blocks.and_then(|a| a.get(bi * 4..bi * 4 + 4))
+                            else {
+                                return TranscodeStatus::Failed;
+                            };
+                            let aei = u16::from_le_bytes([ai[0], ai[1]]) as usize;
+                            let asi = u16::from_le_bytes([ai[2], ai[3]]) as usize;
+                            let (Some(aep), Some(asel)) = (endpoints.get(aei), selectors.get(asi))
+                            else {
+                                return TranscodeStatus::Failed;
+                            };
+                            let ab = DecoderEtcBlock::get_block_colors5_bounds_g(
+                                &aep.color5,
+                                aep.inten5 as u32,
+                                asel.lo_selector as u32,
+                                asel.hi_selector as u32,
+                            );
+                            c0[3] = ab[0] as u8;
+                            c1[3] = ab[1] as u8;
+                            pvrtc::set_endpoint_floor(&mut temp, 0, c0);
+                            pvrtc::set_endpoint_ceil(&mut temp, 1, c1);
+                        } else {
+                            pvrtc::set_opaque_endpoint_floor(&mut temp, 0, c0);
+                            pvrtc::set_opaque_endpoint_ceil(&mut temp, 1, c1);
+                        }
+                        match (pvrtc_etc_blocks.get_mut(bi), pvrtc_endpoints.get_mut(bi)) {
+                            (Some(b), Some(e)) => {
+                                *b = block;
+                                *e = temp;
+                                true
+                            }
+                            _ => false,
+                        }
+                    }
                     BlockFormat::AstcLdr4x4 => {
                         let start = dst.offset + block_ofs;
                         let mut b = [0u8; 16];
@@ -624,6 +694,38 @@ impl LowlevelEtc1sTranscoder {
         if endpoint_pred_repeat_count != 0 {
             return TranscodeStatus::Failed;
         }
+        if fmt == BlockFormat::Pvrtc1_4Rgb {
+            let off = dst.offset;
+            let Some(out) = dst.buf.get_mut(off..) else {
+                return TranscodeStatus::Failed;
+            };
+            if !pvrtc::fixup_pvrtc1_4_modulation_rgb(
+                &pvrtc_etc_blocks,
+                &pvrtc_endpoints,
+                out,
+                num_blocks_x,
+                num_blocks_y,
+            ) {
+                return TranscodeStatus::Failed;
+            }
+        } else if fmt == BlockFormat::Pvrtc1_4Rgba {
+            let off = dst.offset;
+            let (Some(out), Some(ab)) = (dst.buf.get_mut(off..), alpha_blocks) else {
+                return TranscodeStatus::Failed;
+            };
+            if !pvrtc::fixup_pvrtc1_4_modulation_rgba(
+                &pvrtc_etc_blocks,
+                &pvrtc_endpoints,
+                out,
+                num_blocks_x,
+                num_blocks_y,
+                ab,
+                endpoints,
+                selectors,
+            ) {
+                return TranscodeStatus::Failed;
+            }
+        }
         if bc7_chroma_filtering {
             let off = dst.offset;
             chroma_filter_bc7_mode5(
@@ -645,6 +747,8 @@ impl LowlevelEtc1sTranscoder {
             fmt,
             Etc1 | Bc1
                 | Bc4
+                | Pvrtc1_4Rgb
+                | Pvrtc1_4Rgba
                 | AstcLdr4x4
                 | Bc7
                 | Bc7M5Color
@@ -757,6 +861,7 @@ impl LowlevelEtc1sTranscoder {
                 output_row_pitch_in_blocks_or_pixels,
                 st,
                 transcode_alpha,
+                None,
                 output_rows_in_pixels,
                 decode_flags_in,
             )
@@ -950,6 +1055,73 @@ impl LowlevelEtc1sTranscoder {
                     BlockFormat::Rgba32
                 };
                 run(output, 0, rgb_data, fmt, 4, false, state)
+            }
+            F::PVRTC1_4_RGB => run(
+                output,
+                0,
+                data,
+                BlockFormat::Pvrtc1_4Rgb,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::PVRTC1_4_RGBA => {
+                // Alpha endpoint/selector indices go to a temp buffer first.
+                let total = (num_blocks_x * num_blocks_y) as usize * 4;
+                let mut temp: Vec<u8> = Vec::new();
+                if temp.try_reserve_exact(total).is_err() {
+                    return TranscodeStatus::Failed;
+                }
+                temp.resize(total, 0);
+                let s = self.transcode_slice(
+                    &mut SliceOutput {
+                        buf: &mut temp,
+                        offset: 0,
+                    },
+                    num_blocks_x,
+                    num_blocks_y,
+                    alpha_data,
+                    BlockFormat::Indices,
+                    4,
+                    false,
+                    is_video,
+                    true,
+                    level_index,
+                    orig_width,
+                    orig_height,
+                    num_blocks_x,
+                    state,
+                    false,
+                    None,
+                    0,
+                    decode_flags_in,
+                );
+                if s != TranscodeStatus::Ok {
+                    return s;
+                }
+                self.transcode_slice(
+                    &mut SliceOutput {
+                        buf: output,
+                        offset: 0,
+                    },
+                    num_blocks_x,
+                    num_blocks_y,
+                    rgb_data,
+                    BlockFormat::Pvrtc1_4Rgba,
+                    bytes_per_block_or_pixel,
+                    false,
+                    is_video,
+                    false,
+                    level_index,
+                    orig_width,
+                    orig_height,
+                    output_row_pitch_in_blocks_or_pixels,
+                    state,
+                    false,
+                    Some(&temp),
+                    0,
+                    decode_flags_in,
+                )
             }
             F::ASTC_LDR_4x4_RGBA => {
                 if basis_file_has_alpha_slices {

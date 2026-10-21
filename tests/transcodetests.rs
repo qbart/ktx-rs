@@ -95,6 +95,8 @@ fn implemented(f: TranscodeFmt) -> bool {
             | TranscodeFmt::BGR565
             | TranscodeFmt::RGBA4444
             | TranscodeFmt::ASTC_4x4_RGBA
+            | TranscodeFmt::PVRTC1_4_RGB
+            | TranscodeFmt::PVRTC1_4_RGBA
     )
 }
 
@@ -177,11 +179,18 @@ fn texture_combinations_test_basic() {
         }
     }
     // Guard against silently skipping comparisons.
-    let expected = ALL_TEXTURE_SETS.len()
-        * all_formats()
-            .iter()
-            .filter(|f| implemented(f.format))
-            .count();
+    let expected = ALL_TEXTURE_SETS
+        .iter()
+        .map(|ts| {
+            all_formats()
+                .iter()
+                .filter(|f| implemented(f.format))
+                .filter(|f| {
+                    (ts.has_alpha || f.supports_non_alpha) && (ts.is_po2 || f.supports_non_po2)
+                })
+                .count()
+        })
+        .sum::<usize>();
     assert_eq!(checked, expected);
 }
 

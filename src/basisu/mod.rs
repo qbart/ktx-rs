@@ -10,6 +10,7 @@ pub mod dxt;
 pub mod eac;
 pub mod etc;
 pub mod etc1s;
+pub mod pvrtc;
 pub mod tables;
 
 /// Port of `transcoder_texture_format`.
