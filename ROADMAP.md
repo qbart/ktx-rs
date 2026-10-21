@@ -16,10 +16,10 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Data Format Descriptor (external/dfdutils)
 - [x] khr_df constants + accessors, createdfd
-- [ ] interpretdfd, queries
-- [ ] vk2dfd / dfd2vk tables
+- [x] interpretdfd, queries
+- [x] vk2dfd / dfd2vk tables (generated)
 - [ ] printdfd
-- [ ] colourspaces
+- [x] colourspaces
 
 ## Texture core
 - [ ] `formatsize`, GL format tables (`gl_format.h`, `vkFormat2gl*`)
@@ -52,8 +52,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
-- [x] unittests: HashList, MemStream, CheckHeader1, createDFD
-- [ ] unittests: DFDVkFormatList, Swizzle, WriterTestHelper
+- [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
+- [ ] unittests: Swizzle, WriterTestHelper
 - [ ] texturetests
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)

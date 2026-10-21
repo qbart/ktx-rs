@@ -1,6 +1,8 @@
 //! Port of tests/unittests/unittests.cc (sections are added as the library grows).
 #![allow(clippy::panic)]
 
+mod common;
+
 use ktx::strings::strnstr;
 
 // sizeof(haystack) in the C test is the size of a pointer (8).
@@ -569,5 +571,134 @@ mod create_dfd_test {
     fn compressed_test1_format_bc1() {
         let exp = comp1(KHR_DF_MODEL_BC1A, KHR_DF_TRANSFER_LINEAR, [3, 3, 0, 0], KHR_DF_CHANNEL_BC1A_COLOR, 63, 8);
         check(create_dfd_compressed(VkCompScheme::Bc1Rgb, 4, 4, 1, VkSuffix::Unorm), exp);
+    }
+}
+
+//////////////////////////////
+// DFDVkFormatListTest
+//////////////////////////////
+
+mod dfd_vk_format_list_test {
+    use super::common::vkformat_list::FORMATS;
+    use ktx::VkFormat;
+    use ktx::dfd::khr_df::*;
+    use ktx::dfd::*;
+    use ktx::vkformat::vk_format_string;
+
+    #[test]
+    fn reconstruct_dfd_bytes_planes() {
+        for &format in FORMATS {
+            let mut dfd = match vk2dfd(format) {
+                Some(d) => d,
+                None => panic!("vk2dfd failed to produce DFD for {}", vk_format_string(format)),
+            };
+            let bp0 = KHR_DF_WORD_BYTESPLANE0 as usize + 1;
+            let bp4 = KHR_DF_WORD_BYTESPLANE4 as usize + 1;
+            // There are 4 bytesPlane values in one word. Capture all at once.
+            let orig_bytes_plane03 = dfd[bp0];
+            let orig_bytes_plane47 = dfd[bp4];
+            dfd[bp0] = 0;
+            dfd[KHR_DF_WORD_BYTESPLANE1 as usize + 1] = 0;
+            reconstruct_dfd_bytes_planes_from_samples(&mut dfd);
+            assert_eq!(orig_bytes_plane03, dfd[bp0], "{}", vk_format_string(format));
+            assert_eq!(orig_bytes_plane47, dfd[bp4], "{}", vk_format_string(format));
+        }
+
+        // Make ETC1S DFDs and test reconstruction.
+        for sample_count in 1..3u32 {
+            let bdb_size = (KHR_DF_WORD_SAMPLESTART + sample_count * KHR_DF_WORD_SAMPLEWORDS) * 4;
+            let dfd_size = bdb_size + 4;
+            let mut dfd = vec![0u32; dfd_size as usize];
+            {
+                let b = bdb_mut(&mut dfd);
+                dfdsetval(b, VENDORID, KHR_DF_VENDORID_KHRONOS);
+                dfdsetval(b, DESCRIPTORTYPE, KHR_DF_KHR_DESCRIPTORTYPE_BASICFORMAT);
+                dfdsetval(b, VERSIONNUMBER, KHR_DF_VERSIONNUMBER_LATEST);
+                dfdsetval(b, DESCRIPTORBLOCKSIZE, bdb_size);
+                dfdsetval(b, MODEL, KHR_DF_MODEL_ETC1S);
+                dfdsetval(b, PRIMARIES, KHR_DF_PRIMARIES_BT709);
+                dfdsetval(b, TRANSFER, KHR_DF_TRANSFER_SRGB);
+                dfdsetval(b, FLAGS, 0);
+                b[KHR_DF_WORD_TEXELBLOCKDIMENSION0 as usize] = 3 | (3 << KHR_DF_SHIFT_TEXELBLOCKDIMENSION1);
+                b[KHR_DF_WORD_BYTESPLANE0 as usize] = 0;
+                b[KHR_DF_WORD_BYTESPLANE4 as usize] = 0;
+                for sample in 0..sample_count {
+                    let (bit_offset, channel_id) =
+                        if sample == 0 { (0, KHR_DF_CHANNEL_ETC1S_RGB) } else { (64, KHR_DF_CHANNEL_ETC1S_AAA) };
+                    dfdsetsval(b, sample, CHANNELID, channel_id);
+                    dfdsetsval(b, sample, QUALIFIERS, 0);
+                    dfdsetsval(b, sample, SAMPLEPOSITION_ALL, 0);
+                    dfdsetsval(b, sample, BITOFFSET, bit_offset);
+                    dfdsetsval(b, sample, BITLENGTH, 63);
+                    dfdsetsval(b, sample, SAMPLELOWER, 0);
+                    dfdsetsval(b, sample, SAMPLEUPPER, u32::MAX);
+                }
+            }
+            reconstruct_dfd_bytes_planes_from_samples(&mut dfd);
+            let b = bdb(&dfd);
+            assert_eq!(8, dfdval(b, BYTESPLANE0));
+            if sample_count == 2 {
+                assert_eq!(8, dfdval(b, BYTESPLANE1));
+            } else {
+                assert_eq!(0, dfdval(b, BYTESPLANE1));
+            }
+            assert_eq!(0, dfdval(b, BYTESPLANE2));
+            assert_eq!(0, dfdval(b, BYTESPLANE3));
+            assert_eq!(0, b[KHR_DF_WORD_BYTESPLANE4 as usize]);
+        }
+    }
+
+    #[test]
+    fn bidirectional_vk2dfd_test() {
+        for &format in FORMATS {
+            let dfd = match vk2dfd(format) {
+                Some(d) => d,
+                None => panic!("vk2dfd failed to produce DFD for {}", vk_format_string(format)),
+            };
+            let format_out = dfd2vk(&dfd);
+            // SCALED formats are indistinguishable from INT formats and the
+            // A8B8G8R8_*_PACK32 formats from R8G8B8A8*; dfd2vk returns the common one.
+            let expected = match format {
+                VkFormat::R8_USCALED => VkFormat::R8_UINT,
+                VkFormat::R8_SSCALED => VkFormat::R8_SINT,
+                VkFormat::R8G8_USCALED => VkFormat::R8G8_UINT,
+                VkFormat::R8G8_SSCALED => VkFormat::R8G8_SINT,
+                VkFormat::B8G8R8_USCALED => VkFormat::B8G8R8_UINT,
+                VkFormat::B8G8R8_SSCALED => VkFormat::B8G8R8_SINT,
+                VkFormat::R8G8B8_USCALED => VkFormat::R8G8B8_UINT,
+                VkFormat::R8G8B8_SSCALED => VkFormat::R8G8B8_SINT,
+                VkFormat::R8G8B8A8_USCALED => VkFormat::R8G8B8A8_UINT,
+                VkFormat::R8G8B8A8_SSCALED => VkFormat::R8G8B8A8_SINT,
+                VkFormat::B8G8R8A8_USCALED => VkFormat::B8G8R8A8_UINT,
+                VkFormat::B8G8R8A8_SSCALED => VkFormat::B8G8R8A8_SINT,
+                VkFormat::A8B8G8R8_UNORM_PACK32 => VkFormat::R8G8B8A8_UNORM,
+                VkFormat::A8B8G8R8_SNORM_PACK32 => VkFormat::R8G8B8A8_SNORM,
+                VkFormat::A8B8G8R8_USCALED_PACK32 => VkFormat::R8G8B8A8_UINT,
+                VkFormat::A8B8G8R8_SSCALED_PACK32 => VkFormat::R8G8B8A8_SINT,
+                VkFormat::A8B8G8R8_UINT_PACK32 => VkFormat::R8G8B8A8_UINT,
+                VkFormat::A8B8G8R8_SINT_PACK32 => VkFormat::R8G8B8A8_SINT,
+                VkFormat::A8B8G8R8_SRGB_PACK32 => VkFormat::R8G8B8A8_SRGB,
+                VkFormat::A2R10G10B10_USCALED_PACK32 => VkFormat::A2R10G10B10_UINT_PACK32,
+                VkFormat::A2R10G10B10_SSCALED_PACK32 => VkFormat::A2R10G10B10_SINT_PACK32,
+                VkFormat::A2B10G10R10_USCALED_PACK32 => VkFormat::A2B10G10R10_UINT_PACK32,
+                VkFormat::A2B10G10R10_SSCALED_PACK32 => VkFormat::A2B10G10R10_SINT_PACK32,
+                VkFormat::R16_USCALED => VkFormat::R16_UINT,
+                VkFormat::R16_SSCALED => VkFormat::R16_SINT,
+                VkFormat::R16G16_USCALED => VkFormat::R16G16_UINT,
+                VkFormat::R16G16_SSCALED => VkFormat::R16G16_SINT,
+                VkFormat::R16G16B16_USCALED => VkFormat::R16G16B16_UINT,
+                VkFormat::R16G16B16_SSCALED => VkFormat::R16G16B16_SINT,
+                VkFormat::R16G16B16A16_USCALED => VkFormat::R16G16B16A16_UINT,
+                VkFormat::R16G16B16A16_SSCALED => VkFormat::R16G16B16A16_SINT,
+                f => f,
+            };
+            assert_eq!(
+                format_out,
+                expected,
+                "{} -> {}",
+                vk_format_string(format),
+                vk_format_string(format_out)
+            );
+        }
     }
 }

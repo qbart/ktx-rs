@@ -11,5 +11,14 @@ Source: `external/dfdutils/*` (`KHR/khr_df.h`, `dfd.h`, `createdfd.c`, `interpre
   return `Option<Vec<u32>>`; `None` for inputs C asserts on / UB. `(1<<32)-1` saturates.
 - `VkSuffix`, `VkCompScheme` enums (C `s_*`, `c_*`).
 
-Status: createdfd done. Todo: vk2dfd/dfd2vk, interpret, queries, print, colourspaces.
-Tests: `tests/unittests.rs::create_dfd_test` (15 C tests).
+- `interpret_dfd(dfd, &mut r, &mut g, &mut b, &mut a, &mut word_bytes) -> u32` (`I_*` flags / errors).
+  Shifts by >= 32 wrap like x86 (C UB).
+- queries: `get_dfd_component_info_unpacked -> (n, len)`, `get_dfd_num_components`,
+  `reconstruct_dfd_bytes_plane0_from_samples`, `reconstruct_dfd_bytes_planes_from_samples`.
+- colourspaces: `Primaries`, `find_mapping`, `get_primaries -> Option`.
+- `vk2dfd(VkFormat) -> Option<Vec<u32>>`, `dfd2vk(&[u32]) -> VkFormat` generated from the
+  `.inl` files by `scripts/gen_dfd_tables.py` (C subset translator). Vulkan `_EXT` alias
+  names map to core names.
+
+Status: done except printdfd.
+Tests: `tests/unittests.rs::{create_dfd_test, dfd_vk_format_list_test}`.

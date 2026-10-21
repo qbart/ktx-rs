@@ -1,11 +1,21 @@
 //! Port of KTX-Software `external/dfdutils` (Data Format Descriptor utilities).
 
 pub mod access;
+pub mod colourspaces;
 pub mod createdfd;
+pub mod dfd2vk;
+pub mod interpret;
 pub mod khr_df;
+pub mod queries;
+pub mod vk2dfd;
 
 pub use access::*;
+pub use colourspaces::*;
 pub use createdfd::*;
+pub use interpret::*;
+pub use queries::*;
+pub use dfd2vk::dfd2vk;
+pub use vk2dfd::vk2dfd;
 
 /// Port of `enum VkSuffix`: qualifier suffix to the format, in Vulkan terms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -170,9 +170,6 @@ pub fn create_dfd_packed_shifted(
     suffix: VkSuffix,
 ) -> Option<Vec<u32>> {
     let n = num_channels as usize;
-    if bits.len() < n || shift_bits.len() < n || channels.len() < n {
-        return None;
-    }
     if num_channels == 6 {
         // Special case E5B9G9R9
         let mut dfd = write_header(num_channels, 4, VkSuffix::Ufloat, ChannelsInfoType::Color);
@@ -193,7 +190,8 @@ pub fn create_dfd_packed_shifted(
         dfdsetsval(bdb_mut(&mut dfd), 5, SAMPLEUPPER, 31);
         return Some(dfd);
     }
-    if num_channels == 0 || num_channels > 4 {
+    if num_channels == 0 || num_channels > 4 || bits.len() < n || shift_bits.len() < n || channels.len() < n
+    {
         return None;
     }
     if big_endian {
@@ -308,7 +306,8 @@ pub fn create_dfd_packed(
         return None;
     }
     let shift_bits = [0u32; 6];
-    create_dfd_packed_shifted(big_endian, num_channels, bits, &shift_bits, channels, suffix)
+    let shift_bits = &shift_bits[..(num_channels as usize).max(bits.len()).min(6)];
+    create_dfd_packed_shifted(big_endian, num_channels, bits, shift_bits, channels, suffix)
 }
 
 /// Port of `createDFD422`. Only little-endian UNORM is supported (asserted in C).
