@@ -948,3 +948,37 @@ mod dfd_vk_format_list_test {
         }
     }
 }
+
+//////////////////////////////
+// WriterTestHelper tests.
+//////////////////////////////
+
+mod writer_test_helper_rgb8_test {
+    use super::common::wthelper::{E_NONE, WriterTestHelper};
+    use ktx::gl_format::GL_RGB8;
+
+    const NUM_COMPONENTS: u32 = 3;
+
+    #[test]
+    fn construct_2d() {
+        let mut helper = WriterTestHelper::<u8, NUM_COMPONENTS, GL_RGB8>::new();
+        helper.resize(E_NONE, 1, 1, 2, 32, 32, 1);
+        assert_eq!(helper.images.len(), 1);
+        assert_eq!(helper.images[0].len(), 1);
+        assert_eq!(helper.images[0][0].len(), 1);
+        // u8 components: element count equals byte count.
+        assert_eq!(helper.images[0][0][0].len(), 32 * 32 * 3);
+        assert_eq!(NUM_COMPONENTS, 3);
+    }
+
+    #[test]
+    fn construct_3d() {
+        let mut helper = WriterTestHelper::<u8, NUM_COMPONENTS, GL_RGB8>::new();
+        helper.resize(E_NONE, 1, 1, 3, 32, 32, 32);
+        assert_eq!(helper.images.len(), 1);
+        assert_eq!(helper.images[0].len(), 1);
+        assert_eq!(helper.images[0][0].len(), 32);
+        assert_eq!(helper.images[0][0][0].len(), 32 * 32 * 3);
+        assert_eq!(NUM_COMPONENTS, 3);
+    }
+}

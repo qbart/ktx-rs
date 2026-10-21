@@ -57,7 +57,11 @@ Legend: [x] done, [~] partial, [ ] todo.
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
-- [ ] unittests: Swizzle, WriterTestHelper
-- [~] texturetests: UnicodeFileNames, GetDataSizeUncompressed, InvalidWidth, IterateLoadLevelFaces ZLIB/Zstd
+- [x] unittests: WriterTestHelper
+- [ ] unittests: Swizzle (needs basis_encode), BadVulkanAlloc (needs Vulkan loader)
+- [~] texturetests: 96 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
+  KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
+  unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
+  Null-pointer tests are not applicable in Rust.
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)

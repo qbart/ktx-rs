@@ -231,7 +231,7 @@ fn ktx_texture2_iterate_load_level_faces_zstd_iterate_image() {
 // Fixtures (port of ktxTextureTestBase & friends)
 // ---------------------------------------------------------------------------
 
-use common::wthelper::{E_ARRAY, E_MIPMAPPED, E_NONE, WriterTestHelper};
+use common::wthelper::{Component, E_ARRAY, E_MIPMAPPED, E_NONE, WriterTestHelper};
 use ktx::defs::{KTX_GL_UNPACK_ALIGNMENT, KTX_IDENTIFIER_REF, KTX_ORIENTATION_KEY};
 use ktx::gl_format::{GL_RG16, GL_RGB8, GL_RGBA8, GL_SRGB8};
 use ktx::ktxint::KtxHeader;
@@ -254,9 +254,9 @@ fn ok<T>(r: ktx::KtxResult<T>, what: &str) -> T {
     }
 }
 
-/// Port of `ktxTextureTestBase<GLubyte, 4, GL_RGBA8>`.
-struct TextureTestBase {
-    helper: WriterTestHelper<u8, 4, GL_RGBA8>,
+/// Port of `ktxTextureTestBase<component_type, numComponents, internalformat>`.
+struct TextureTestBase<C: Component = u8, const NC: u32 = 4, const IF: u32 = GL_RGBA8> {
+    helper: WriterTestHelper<C, NC, IF>,
     kv_data: Vec<u8>,
     kv_data_len: u32,
     ktx_mem_file: Vec<u8>,
@@ -266,9 +266,9 @@ struct TextureTestBase {
     padded_image_data_size: usize,
 }
 
-impl TextureTestBase {
-    fn new(fv: FormatVersion) -> TextureTestBase {
-        let mut helper = WriterTestHelper::<u8, 4, GL_RGBA8>::new();
+impl<C: Component, const NC: u32, const IF: u32> TextureTestBase<C, NC, IF> {
+    fn new(fv: FormatVersion) -> Self {
+        let mut helper = WriterTestHelper::<C, NC, IF>::new();
         helper.resize(E_MIPMAPPED, 1, 1, 2, 16, 16, 1);
         let mip_levels = helper.num_levels;
         let (kv_data, kv_data_len, padded, mem) = if fv == FormatVersion::One {
@@ -321,7 +321,7 @@ impl TextureTestBase {
     }
 
     fn set_images(
-        helper: &WriterTestHelper<u8, 4, GL_RGBA8>,
+        helper: &WriterTestHelper<C, NC, IF>,
         set: &mut dyn FnMut(u32, u32, u32, &[u8]) -> ktx::KtxResult<()>,
     ) {
         let ci = &helper.texinfo.ci;
@@ -413,11 +413,11 @@ impl TextureTestBase {
 }
 
 fn ktx1_fixture() -> TextureTestBase {
-    TextureTestBase::new(FormatVersion::One)
+    TextureTestBase::<u8, 4, GL_RGBA8>::new(FormatVersion::One)
 }
 
 fn ktx2_fixture() -> TextureTestBase {
-    TextureTestBase::new(FormatVersion::Two)
+    TextureTestBase::<u8, 4, GL_RGBA8>::new(FormatVersion::Two)
 }
 
 // Not portable: tests passing NULL pointers or NULL callbacks
@@ -1416,3 +1416,679 @@ ktx1_write_test!(
     1,
     true
 );
+
+//----------------------------------------------------------
+// ktxTexture1 WriteKTX2 tests (port of ktxTexture1WriteKTX2TestBase)
+//----------------------------------------------------------
+
+use ktx::defs::{KTX_WRITER_KEY, KTX2_IDENTIFIER_REF};
+use ktx::dfd::vk2dfd;
+use ktx::gl_format::{GL_R8, GL_RG8};
+use ktx::ktxint::{KtxHeader2, LevelIndexEntry};
+use ktx::texture2::lcm4;
+use ktx::writer2::append_lib_id;
+
+fn parse_header2(mem: &[u8]) -> KtxHeader2 {
+    let mut hb = [0u8; 80];
+    hb.copy_from_slice(&mem[..80]);
+    KtxHeader2::from_bytes(&hb)
+}
+
+fn parse_level_index(mem: &[u8], num_levels: u32) -> Vec<LevelIndexEntry> {
+    (0..num_levels as usize)
+        .map(|l| LevelIndexEntry::from_bytes(&mem[80 + l * 24..]).unwrap_or_default())
+        .collect()
+}
+
+fn dfd_bytes(format: VkFormat) -> Vec<u8> {
+    let dfd = vk2dfd(format).unwrap_or_default();
+    let mut b: Vec<u8> = dfd.iter().flat_map(|w| w.to_le_bytes()).collect();
+    b.truncate(dfd.first().copied().unwrap_or(0) as usize);
+    b
+}
+
+/// Shared checks of a KTX2 file produced by WriteKTX2.
+fn check_written_ktx2<C: Component, const NC: u32, const IF: u32>(
+    helper: &WriterTestHelper<C, NC, IF>,
+    mem: &[u8],
+    kv_data: &[u8],
+) {
+    let required_level_alignment = lcm4((C::SIZE * NC as usize) as u32) as u64;
+    let header = parse_header2(mem);
+    assert_eq!(mem.get(..12), Some(&KTX2_IDENTIFIER_REF[..]));
+    assert!(helper.texinfo.compare_header2(&header));
+    // Check the format descriptor.
+    let dfd = dfd_bytes(header.vk_format);
+    let off = header.data_format_descriptor.byte_offset as usize;
+    assert_eq!(mem.get(off..off + dfd.len()), Some(&dfd[..]));
+    // Check the metadata.
+    let kvo = header.key_value_data.byte_offset as usize;
+    assert_eq!(header.key_value_data.byte_length as usize, kv_data.len());
+    assert_eq!(mem.get(kvo..kvo + kv_data.len()), Some(kv_data));
+    let level_index = parse_level_index(mem, helper.num_levels);
+    let mut prev_offset = u64::MAX;
+    for e in &level_index {
+        // Check offset is properly aligned.
+        assert_eq!(e.byte_offset % required_level_alignment, 0);
+        // Mipmaps are in order of increasing size in the file.
+        assert!(e.byte_offset <= prev_offset);
+        prev_offset = e.byte_offset;
+    }
+    assert!(helper.compare_raw_images2(&level_index, mem));
+}
+
+/// Port of `ktxTexture1WriteKTX2TestBase::runTest(bool, bool)`.
+fn ktx1_write_ktx2_run_test<C: Component, const NC: u32, const IF: u32>(
+    helper: &WriterTestHelper<C, NC, IF>,
+    write_orientation_meta: bool,
+    write_writer_meta: bool,
+) {
+    let mut hl = ktx::HashList::new();
+    let mut texture = ok(
+        Texture1::create(&helper.create_info, TextureCreateStorage::AllocStorage),
+        "ktxTexture1_Create",
+    );
+    if write_orientation_meta {
+        let mut o = helper.orientation.as_bytes().to_vec();
+        o.push(0);
+        assert_eq!(
+            texture.kv_data_head.add_kv_pair(KTX_ORIENTATION_KEY, &o),
+            Ok(())
+        );
+        let ko = &helper.orientation_ktx2;
+        let len = ko.iter().position(|&c| c == 0).unwrap_or(ko.len());
+        assert_eq!(hl.add_kv_pair(KTX_ORIENTATION_KEY, &ko[..len + 1]), Ok(()));
+    }
+    if write_writer_meta {
+        assert_eq!(
+            texture
+                .kv_data_head
+                .add_kv_pair(KTX_WRITER_KEY, helper.writer_ktx2.as_bytes()),
+            Ok(())
+        );
+        assert_eq!(
+            hl.add_kv_pair(KTX_WRITER_KEY, helper.writer_ktx2.as_bytes()),
+            Ok(())
+        );
+    }
+    // Do the things WriteKTX2 is supposed to do to the comparison metadata.
+    assert_eq!(append_lib_id(&mut hl), Ok(()));
+    assert_eq!(hl.sort(), Ok(()));
+    let kv_data = ok(hl.serialize(), "serialize");
+    assert_eq!(helper.copy_images_to_texture1(&mut texture), Ok(()));
+    assert!(helper.compare_texture1_images(texture.get_data().unwrap_or_default()));
+    let mem = ok(
+        texture.write_ktx2_to_memory(),
+        "ktxTexture_WriteKTX2ToMemory",
+    );
+    check_written_ktx2(helper, &mem, &kv_data);
+}
+
+/// Port of `runTest(const char* unrecognizedKey, const char* proprietaryKey)`.
+fn ktx1_write_ktx2_run_key_test<C: Component, const NC: u32, const IF: u32>(
+    helper: &WriterTestHelper<C, NC, IF>,
+    unrecognized_key: Option<&str>,
+    proprietary_key: Option<&str>,
+) {
+    let mut texture = ok(
+        Texture1::create(&helper.create_info, TextureCreateStorage::AllocStorage),
+        "ktxTexture1_Create",
+    );
+    let mut hl = ktx::HashList::new();
+    let rubbish_value = b"some rubbish value\0";
+    for list in [&mut texture.kv_data_head, &mut hl] {
+        assert_eq!(
+            list.add_kv_pair(KTX_WRITER_KEY, helper.writer_ktx2.as_bytes()),
+            Ok(())
+        );
+        if let Some(k) = unrecognized_key {
+            assert_eq!(list.add_kv_pair(k, rubbish_value), Ok(()));
+        }
+        if let Some(k) = proprietary_key {
+            assert_eq!(list.add_kv_pair(k, rubbish_value), Ok(()));
+        }
+        assert_eq!(list.sort(), Ok(()));
+    }
+    assert_eq!(append_lib_id(&mut hl), Ok(()));
+    assert_eq!(hl.sort(), Ok(()));
+    let kv_data = ok(hl.serialize(), "serialize");
+    assert_eq!(helper.copy_images_to_texture1(&mut texture), Ok(()));
+    assert!(helper.compare_texture1_images(texture.get_data().unwrap_or_default()));
+    let result = texture.write_ktx2_to_memory();
+    if unrecognized_key.is_none() {
+        let mem = ok(result, "ktxTexture_WriteKTX2ToMemory");
+        check_written_ktx2(helper, &mem, &kv_data);
+    } else {
+        assert_eq!(result.err(), Some(ErrorCode::InvalidOperation));
+    }
+}
+
+macro_rules! ktx1_write_ktx2_test {
+    ($name:ident, $c:ty, $nc:expr, $if:expr, $flags:expr, $layers:expr, $faces:expr, $dims:expr, $w:expr, $h:expr, $d:expr, $($args:expr),*) => {
+        #[test]
+        fn $name() {
+            let mut helper = WriterTestHelper::<$c, $nc, { $if }>::new();
+            helper.resize($flags, $layers, $faces, $dims, $w, $h, $d);
+            ktx1_write_ktx2_run_test(&helper, $($args),*);
+        }
+    };
+}
+
+macro_rules! ktx1_write_ktx2_key_test {
+    ($name:ident, $unrec:expr, $prop:expr) => {
+        #[test]
+        fn $name() {
+            let mut helper = WriterTestHelper::<u8, 3, GL_RGB8>::new();
+            helper.resize(E_MIPMAPPED, 1, 1, 2, 32, 32, 1);
+            ktx1_write_ktx2_run_key_test(&helper, $unrec, $prop);
+        }
+    };
+}
+
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_1d_no_orientation_metadata,
+    u8,
+    4,
+    GL_RGBA8,
+    E_NONE,
+    1,
+    1,
+    1,
+    32,
+    1,
+    1,
+    false,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_1d_no_writer_metadata,
+    u8,
+    4,
+    GL_RGBA8,
+    E_NONE,
+    1,
+    1,
+    1,
+    32,
+    1,
+    1,
+    false,
+    false
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_1d_mipmap,
+    u8,
+    4,
+    GL_RGBA8,
+    E_MIPMAPPED,
+    1,
+    1,
+    1,
+    32,
+    1,
+    1,
+    false,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_1d_array,
+    u8,
+    3,
+    GL_RGB8,
+    E_ARRAY,
+    4,
+    1,
+    1,
+    32,
+    1,
+    1,
+    false,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_1d_array_mipmap,
+    u8,
+    4,
+    GL_RGBA8,
+    E_MIPMAPPED | E_ARRAY,
+    4,
+    1,
+    1,
+    32,
+    1,
+    1,
+    false,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_2d_no_orientation_metadata,
+    u8,
+    4,
+    GL_RGBA8,
+    E_NONE,
+    1,
+    1,
+    2,
+    32,
+    32,
+    1,
+    false,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_2d_no_writer_metadata,
+    u8,
+    4,
+    GL_RGBA8,
+    E_NONE,
+    1,
+    1,
+    2,
+    32,
+    32,
+    1,
+    false,
+    false
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_2d_mipmap,
+    u8,
+    3,
+    GL_RGB8,
+    E_MIPMAPPED,
+    1,
+    1,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_key_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_2d_mipmap_unrecognized_metadata1,
+    Some("KTXOrientation"),
+    None
+);
+ktx1_write_ktx2_key_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_2d_mipmap_unrecognized_metadata2,
+    Some("ktxOrientation"),
+    None
+);
+ktx1_write_ktx2_key_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_2d_mipmap_proprietary_metadata,
+    None,
+    Some("MyProprietaryKey")
+);
+ktx1_write_ktx2_key_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_2d_mipmap_unrecog_and_prop_metadata,
+    Some("KTXOrientation"),
+    Some("MyProprietaryKey")
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_2d_array,
+    u8,
+    4,
+    GL_RGBA8,
+    E_ARRAY,
+    4,
+    1,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_2d_array_mipmap,
+    u8,
+    4,
+    GL_RGBA8,
+    E_ARRAY | E_MIPMAPPED,
+    4,
+    1,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgb8_3d,
+    u8,
+    3,
+    GL_RGB8,
+    E_NONE,
+    1,
+    1,
+    3,
+    32,
+    32,
+    32,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_3d_mipmap,
+    u8,
+    3,
+    GL_RGB8,
+    E_MIPMAPPED,
+    1,
+    1,
+    3,
+    8,
+    8,
+    2,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgb8_write_cubemap,
+    u8,
+    3,
+    GL_RGB8,
+    E_NONE,
+    1,
+    6,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_cubemap_mipmap,
+    u8,
+    4,
+    GL_RGBA8,
+    E_MIPMAPPED,
+    1,
+    6,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rgba8_write_cubemap_array_mipmap,
+    u8,
+    4,
+    GL_RGBA8,
+    E_MIPMAPPED | E_ARRAY,
+    4,
+    6,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+ktx1_write_ktx2_test!(
+    ktx_texture1_write_ktx2_test_rg16_write_2d_mipmap,
+    u16,
+    2,
+    GL_RG16,
+    E_MIPMAPPED,
+    1,
+    1,
+    2,
+    32,
+    32,
+    1,
+    true,
+    true
+);
+
+//----------------------------------------------------------
+// ktxTexture2 Read tests (port of ktxTexture2ReadTestBase)
+//----------------------------------------------------------
+
+fn ktx2_read_run_test(flags: u32, layers: u32, faces: u32, dims: u32, w: u32, h: u32, d: u32) {
+    let mut helper = WriterTestHelper::<u8, 4, GL_RGBA8>::new();
+    helper.resize(flags, layers, faces, dims, w, h, d);
+    let mut texture = ok(
+        Texture1::create(&helper.create_info, TextureCreateStorage::AllocStorage),
+        "ktxTexture1_Create",
+    );
+    let mut o = helper.orientation.as_bytes().to_vec();
+    o.push(0);
+    assert_eq!(
+        texture.kv_data_head.add_kv_pair(KTX_ORIENTATION_KEY, &o),
+        Ok(())
+    );
+    assert_eq!(
+        texture
+            .kv_data_head
+            .add_kv_pair(KTX_WRITER_KEY, helper.writer_ktx2.as_bytes()),
+        Ok(())
+    );
+    assert_eq!(helper.copy_images_to_texture1(&mut texture), Ok(()));
+    assert!(helper.compare_texture1_images(texture.get_data().unwrap_or_default()));
+    let mem = ok(
+        texture.write_ktx2_to_memory(),
+        "ktxTexture1_WriteKTX2ToMemory",
+    );
+    let level_index = parse_level_index(&mem, helper.num_levels);
+
+    // runTest
+    let texture2 = ok(
+        Texture2::create_from_memory(&mem, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "ktxTexture2_Create",
+    );
+    assert!(helper.texinfo.compare_texture2(&texture2));
+    assert!(!texture2.kv_data_head.is_empty());
+    let base_offset = level_index[helper.num_levels as usize - 1].byte_offset;
+    for level in 0..texture2.num_levels {
+        let level_offset = texture2.get_image_offset(level, 0, 0);
+        assert_eq!(
+            level_offset,
+            Ok((level_index[level as usize].byte_offset - base_offset) as usize)
+        );
+    }
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_1d() {
+    ktx2_read_run_test(E_NONE, 1, 1, 1, 32, 1, 1);
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_2d() {
+    ktx2_read_run_test(E_NONE, 1, 1, 2, 32, 32, 1);
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_3d() {
+    ktx2_read_run_test(E_NONE, 1, 1, 3, 32, 32, 32);
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_1d_mipmap() {
+    ktx2_read_run_test(E_MIPMAPPED, 1, 1, 1, 64, 1, 1);
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_2d_mipmap() {
+    ktx2_read_run_test(E_MIPMAPPED, 1, 1, 2, 64, 64, 1);
+}
+
+#[test]
+fn ktx_texture2_read_test_rgba8_read_3d_mipmap() {
+    ktx2_read_run_test(E_MIPMAPPED, 1, 1, 3, 64, 64, 32);
+}
+
+/////////////////////////////////////////
+// ktxTexture2_Deflate tests
+/////////////////////////////////////////
+
+#[test]
+fn ktx_texture2_deflate_test_deflate_zstd() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    assert_eq!(texture.deflate_zstd(22), Ok(()));
+    // Applying another supercompression scheme should return Invalid operation
+    assert_eq!(texture.deflate_zstd(22), Err(ErrorCode::InvalidOperation));
+}
+
+#[test]
+fn ktx_texture2_deflate_test_deflate_zlib() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    assert_eq!(texture.deflate_zlib(9), Ok(()));
+    assert_eq!(texture.deflate_zlib(9), Err(ErrorCode::InvalidOperation));
+}
+
+// TODO(basis): ktxTexture2_BasisCompressTest.Compress, ktxTexture2_TranscodeBasis.
+// MissingAlphaSlices and the BasisLZ/UASTC GetNumComponents variants need the
+// Basis Universal encoder/transcoder.
+
+////////////////////////////////////////////
+// ktxTexture2_GetNumComponents tests
+///////////////////////////////////////////
+
+fn get_num_components_uncompressed<const NC: u32, const IF: u32>(expected: u32) {
+    let f = TextureTestBase::<u8, NC, IF>::new(FormatVersion::Two);
+    let texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    assert_eq!(texture.get_num_components(), expected);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_r8_uncompressed() {
+    get_num_components_uncompressed::<1, GL_R8>(1);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rg8_uncompressed() {
+    get_num_components_uncompressed::<2, GL_RG8>(2);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgb8_uncompressed() {
+    get_num_components_uncompressed::<3, GL_RGB8>(3);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgba8_uncompressed() {
+    get_num_components_uncompressed::<4, GL_RGBA8>(4);
+}
+
+////////////////////////////////////////////
+// ktxTexture2_Metadata tests
+///////////////////////////////////////////
+
+#[test]
+fn ktx_texture2_metadata_test_empty_value() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert_eq!(texture.kv_data_head.add_kv_pair("MSCtestKey", &[]), Ok(()));
+    let new_mem_file = ok(texture.write_to_memory(), "ktxTexture_WriteToMemory");
+    let texture = ok(
+        Texture2::create_from_memory(&new_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "reload",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    let value = texture.kv_data_head.find_value("MSCtestKey");
+    assert_eq!(value, Ok(&[][..]));
+}
+
+#[test]
+fn ktx_texture2_metadata_test_no_metadata() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    texture.kv_data_head.destruct();
+    texture.kv_data_len = 0;
+    ktx::writer2::set_disable_writer_metadata(true);
+    let result = texture.write_to_memory();
+    ktx::writer2::set_disable_writer_metadata(false);
+    let new_mem_file = ok(result, "ktxTexture_WriteToMemory");
+    let texture = ok(
+        Texture2::create_from_memory(&new_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "reload",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    assert_eq!(texture.kv_data_len, 0);
+    assert!(texture.kv_data_head.is_empty());
+}
+
+fn writer_value(t: &Texture2) -> String {
+    let value = ok(t.kv_data_head.find_value("KTXwriter"), "find KTXwriter");
+    // We want ktxWriteTo* to NUL terminate the value when adding the libktx version.
+    assert_eq!(value.last(), Some(&0u8), "KTXwriter not NUL terminated");
+    String::from_utf8_lossy(&value[..value.len() - 1]).into_owned()
+}
+
+#[test]
+fn ktx_texture2_metadata_test_no_lib_version_dup_on_multiple_writes() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    let files: Vec<Vec<u8>> = (0..2)
+        .map(|_| ok(texture.write_to_memory(), "ktxTexture_WriteToMemory"))
+        .collect();
+    assert_eq!(files[0].len(), files[1].len());
+    let writers: Vec<String> = files
+        .iter()
+        .map(|m| {
+            writer_value(&ok(
+                Texture2::create_from_memory(m, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+                "reload",
+            ))
+        })
+        .collect();
+    assert_eq!(writers[0], writers[1]);
+}
+
+#[test]
+fn ktx_texture2_metadata_test_lib_version_updated_correctly() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    let cur_writer = writer_value(&texture);
+    let slash_pos = match cur_writer.rfind('/') {
+        Some(p) => p,
+        None => panic!("KTXwriter does not have lib version."),
+    };
+    let writer = format!("{}libktx v3.0.0", &cur_writer[..slash_pos + 2]);
+    assert_eq!(
+        texture
+            .kv_data_head
+            .add_kv_pair("KTXwriter", writer.as_bytes()),
+        Ok(())
+    );
+    let new_mem_file = ok(texture.write_to_memory(), "ktxTexture_WriteToMemory");
+    let texture = ok(
+        Texture2::create_from_memory(&new_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "reload",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    assert_eq!(cur_writer, writer_value(&texture));
+}
