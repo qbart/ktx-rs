@@ -215,3 +215,166 @@ mod file_stream_test {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+//////////////////////////////
+// CheckHeaderTest
+//////////////////////////////
+
+mod check_header1_test {
+    use ktx::ErrorCode;
+    use ktx::ktxint::{KtxHeader, ktx_check_header1};
+
+    const GL_UNSIGNED_BYTE: u32 = 0x1401;
+    const GL_RGBA: u32 = 0x1908;
+    const GL_RGBA8: u32 = 0x8058;
+
+    const KTX_ID: [u8; 12] = [0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    fn test_header() -> KtxHeader {
+        KtxHeader {
+            identifier: KTX_ID,
+            endianness: 0x04030201,
+            gl_type: GL_UNSIGNED_BYTE,
+            gl_type_size: 1,
+            gl_format: GL_RGBA,
+            gl_internalformat: GL_RGBA8,
+            gl_base_internalformat: GL_RGBA8,
+            pixel_width: 16,
+            pixel_height: 16,
+            pixel_depth: 16,
+            number_of_array_elements: 0,
+            number_of_faces: 1,
+            number_of_mip_levels: 5,
+            bytes_of_key_value_data: 0,
+        }
+    }
+
+    #[test]
+    fn validates_identifier() {
+        let mut test_header = test_header();
+        assert!(ktx_check_header1(&mut test_header).is_ok());
+
+        test_header.identifier[9] = 0;
+        assert_eq!(ktx_check_header1(&mut test_header), Err(ErrorCode::UnknownFileFormat));
+    }
+
+    #[test]
+    fn disallows_invalid_endianness() {
+        let mut test_header = test_header();
+        test_header.endianness = 0;
+        assert_eq!(ktx_check_header1(&mut test_header), Err(ErrorCode::FileDataError));
+    }
+
+    // Not in the C suite: opposite endianness is swapped and accepted.
+    #[test]
+    fn swaps_reversed_endianness() {
+        let orig = test_header();
+        let mut h = orig;
+        h.endianness = 0x01020304;
+        h.gl_type = h.gl_type.swap_bytes();
+        h.gl_type_size = h.gl_type_size.swap_bytes();
+        h.gl_format = h.gl_format.swap_bytes();
+        h.gl_internalformat = h.gl_internalformat.swap_bytes();
+        h.gl_base_internalformat = h.gl_base_internalformat.swap_bytes();
+        h.pixel_width = h.pixel_width.swap_bytes();
+        h.pixel_height = h.pixel_height.swap_bytes();
+        h.pixel_depth = h.pixel_depth.swap_bytes();
+        h.number_of_faces = h.number_of_faces.swap_bytes();
+        h.number_of_mip_levels = h.number_of_mip_levels.swap_bytes();
+        assert!(ktx_check_header1(&mut h).is_ok());
+        assert_eq!(h.pixel_width, 16);
+        assert_eq!(h.number_of_mip_levels, 5);
+    }
+
+    #[test]
+    fn header_bytes_round_trip() {
+        let h = test_header();
+        assert_eq!(KtxHeader::from_bytes(&h.to_bytes()), h);
+    }
+}
+
+mod check_header2_test {
+    use ktx::ktxint::{KtxHeader2, ktx_check_header2};
+    use ktx::{ErrorCode, KTX2_IDENTIFIER_REF, SupercmpScheme, VkFormat};
+
+    fn header() -> KtxHeader2 {
+        KtxHeader2 {
+            identifier: KTX2_IDENTIFIER_REF,
+            vk_format: VkFormat::R8G8B8A8_UNORM,
+            type_size: 1,
+            pixel_width: 16,
+            pixel_height: 16,
+            pixel_depth: 0,
+            layer_count: 0,
+            face_count: 1,
+            level_count: 5,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn accepts_valid() {
+        let mut h = header();
+        let supp = ktx_check_header2(&mut h);
+        assert_eq!(supp.map(|s| s.texture_dimension), Ok(2));
+        assert_eq!(KtxHeader2::from_bytes(&h.to_bytes()), h);
+    }
+
+    #[test]
+    fn rejects_bad_values() {
+        let mut h = header();
+        h.vk_format = VkFormat::R8_USCALED;
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::FileDataError));
+
+        let mut h = header();
+        h.supercompression_scheme = SupercmpScheme::BASIS_LZ;
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::FileDataError));
+
+        let mut h = header();
+        h.face_count = 6;
+        h.pixel_height = 8;
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::FileDataError));
+
+        let mut h = header();
+        h.level_count = 6;
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::FileDataError));
+
+        let mut h = header();
+        h.supercompression_scheme = SupercmpScheme(0x10000);
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::UnsupportedFeature));
+
+        let mut h = header();
+        h.pixel_depth = 4;
+        h.layer_count = 2;
+        assert_eq!(ktx_check_header2(&mut h), Err(ErrorCode::UnsupportedFeature));
+    }
+
+    #[test]
+    fn zero_levels_means_generate_mipmaps() {
+        let mut h = header();
+        h.level_count = 0;
+        let supp = ktx_check_header2(&mut h);
+        assert_eq!(supp.map(|s| s.generate_mipmaps), Ok(1));
+        assert_eq!(h.level_count, 1);
+    }
+}
+
+mod swap_test {
+    use ktx::swap::*;
+
+    #[test]
+    fn swaps() {
+        let mut a = [0x0102u16];
+        ktx_swap_endian16(&mut a);
+        assert_eq!(a, [0x0201]);
+        let mut b = [0x01020304u32];
+        ktx_swap_endian32(&mut b);
+        assert_eq!(b, [0x04030201]);
+        let mut c = [0x0102030405060708u64];
+        ktx_swap_endian64(&mut c);
+        assert_eq!(c, [0x0807060504030201]);
+        let mut d = [1u8, 2, 3, 4, 5];
+        ktx_swap_endian_bytes(&mut d, 2);
+        assert_eq!(d, [2, 1, 4, 3, 5]);
+    }
+}

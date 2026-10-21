@@ -6,8 +6,10 @@
 pub mod defs;
 pub mod error;
 pub mod hashlist;
+pub mod ktxint;
 pub mod stream;
 pub mod strings;
+pub mod swap;
 pub mod vkformat;
 
 pub use defs::*;

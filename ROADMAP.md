@@ -11,8 +11,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] VkFormat enum, string, parse, check, typesize (generated, `scripts/gen_vkformat.py`)
 - [x] Hash list (key/value data) — `hashlist.c`
 - [x] Streams: memory, file, custom — `memstream.c`, `filestream.c`
-- [ ] Header checks KTX1/KTX2 — `checkheader.c`
-- [ ] Endian swap — `swap.c`
+- [x] Header checks KTX1/KTX2 — `checkheader.c`, header structs
+- [x] Endian swap — `swap.c`
 
 ## Data Format Descriptor (external/dfdutils)
 - [ ] createdfd, interpretdfd, queries
@@ -51,8 +51,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
-- [x] unittests: HashList, MemStream
-- [ ] unittests: CheckHeader, DFD, Swizzle
+- [x] unittests: HashList, MemStream, CheckHeader1
+- [ ] unittests: DFD, Swizzle, WriterTestHelper
 - [ ] texturetests
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)
