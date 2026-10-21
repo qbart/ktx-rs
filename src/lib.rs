@@ -27,11 +27,11 @@ pub mod zlib;
 pub use defs::*;
 pub use error::{ErrorCode, KtxResult, ktx_error_string};
 pub use hashlist::{HashList, HashListEntry};
-pub use vkformat::VkFormat;
 pub use texture::{
-    ClassId, FormatVersion, KtxTexture, Texture, TextureCreateFlags, TextureCreateInfo, TextureCreateStorage,
-    create_flags::*,
+    ClassId, FormatVersion, KtxTexture, Texture, TextureCreateFlags, TextureCreateInfo,
+    TextureCreateStorage, create_flags::*,
 };
-pub use texture2::Texture2;
-pub use texture1::Texture1;
 pub use texture_any::AnyTexture;
+pub use texture1::Texture1;
+pub use texture2::Texture2;
+pub use vkformat::VkFormat;

@@ -3,14 +3,15 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::defs::{
-    KTX_ANIMDATA_KEY, KTX_ORIENTATION_KEY, KTX2_HEADER_SIZE, OrientationX, OrientationY, OrientationZ,
-    SupercmpScheme, ktx_padn,
+    KTX_ANIMDATA_KEY, KTX_ORIENTATION_KEY, KTX2_HEADER_SIZE, OrientationX, OrientationY,
+    OrientationZ, SupercmpScheme, ktx_padn,
 };
 use crate::dfd::khr_df::*;
 use crate::dfd::{
     CHANNELID, DESCRIPTORBLOCKSIZE, FLAGS, MODEL, PRIMARIES, QUALIFIERS, TEXELBLOCKDIMENSION0,
-    TEXELBLOCKDIMENSION1, TEXELBLOCKDIMENSION2, TEXELBLOCKDIMENSION3, TRANSFER, bdb, bdb_mut, dfdsamplecount,
-    dfdsetval, dfdsval, dfdval, get_dfd_component_info_unpacked, get_dfd_num_components, vk2dfd,
+    TEXELBLOCKDIMENSION1, TEXELBLOCKDIMENSION2, TEXELBLOCKDIMENSION3, TRANSFER, bdb, bdb_mut,
+    dfdsamplecount, dfdsetval, dfdsval, dfdval, get_dfd_component_info_unpacked,
+    get_dfd_num_components, vk2dfd,
 };
 use crate::error::{ErrorCode, KtxResult};
 use crate::formatsize::FormatSize;
@@ -71,7 +72,8 @@ impl DerefMut for Texture2 {
 
 fn try_alloc(len: usize) -> KtxResult<Vec<u8>> {
     let mut v = Vec::new();
-    v.try_reserve_exact(len).map_err(|_| ErrorCode::OutOfMemory)?;
+    v.try_reserve_exact(len)
+        .map_err(|_| ErrorCode::OutOfMemory)?;
     v.resize(len, 0);
     Ok(v)
 }
@@ -131,15 +133,22 @@ impl Texture2 {
     }
 
     fn level_entry(&self, level: u32) -> LevelIndexEntry {
-        self.private.level_index.get(level as usize).copied().unwrap_or_default()
+        self.private
+            .level_index
+            .get(level as usize)
+            .copied()
+            .unwrap_or_default()
     }
 
     // ------------------------------------------------------------ construction
 
     /// Port of `ktxTexture2_construct` / `ktxTexture2_Create`.
-    pub fn create(create_info: &TextureCreateInfo, storage_allocation: TextureCreateStorage) -> KtxResult<Texture2> {
+    pub fn create(
+        create_info: &TextureCreateInfo,
+        storage_allocation: TextureCreateStorage,
+    ) -> KtxResult<Texture2> {
         let mut dfd;
-        
+
         let format_size = if create_info.vk_format != VkFormat::UNDEFINED {
             if is_prohibited_format(create_info.vk_format) {
                 return Err(ErrorCode::UnsupportedTextureType);
@@ -272,7 +281,9 @@ impl Texture2 {
         let mut li = vec![0u8; LEVEL_INDEX_ENTRY_SIZE * num_levels];
         stream.read(&mut li)?;
         this.private.level_index = li
-            .as_chunks::<LEVEL_INDEX_ENTRY_SIZE>().0.iter()
+            .as_chunks::<LEVEL_INDEX_ENTRY_SIZE>()
+            .0
+            .iter()
             .map(|c| LevelIndexEntry::from_bytes(c).unwrap_or_default())
             .collect();
 
@@ -290,19 +301,28 @@ impl Texture2 {
                 return Err(ErrorCode::FileUnexpectedEof);
             }
             for entry in &this.private.level_index {
-                if entry.byte_offset > file_size || entry.byte_length > file_size - entry.byte_offset {
+                if entry.byte_offset > file_size
+                    || entry.byte_length > file_size - entry.byte_offset
+                {
                     return Err(ErrorCode::FileUnexpectedEof);
                 }
             }
         }
 
         // Rebase index to start of data and save file offset.
-        let first = this.private.level_index.last().map(|e| e.byte_offset).unwrap_or(0);
+        let first = this
+            .private
+            .level_index
+            .last()
+            .map(|e| e.byte_offset)
+            .unwrap_or(0);
         this.private.first_level_file_offset = first;
         let mut level_mismatch = false;
         for e in this.private.level_index.iter_mut() {
             e.byte_offset = e.byte_offset.wrapping_sub(first);
-            if this.supercompression_scheme == SupercmpScheme::NONE && e.byte_length != e.uncompressed_byte_length {
+            if this.supercompression_scheme == SupercmpScheme::NONE
+                && e.byte_length != e.uncompressed_byte_length
+            {
                 // For non-supercompressed files the levels must have matching byte lengths
                 level_mismatch = true;
             }
@@ -344,12 +364,15 @@ impl Texture2 {
         if is_srgb_format(this.vk_format) && transfer != KHR_DF_TRANSFER_SRGB {
             return Err(ErrorCode::FileDataError);
         }
-        if is_not_srgb_format_but_has_srgb_variant(this.vk_format) && transfer == KHR_DF_TRANSFER_SRGB {
+        if is_not_srgb_format_but_has_srgb_variant(this.vk_format)
+            && transfer == KHR_DF_TRANSFER_SRGB
+        {
             return Err(ErrorCode::FileDataError);
         }
 
-        this.base.is_compressed =
-            (this.base.protected.format_size.flags & crate::formatsize::KTX_FORMAT_SIZE_COMPRESSED_BIT) != 0;
+        this.base.is_compressed = (this.base.protected.format_size.flags
+            & crate::formatsize::KTX_FORMAT_SIZE_COMPRESSED_BIT)
+            != 0;
 
         let model = dfdval(b, MODEL);
         if (this.supercompression_scheme == SupercmpScheme::BASIS_LZ && model != KHR_DF_MODEL_ETC1S)
@@ -361,7 +384,10 @@ impl Texture2 {
 
         // Check compatibility with the KHR_texture_basisu glTF extension, if needed.
         if create_flags & KTX_TEXTURE_CREATE_CHECK_GLTF_BASISU_BIT != 0 {
-            let max_dim = header.pixel_width.max(header.pixel_height).max(header.pixel_depth);
+            let max_dim = header
+                .pixel_width
+                .max(header.pixel_height)
+                .max(header.pixel_depth);
             let full_mip_pyramid_level_count = 32 - max_dim.leading_zeros();
             if header.level_count != 1 && header.level_count != full_mip_pyramid_level_count {
                 return Err(ErrorCode::FileDataError);
@@ -388,7 +414,9 @@ impl Texture2 {
             return Err(ErrorCode::FileDataError);
         }
         if model == KHR_DF_MODEL_ETC1S || model == KHR_DF_MODEL_UASTC {
-            if !(1..=2).contains(&sample_count) || (sample_count == 2 && model == KHR_DF_MODEL_UASTC) {
+            if !(1..=2).contains(&sample_count)
+                || (sample_count == 2 && model == KHR_DF_MODEL_UASTC)
+            {
                 return Err(ErrorCode::FileDataError);
             }
             if dfdval(b, TEXELBLOCKDIMENSION0) != 3
@@ -455,8 +483,8 @@ impl Texture2 {
 
         // Calculate size of the image data. Level 0 is the last level in the data.
         let l0 = this.level_entry(0);
-        this.base.data_size =
-            usize::try_from(l0.byte_offset.saturating_add(l0.byte_length)).map_err(|_| ErrorCode::FileOverflow)?;
+        this.base.data_size = usize::try_from(l0.byte_offset.saturating_add(l0.byte_length))
+            .map_err(|_| ErrorCode::FileOverflow)?;
         Ok(this)
     }
 
@@ -483,7 +511,8 @@ impl Texture2 {
                 // animData is only valid for array textures.
                 return Err(ErrorCode::FileDataError);
             }
-            let rd = |i: usize| u32::from_le_bytes([anim[i], anim[i + 1], anim[i + 2], anim[i + 3]]);
+            let rd =
+                |i: usize| u32::from_le_bytes([anim[i], anim[i + 1], anim[i + 2], anim[i + 3]]);
             let (d, t, l) = (rd(0), rd(4), rd(8));
             self.is_video = true;
             self.duration = d;
@@ -518,7 +547,10 @@ impl Texture2 {
 
     /// Port of `ktxTexture2_CreateFromStream`. The stream is kept for deferred
     /// loading unless `KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT` is set.
-    pub fn create_from_stream(mut stream: Box<dyn Stream>, create_flags: TextureCreateFlags) -> KtxResult<Texture2> {
+    pub fn create_from_stream(
+        mut stream: Box<dyn Stream>,
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture2> {
         let mut this = Self::create_from_borrowed_stream(&mut *stream, None, create_flags)?;
         if create_flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
             this.base.protected.stream = Some(stream);
@@ -527,7 +559,10 @@ impl Texture2 {
     }
 
     /// Port of `ktxTexture2_CreateFromStdioStream` for an open [`std::fs::File`].
-    pub fn create_from_stdio_stream(file: std::fs::File, create_flags: TextureCreateFlags) -> KtxResult<Texture2> {
+    pub fn create_from_stdio_stream(
+        file: std::fs::File,
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture2> {
         Self::create_from_stream(Box::new(FileStream::construct(file)?), create_flags)
     }
 
@@ -541,14 +576,18 @@ impl Texture2 {
 
     /// Port of `ktxTexture2_CreateFromMemory`. When image data is not loaded
     /// immediately a copy of `bytes` is retained for deferred loading.
-    pub fn create_from_memory(bytes: &[u8], create_flags: TextureCreateFlags) -> KtxResult<Texture2> {
+    pub fn create_from_memory(
+        bytes: &[u8],
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture2> {
         if bytes.is_empty() {
             return Err(ErrorCode::InvalidValue);
         }
         let mut stream = MemStream::construct_ro(bytes)?;
         let mut this = Self::create_from_borrowed_stream(&mut stream, None, create_flags)?;
         if create_flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
-            this.base.protected.stream = Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
+            this.base.protected.stream =
+                Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
         }
         Ok(this)
     }
@@ -578,7 +617,9 @@ impl Texture2 {
 
     /// Port of `ktxTexture2_levelFileOffset`.
     pub fn level_file_offset(&self, level: u32) -> u64 {
-        self.level_entry(level).byte_offset.wrapping_add(self.private.first_level_file_offset)
+        self.level_entry(level)
+            .byte_offset
+            .wrapping_add(self.private.first_level_file_offset)
     }
 
     /// Port of `ktxTexture2_levelDataOffset`.
@@ -605,10 +646,19 @@ impl Texture2 {
             KHR_DF_MODEL_ETC1S => {
                 let channel0 = dfdsval(b, 0, CHANNELID);
                 if dfd_num_components == 1 {
-                    if channel0 == KHR_DF_CHANNEL_ETC1S_RGB { 3 } else { 1 }
+                    if channel0 == KHR_DF_CHANNEL_ETC1S_RGB {
+                        3
+                    } else {
+                        1
+                    }
                 } else {
                     let channel1 = dfdsval(b, 1, CHANNELID);
-                    if channel0 == KHR_DF_CHANNEL_ETC1S_RGB && channel1 == KHR_DF_CHANNEL_ETC1S_AAA { 4 } else { 2 }
+                    if channel0 == KHR_DF_CHANNEL_ETC1S_RGB && channel1 == KHR_DF_CHANNEL_ETC1S_AAA
+                    {
+                        4
+                    } else {
+                        2
+                    }
                 }
             }
             KHR_DF_MODEL_UASTC => match dfdsval(b, 0, CHANNELID) {
@@ -666,7 +716,9 @@ impl Texture2 {
                 return true;
             }
         }
-        model == KHR_DF_MODEL_BC6H || model == KHR_DF_MODEL_UASTC_HDR_4x4 || model == KHR_DF_MODEL_UASTC_HDR_6x6
+        model == KHR_DF_MODEL_BC6H
+            || model == KHR_DF_MODEL_UASTC_HDR_4x4
+            || model == KHR_DF_MODEL_UASTC_HDR_6x6
     }
 
     /// Port of `ktxTexture2_SetTransferFunction`.
@@ -699,11 +751,20 @@ impl Texture2 {
         self.load_with_stream(buffer, InflateFlag::DontInflateOnLoad)
     }
 
-    fn load_with_stream(&mut self, buffer: Option<&mut [u8]>, inflate: InflateFlag) -> KtxResult<()> {
+    fn load_with_stream(
+        &mut self,
+        buffer: Option<&mut [u8]>,
+        inflate: InflateFlag,
+    ) -> KtxResult<()> {
         if self.base.p_data.is_some() {
             return Err(ErrorCode::InvalidOperation); // Data already loaded.
         }
-        let mut stream = self.base.protected.stream.take().ok_or(ErrorCode::InvalidOperation)?;
+        let mut stream = self
+            .base
+            .protected
+            .stream
+            .take()
+            .ok_or(ErrorCode::InvalidOperation)?;
         match self.load_image_data_int(&mut *stream, buffer, inflate) {
             Ok(()) => Ok(()),
             Err(e) => {
@@ -736,7 +797,11 @@ impl Texture2 {
         };
 
         let use_own = buffer.is_none();
-        let mut own = if use_own { try_alloc(output_capacity)? } else { Vec::new() };
+        let mut own = if use_own {
+            try_alloc(output_capacity)?
+        } else {
+            Vec::new()
+        };
         let dest: &mut [u8] = match buffer {
             None => &mut own,
             Some(b) => {
@@ -786,7 +851,11 @@ impl Texture2 {
     }
 
     /// Port of `ktxTexture2_inflateZstdInt`.
-    pub(crate) fn inflate_zstd_int(&mut self, deflated: &[u8], inflated: &mut [u8]) -> KtxResult<()> {
+    pub(crate) fn inflate_zstd_int(
+        &mut self,
+        deflated: &[u8],
+        inflated: &mut [u8],
+    ) -> KtxResult<()> {
         if self.supercompression_scheme != SupercmpScheme::ZSTD {
             return Err(ErrorCode::InvalidOperation);
         }
@@ -794,7 +863,11 @@ impl Texture2 {
     }
 
     /// Port of `ktxTexture2_inflateZLIBInt`.
-    pub(crate) fn inflate_zlib_int(&mut self, deflated: &[u8], inflated: &mut [u8]) -> KtxResult<()> {
+    pub(crate) fn inflate_zlib_int(
+        &mut self,
+        deflated: &[u8],
+        inflated: &mut [u8],
+    ) -> KtxResult<()> {
         if self.supercompression_scheme != SupercmpScheme::ZLIB {
             return Err(ErrorCode::InvalidOperation);
         }
@@ -814,11 +887,20 @@ impl Texture2 {
         let mut level_offset: usize = 0;
         let mut inflated_byte_length: usize = 0;
         for level in (0..num_levels).rev() {
-            let c = self.private.level_index.get(level).copied().unwrap_or_default();
+            let c = self
+                .private
+                .level_index
+                .get(level)
+                .copied()
+                .unwrap_or_default();
             let start = usize::try_from(c.byte_offset).map_err(|_| ErrorCode::FileDataError)?;
             let len = usize::try_from(c.byte_length).map_err(|_| ErrorCode::FileDataError)?;
-            let src = deflated.get(start..start.saturating_add(len)).ok_or(ErrorCode::FileDataError)?;
-            let dst = inflated.get_mut(level_offset..).ok_or(ErrorCode::DecompressLengthError)?;
+            let src = deflated
+                .get(start..start.saturating_add(len))
+                .ok_or(ErrorCode::FileDataError)?;
+            let dst = inflated
+                .get_mut(level_offset..)
+                .ok_or(ErrorCode::DecompressLengthError)?;
             let dst_len = dst.len().min(capacity);
             let level_byte_length = decompress(&mut dst[..dst_len], src)?;
             if c.uncompressed_byte_length != level_byte_length as u64 {
@@ -934,9 +1016,9 @@ impl KtxTexture for Texture2 {
     /// Port of `ktxTexture2_GetDataSizeUncompressed`.
     fn get_data_size_uncompressed(&self) -> usize {
         match self.supercompression_scheme {
-            SupercmpScheme::BASIS_LZ | SupercmpScheme::UASTC_HDR_6X6_INTERMEDIATE | SupercmpScheme::NONE => {
-                self.data_size
-            }
+            SupercmpScheme::BASIS_LZ
+            | SupercmpScheme::UASTC_HDR_6X6_INTERMEDIATE
+            | SupercmpScheme::NONE => self.data_size,
             SupercmpScheme::ZSTD | SupercmpScheme::ZLIB => {
                 let alignment = self.calc_post_inflation_level_alignment() as u64;
                 let mut size: u64 = 0;
@@ -971,7 +1053,9 @@ impl KtxTexture for Texture2 {
             let (width, height, depth) = self.level_dims(level);
             let level_size = self.level_entry(level).uncompressed_byte_length;
             let offset = self.level_data_offset(level) as usize;
-            let pixels = data.get(offset..offset + level_size as usize).ok_or(ErrorCode::FileDataError)?;
+            let pixels = data
+                .get(offset..offset + level_size as usize)
+                .ok_or(ErrorCode::FileDataError)?;
             iter_cb(level, 0, width, height, depth, level_size, pixels)?;
         }
         Ok(())
@@ -986,7 +1070,12 @@ impl KtxTexture for Texture2 {
             return Err(ErrorCode::InvalidOperation);
         }
         // Not created from a stream or images are already loaded.
-        let mut stream = self.base.protected.stream.take().ok_or(ErrorCode::InvalidOperation)?;
+        let mut stream = self
+            .base
+            .protected
+            .stream
+            .take()
+            .ok_or(ErrorCode::InvalidOperation)?;
         match self.iterate_load_level_faces_int(&mut *stream, iter_cb) {
             Ok(()) => {
                 self.private.first_level_file_offset = 0;
@@ -1007,18 +1096,28 @@ impl KtxTexture for Texture2 {
     /// Port of `ktxTexture2_NeedsTranscoding`.
     fn needs_transcoding(&self) -> bool {
         let model = self.get_color_model_e();
-        model == KHR_DF_MODEL_ETC1S || model == KHR_DF_MODEL_UASTC || model == KHR_DF_MODEL_UASTC_HDR_6x6
+        model == KHR_DF_MODEL_ETC1S
+            || model == KHR_DF_MODEL_UASTC
+            || model == KHR_DF_MODEL_UASTC_HDR_6x6
     }
 }
 
 impl Texture2 {
-    fn iterate_load_level_faces_int(&self, stream: &mut dyn Stream, iter_cb: &mut IterCb<'_>) -> KtxResult<()> {
+    fn iterate_load_level_faces_int(
+        &self,
+        stream: &mut dyn Stream,
+        iter_cb: &mut IterCb<'_>,
+    ) -> KtxResult<()> {
         let data_size = self.level_entry(0).byte_length as usize;
         let mut data_buf = try_alloc(data_size)?;
         let scheme = self.supercompression_scheme;
         let inflating = scheme == SupercmpScheme::ZSTD || scheme == SupercmpScheme::ZLIB;
         let uncompressed_data_size = self.level_entry(0).uncompressed_byte_length as usize;
-        let mut uncompressed_buf = if inflating { try_alloc(uncompressed_data_size)? } else { Vec::new() };
+        let mut uncompressed_buf = if inflating {
+            try_alloc(uncompressed_data_size)?
+        } else {
+            Vec::new()
+        };
         let fs = self.base.protected.format_size;
 
         for level in (0..self.num_levels).rev() {
@@ -1034,12 +1133,17 @@ impl Texture2 {
             if scheme == SupercmpScheme::ZSTD {
                 level_size = ktx_zstd_decompress(&mut uncompressed_buf, &data_buf[..level_size])?;
             } else if scheme == SupercmpScheme::ZLIB {
-                level_size = ktx_uncompress_zlib_int(&mut uncompressed_buf, &data_buf[..level_size])?;
+                level_size =
+                    ktx_uncompress_zlib_int(&mut uncompressed_buf, &data_buf[..level_size])?;
             }
             if self.level_entry(level).uncompressed_byte_length != level_size as u64 {
                 return Err(ErrorCode::DecompressLengthError);
             }
-            let p_data: &mut [u8] = if inflating { &mut uncompressed_buf } else { &mut data_buf };
+            let p_data: &mut [u8] = if inflating {
+                &mut uncompressed_buf
+            } else {
+                &mut data_buf
+            };
             if cfg!(target_endian = "big") {
                 let w = self.base.protected.type_size as usize;
                 if matches!(w, 2 | 4 | 8) {
@@ -1053,11 +1157,21 @@ impl Texture2 {
                 let face_size = bx as usize * by as usize * fs.block_size_in_bits as usize / 8;
                 for face in 0..self.num_faces {
                     let start = face as usize * face_size;
-                    let pixels = p_data.get(start..start + face_size).ok_or(ErrorCode::FileDataError)?;
+                    let pixels = p_data
+                        .get(start..start + face_size)
+                        .ok_or(ErrorCode::FileDataError)?;
                     iter_cb(level, face, width, height, depth, face_size as u64, pixels)?;
                 }
             } else {
-                iter_cb(level, 0, width, height, depth, level_size as u64, &p_data[..level_size])?;
+                iter_cb(
+                    level,
+                    0,
+                    width,
+                    height,
+                    depth,
+                    level_size as u64,
+                    &p_data[..level_size],
+                )?;
             }
         }
         Ok(())

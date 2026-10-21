@@ -7,7 +7,8 @@ use crate::error::{ErrorCode, KtxResult};
 use crate::ktxint::{KtxHeader, KtxHeader2};
 use crate::stream::{FileStream, MemStream, Stream};
 use crate::texture::{
-    ClassId, IterCb, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, KtxTexture, Texture, TextureCreateFlags,
+    ClassId, IterCb, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, KtxTexture, Texture,
+    TextureCreateFlags,
 };
 use crate::texture1::Texture1;
 use crate::texture2::Texture2;
@@ -45,14 +46,21 @@ fn determine_file_type(stream: &mut dyn Stream) -> KtxResult<Header> {
 
 fn create_borrowed(stream: &mut dyn Stream, flags: TextureCreateFlags) -> KtxResult<AnyTexture> {
     match determine_file_type(stream)? {
-        Header::Ktx1(h) => Texture1::create_from_borrowed_stream(stream, Some(h), flags).map(AnyTexture::Ktx1),
-        Header::Ktx2(h) => Texture2::create_from_borrowed_stream(stream, Some(h), flags).map(AnyTexture::Ktx2),
+        Header::Ktx1(h) => {
+            Texture1::create_from_borrowed_stream(stream, Some(h), flags).map(AnyTexture::Ktx1)
+        }
+        Header::Ktx2(h) => {
+            Texture2::create_from_borrowed_stream(stream, Some(h), flags).map(AnyTexture::Ktx2)
+        }
     }
 }
 
 impl AnyTexture {
     /// Port of `ktxTexture_CreateFromStream`.
-    pub fn create_from_stream(mut stream: Box<dyn Stream>, flags: TextureCreateFlags) -> KtxResult<AnyTexture> {
+    pub fn create_from_stream(
+        mut stream: Box<dyn Stream>,
+        flags: TextureCreateFlags,
+    ) -> KtxResult<AnyTexture> {
         let mut tex = create_borrowed(&mut *stream, flags)?;
         if flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
             tex.base_mut().protected.stream = Some(stream);
@@ -61,7 +69,10 @@ impl AnyTexture {
     }
 
     /// Port of `ktxTexture_CreateFromStdioStream`.
-    pub fn create_from_stdio_stream(file: std::fs::File, flags: TextureCreateFlags) -> KtxResult<AnyTexture> {
+    pub fn create_from_stdio_stream(
+        file: std::fs::File,
+        flags: TextureCreateFlags,
+    ) -> KtxResult<AnyTexture> {
         Self::create_from_stream(Box::new(FileStream::construct(file)?), flags)
     }
 
@@ -81,7 +92,8 @@ impl AnyTexture {
         let mut stream = MemStream::construct_ro(bytes)?;
         let mut tex = create_borrowed(&mut stream, flags)?;
         if flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
-            tex.base_mut().protected.stream = Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
+            tex.base_mut().protected.stream =
+                Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
         }
         Ok(tex)
     }
@@ -136,7 +148,13 @@ impl AnyTexture {
     }
 
     /// Port of `ktxTexture_SetImageFromMemory`.
-    pub fn set_image_from_memory(&mut self, level: u32, layer: u32, face_slice: u32, src: &[u8]) -> KtxResult<()> {
+    pub fn set_image_from_memory(
+        &mut self,
+        level: u32,
+        layer: u32,
+        face_slice: u32,
+        src: &[u8],
+    ) -> KtxResult<()> {
         match self {
             AnyTexture::Ktx1(t) => t.set_image_from_memory(level, layer, face_slice, src),
             AnyTexture::Ktx2(t) => t.set_image_from_memory(level, layer, face_slice, src),

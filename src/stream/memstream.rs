@@ -28,7 +28,12 @@ pub struct MemStream<'a> {
 impl<'a> MemStream<'a> {
     /// Port of `ktxMemStream_construct`: empty, writable, growable stream.
     pub fn construct() -> KtxResult<MemStream<'static>> {
-        let mut s = MemStream { data: MemData::Rw(Vec::new()), alloc_size: 0, used_size: 0, pos: 0 };
+        let mut s = MemStream {
+            data: MemData::Rw(Vec::new()),
+            alloc_size: 0,
+            used_size: 0,
+            pos: 0,
+        };
         s.expand(KTX_MEM_DEFAULT_ALLOCATED_SIZE)?;
         Ok(s)
     }
@@ -65,7 +70,12 @@ impl<'a> MemStream<'a> {
             MemData::Ro(c) => MemData::Ro(Cow::Owned(c.into_owned())),
             MemData::Rw(v) => MemData::Rw(v),
         };
-        MemStream { data, alloc_size: self.alloc_size, used_size: self.used_size, pos: self.pos }
+        MemStream {
+            data,
+            alloc_size: self.alloc_size,
+            used_size: self.used_size,
+            pos: self.pos,
+        }
     }
 
     fn bytes(&self) -> &[u8] {
@@ -94,17 +104,25 @@ impl<'a> MemStream<'a> {
 
     /// Port of `ktxMem_expand`.
     fn expand(&mut self, newsize: usize) -> KtxResult<()> {
-        let mut new_alloc_size =
-            if self.alloc_size == 0 { KTX_MEM_DEFAULT_ALLOCATED_SIZE } else { self.alloc_size };
+        let mut new_alloc_size = if self.alloc_size == 0 {
+            KTX_MEM_DEFAULT_ALLOCATED_SIZE
+        } else {
+            self.alloc_size
+        };
         while new_alloc_size < newsize {
-            new_alloc_size = new_alloc_size.checked_shl(1).filter(|&n| n > new_alloc_size).unwrap_or(usize::MAX);
+            new_alloc_size = new_alloc_size
+                .checked_shl(1)
+                .filter(|&n| n > new_alloc_size)
+                .unwrap_or(usize::MAX);
         }
         if new_alloc_size == self.alloc_size {
             return Ok(());
         }
         match &mut self.data {
             MemData::Rw(v) => {
-                if v.try_reserve_exact(new_alloc_size.saturating_sub(v.len())).is_err() {
+                if v.try_reserve_exact(new_alloc_size.saturating_sub(v.len()))
+                    .is_err()
+                {
                     self.alloc_size = 0;
                     self.used_size = 0;
                     return Err(ErrorCode::OutOfMemory);
@@ -120,11 +138,17 @@ impl<'a> MemStream<'a> {
 
 impl Stream for MemStream<'_> {
     fn read(&mut self, dst: &mut [u8]) -> KtxResult<()> {
-        let newpos = self.pos.checked_add(dst.len()).ok_or(ErrorCode::FileUnexpectedEof)?;
+        let newpos = self
+            .pos
+            .checked_add(dst.len())
+            .ok_or(ErrorCode::FileUnexpectedEof)?;
         if newpos > self.used_size {
             return Err(ErrorCode::FileUnexpectedEof);
         }
-        let src = self.bytes().get(self.pos..newpos).ok_or(ErrorCode::FileUnexpectedEof)?;
+        let src = self
+            .bytes()
+            .get(self.pos..newpos)
+            .ok_or(ErrorCode::FileUnexpectedEof)?;
         dst.copy_from_slice(src);
         self.pos = newpos;
         Ok(())
@@ -132,7 +156,10 @@ impl Stream for MemStream<'_> {
 
     fn skip(&mut self, count: u64) -> KtxResult<()> {
         let count = usize::try_from(count).map_err(|_| ErrorCode::FileUnexpectedEof)?;
-        let newpos = self.pos.checked_add(count).ok_or(ErrorCode::FileUnexpectedEof)?;
+        let newpos = self
+            .pos
+            .checked_add(count)
+            .ok_or(ErrorCode::FileUnexpectedEof)?;
         if newpos > self.used_size {
             return Err(ErrorCode::FileUnexpectedEof);
         }

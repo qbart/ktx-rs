@@ -78,7 +78,11 @@ pub fn interpret_dfd(
     result
 }
 
-fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes: &mut u32) -> InterpretDfdResult {
+fn interpret_inner(
+    dfd: &[u32],
+    ch: &mut [InterpretedDfdChannel; 4],
+    word_bytes: &mut u32,
+) -> InterpretDfdResult {
     let bdfdb = bdb(dfd);
     let num_samples = dfdsamplecount(bdfdb);
     if num_samples == 0 {
@@ -94,8 +98,14 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
     let mut is_depth_stencil = false;
 
     // Rule out the multiple planes case: only bytesPlane0 may be non-zero.
-    let bp0 = bdfdb.get(KHR_DF_WORD_BYTESPLANE0 as usize).copied().unwrap_or(0);
-    let bp4 = bdfdb.get(KHR_DF_WORD_BYTESPLANE4 as usize).copied().unwrap_or(0);
+    let bp0 = bdfdb
+        .get(KHR_DF_WORD_BYTESPLANE0 as usize)
+        .copied()
+        .unwrap_or(0);
+    let bp4 = bdfdb
+        .get(KHR_DF_WORD_BYTESPLANE4 as usize)
+        .copied()
+        .unwrap_or(0);
     if (bp0 & !KHR_DF_MASK_BYTESPLANE0) != 0 || bp4 != 0 {
         return I_UNSUPPORTED_MULTIPLE_PLANES;
     }
@@ -169,7 +179,9 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
                 | KHR_DF_CHANNEL_YUVSDA_U
                 | KHR_DF_CHANNEL_YUVSDA_V
                 | KHR_DF_CHANNEL_YUVSDA_A => {}
-                KHR_DF_CHANNEL_YUVSDA_DEPTH | KHR_DF_CHANNEL_YUVSDA_STENCIL => is_depth_stencil = true,
+                KHR_DF_CHANNEL_YUVSDA_DEPTH | KHR_DF_CHANNEL_YUVSDA_STENCIL => {
+                    is_depth_stencil = true
+                }
                 _ => return I_UNSUPPORTED_CHANNEL_TYPES,
             }
         }
@@ -182,7 +194,11 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
                 largest_sample_size = length;
             }
         }
-        let mult = if (result & I_PACKED_FORMAT_BIT) != 0 { 4 } else { 1 };
+        let mult = if (result & I_PACKED_FORMAT_BIT) != 0 {
+            4
+        } else {
+            1
+        };
         *word_bytes = mult * bit_ceil(largest_sample_size) / 8;
     } else if model == KHR_DF_MODEL_RGBSDA {
         if dfdval(bdfdb, TRANSFER) == KHR_DF_TRANSFER_SRGB {
@@ -254,7 +270,8 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
                     current_byte_offset = sample_byte_offset;
                     current_bit_length = sample_bit_length;
                     if ch[idx].size != 0 {
-                        if model == KHR_DF_MODEL_YUVSDA && sample_channel == KHR_DF_CHANNEL_YUVSDA_Y {
+                        if model == KHR_DF_MODEL_YUVSDA && sample_channel == KHR_DF_CHANNEL_YUVSDA_Y
+                        {
                             if idx == R_IDX {
                                 // Another Y channel. Record details in A.
                                 if ch[A_IDX].size == 0 {
@@ -301,7 +318,9 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
                         result |= I_BIG_ENDIAN_FORMAT_BIT;
                         determined_endianness = true;
                         ch[idx].offset = sample_byte_offset;
-                    } else if sample_byte_offset == current_byte_offset.wrapping_add(current_byte_length) {
+                    } else if sample_byte_offset
+                        == current_byte_offset.wrapping_add(current_byte_length)
+                    {
                         if determined_endianness && (result & I_BIG_ENDIAN_FORMAT_BIT) != 0 {
                             return I_UNSUPPORTED_NONTRIVIAL_ENDIANNESS;
                         }
@@ -318,7 +337,8 @@ fn interpret_inner(dfd: &[u32], ch: &mut [InterpretedDfdChannel; 4], word_bytes:
                     current_byte_offset = sample_byte_offset;
                     current_byte_length = sample_byte_length;
                     if ch[idx].size != 0 {
-                        if model == KHR_DF_MODEL_YUVSDA && sample_channel == KHR_DF_CHANNEL_YUVSDA_Y {
+                        if model == KHR_DF_MODEL_YUVSDA && sample_channel == KHR_DF_CHANNEL_YUVSDA_Y
+                        {
                             if idx == R_IDX {
                                 if ch[A_IDX].size == 0 {
                                     idx = A_IDX;

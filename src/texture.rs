@@ -154,7 +154,10 @@ impl Texture {
         if create_info.num_dimensions < 1 || create_info.num_dimensions > 3 {
             return Err(ErrorCode::InvalidValue);
         }
-        if create_info.base_width == 0 || create_info.base_height == 0 || create_info.base_depth == 0 {
+        if create_info.base_width == 0
+            || create_info.base_height == 0
+            || create_info.base_depth == 0
+        {
             return Err(ErrorCode::InvalidValue);
         }
         match create_info.num_dimensions {
@@ -170,7 +173,8 @@ impl Texture {
             }
             _ => {
                 // 3D array textures and 3D cubemaps are not supported.
-                if create_info.is_array || create_info.num_faces != 1 || create_info.num_layers != 1 {
+                if create_info.is_array || create_info.num_faces != 1 || create_info.num_layers != 1
+                {
                     return Err(ErrorCode::InvalidOperation);
                 }
             }
@@ -206,7 +210,10 @@ impl Texture {
         this.generate_mipmaps = create_info.generate_mipmaps;
 
         if create_info.num_levels > 1 {
-            let max_dim = create_info.base_width.max(create_info.base_height).max(create_info.base_depth);
+            let max_dim = create_info
+                .base_width
+                .max(create_info.base_height)
+                .max(create_info.base_depth);
             if this.num_levels > 32 || max_dim < (1u32 << (this.num_levels - 1)) {
                 // Can't have more mip levels than 1 + log2(max(width, height, depth))
                 return Err(ErrorCode::InvalidOperation);
@@ -305,8 +312,14 @@ impl Texture {
     /// Port of `ktxTexture_rowInfo`. Returns `(numRows, rowLengthBytes, rowPadding)`.
     pub fn row_info(&self, level: u32) -> (u32, u32, u32) {
         let fs = &self.protected.format_size;
-        let bx = (self.base_width / fs.block_width.max(1)).checked_shr(level).unwrap_or(0).max(1);
-        let num_rows = (self.base_height / fs.block_height.max(1)).checked_shr(level).unwrap_or(0).max(1);
+        let bx = (self.base_width / fs.block_width.max(1))
+            .checked_shr(level)
+            .unwrap_or(0)
+            .max(1);
+        let num_rows = (self.base_height / fs.block_height.max(1))
+            .checked_shr(level)
+            .unwrap_or(0)
+            .max(1);
         let row_length = bx * fs.block_size_in_bits / 8;
         let padding = ktx_pad_unpack_align_len(row_length as u64) as u32;
         (num_rows, row_length + padding, padding)
@@ -315,7 +328,10 @@ impl Texture {
     /// Port of `ktxTexture_GetRowPitch`.
     pub fn get_row_pitch(&self, level: u32) -> u32 {
         let fs = &self.protected.format_size;
-        let bx = (self.base_width / fs.block_width.max(1)).checked_shr(level).unwrap_or(0).max(1);
+        let bx = (self.base_width / fs.block_width.max(1))
+            .checked_shr(level)
+            .unwrap_or(0)
+            .max(1);
         let mut pitch = bx * fs.block_size_in_bits / 8;
         if self.class_id == ClassId::Texture1 {
             pitch += ktx_pad_unpack_align_len(pitch as u64) as u32;
@@ -374,7 +390,11 @@ pub trait KtxTexture {
             let (width, height, depth) = this.level_dims(miplevel);
             let face_lod_size = self.calc_face_lod_size(miplevel);
             // All array layers are passed in a group.
-            let inner_iterations = if this.is_cubemap && !this.is_array { this.num_faces } else { 1 };
+            let inner_iterations = if this.is_cubemap && !this.is_array {
+                this.num_faces
+            } else {
+                1
+            };
             for face in 0..inner_iterations {
                 let offset = self.get_image_offset(miplevel, 0, face)?;
                 // The sizes come from the format and extents, not the data.
@@ -382,8 +402,18 @@ pub trait KtxTexture {
                     return Err(ErrorCode::FileDataError);
                 }
                 let data = this.p_data.as_deref().unwrap_or(&[]);
-                let pixels = data.get(offset..offset + face_lod_size).ok_or(ErrorCode::FileDataError)?;
-                iter_cb(miplevel, face, width, height, depth, face_lod_size as u64, pixels)?;
+                let pixels = data
+                    .get(offset..offset + face_lod_size)
+                    .ok_or(ErrorCode::FileDataError)?;
+                iter_cb(
+                    miplevel,
+                    face,
+                    width,
+                    height,
+                    depth,
+                    face_lod_size as u64,
+                    pixels,
+                )?;
             }
         }
         Ok(())

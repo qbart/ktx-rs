@@ -55,7 +55,9 @@ fn key_bytes(key: &[u8]) -> &[u8] {
 impl HashList {
     /// Port of `ktxHashList_Construct` / `ktxHashList_Create`.
     pub fn new() -> HashList {
-        HashList { entries: Vec::new() }
+        HashList {
+            entries: Vec::new(),
+        }
     }
 
     /// Port of `ktxHashList_ConstructCopy` / `ktxHashList_CreateCopy`.
@@ -100,7 +102,10 @@ impl HashList {
         if value.len() > u32::MAX as usize || key.len() >= u32::MAX as usize {
             return Err(ErrorCode::InvalidValue);
         }
-        self.entries.push(HashListEntry { key: key.to_vec(), value: value.to_vec() });
+        self.entries.push(HashListEntry {
+            key: key.to_vec(),
+            value: value.to_vec(),
+        });
         Ok(())
     }
 
@@ -206,7 +211,9 @@ impl HashList {
                 return Err(ErrorCode::FileDataError);
             }
             src += 4;
-            let kv = kvd.get(src..src + key_and_value_byte_size).ok_or(ErrorCode::FileDataError)?;
+            let kv = kvd
+                .get(src..src + key_and_value_byte_size)
+                .ok_or(ErrorCode::FileDataError)?;
             let key_len = match kv.iter().position(|&c| c == 0) {
                 Some(n) => n,
                 // Missing NUL terminator or no value

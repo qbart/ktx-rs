@@ -38,7 +38,10 @@ pub fn ktx_bu_image_flags_bit_string(bit_index: u32, bit_value: bool) -> Option<
 /// Port of the library's `strnstr` fallback (`STRNSTR`). Finds `needle` in the first
 /// `len` bytes of `haystack` (stopping at NUL). Returns the byte offset of the match.
 pub fn strnstr(haystack: &[u8], needle: &[u8], len: usize) -> Option<usize> {
-    let hay_len = haystack.iter().position(|&c| c == 0).unwrap_or(haystack.len());
+    let hay_len = haystack
+        .iter()
+        .position(|&c| c == 0)
+        .unwrap_or(haystack.len());
     let needle_len = needle.iter().position(|&c| c == 0).unwrap_or(needle.len());
     let limit = len.min(hay_len);
     if needle_len == 0 {

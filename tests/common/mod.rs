@@ -2,12 +2,15 @@
 #![allow(dead_code)]
 
 pub mod vkformat_list;
+pub mod wthelper;
 
 use std::path::PathBuf;
 
 /// `tests/resources` directory (port of the test resources path argument).
 pub fn resources_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("resources")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("resources")
 }
 
 /// `tests/resources/ktx2`.

@@ -2,10 +2,11 @@
 
 use crate::dfd::khr_df::*;
 use crate::dfd::{
-    BYTESPLANE0, BYTESPLANE1, CHANNELID, I_COMPRESSED_FORMAT_BIT, I_PACKED_FORMAT_BIT,
-    I_UNSUPPORTED_ERROR_BIT, I_YUVSDA_FORMAT_BIT, InterpretedDfdChannel, MODEL, TEXELBLOCKDIMENSION0,
-    TEXELBLOCKDIMENSION1, TEXELBLOCKDIMENSION2, VERSIONNUMBER, DESCRIPTORBLOCKSIZE, bdb, dfdsamplecount,
-    dfdsizewords, dfdsval, dfdval, interpret_dfd, reconstruct_dfd_bytes_planes_from_samples,
+    BYTESPLANE0, BYTESPLANE1, CHANNELID, DESCRIPTORBLOCKSIZE, I_COMPRESSED_FORMAT_BIT,
+    I_PACKED_FORMAT_BIT, I_UNSUPPORTED_ERROR_BIT, I_YUVSDA_FORMAT_BIT, InterpretedDfdChannel,
+    MODEL, TEXELBLOCKDIMENSION0, TEXELBLOCKDIMENSION1, TEXELBLOCKDIMENSION2, VERSIONNUMBER, bdb,
+    dfdsamplecount, dfdsizewords, dfdsval, dfdval, interpret_dfd,
+    reconstruct_dfd_bytes_planes_from_samples,
 };
 use crate::error::{ErrorCode, KtxResult};
 
@@ -37,7 +38,9 @@ fn e5b9g9r9_ufloat_comparator() -> [u32; 30] {
     let shift = |s: u32, v: u32| v << s;
     let ss = |s: u32, v: u32| v << s;
     let s = |ch: u32, len: u32, off: u32| {
-        ss(KHR_DF_SAMPLESHIFT_CHANNELID, ch) | ss(KHR_DF_SAMPLESHIFT_BITLENGTH, len) | ss(KHR_DF_SAMPLESHIFT_BITOFFSET, off)
+        ss(KHR_DF_SAMPLESHIFT_CHANNELID, ch)
+            | ss(KHR_DF_SAMPLESHIFT_BITLENGTH, len)
+            | ss(KHR_DF_SAMPLESHIFT_BITOFFSET, off)
     };
     [
         0,
@@ -53,7 +56,11 @@ fn e5b9g9r9_ufloat_comparator() -> [u32; 30] {
         0,
         0,
         8448,
-        s(KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_EXPONENT, 4, 27),
+        s(
+            KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            4,
+            27,
+        ),
         0,
         15,
         31,
@@ -61,7 +68,11 @@ fn e5b9g9r9_ufloat_comparator() -> [u32; 30] {
         0,
         0,
         8448,
-        s(KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_EXPONENT, 4, 27),
+        s(
+            KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            4,
+            27,
+        ),
         0,
         15,
         31,
@@ -69,7 +80,11 @@ fn e5b9g9r9_ufloat_comparator() -> [u32; 30] {
         0,
         0,
         8448,
-        s(KHR_DF_CHANNEL_RGBSDA_BLUE | KHR_DF_SAMPLE_DATATYPE_EXPONENT, 4, 27),
+        s(
+            KHR_DF_CHANNEL_RGBSDA_BLUE | KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            4,
+            27,
+        ),
         0,
         15,
         31,
@@ -162,7 +177,9 @@ impl FormatSize {
                 if sample_count == 1 {
                     this.flags |= KTX_FORMAT_SIZE_DEPTH_BIT;
                 } else if sample_count == 2 {
-                    this.flags |= KTX_FORMAT_SIZE_STENCIL_BIT | KTX_FORMAT_SIZE_DEPTH_BIT | KTX_FORMAT_SIZE_PACKED_BIT;
+                    this.flags |= KTX_FORMAT_SIZE_STENCIL_BIT
+                        | KTX_FORMAT_SIZE_DEPTH_BIT
+                        | KTX_FORMAT_SIZE_PACKED_BIT;
                 } else {
                     return Err(ErrorCode::FileDataError);
                 }

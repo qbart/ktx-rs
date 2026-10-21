@@ -18,11 +18,13 @@ pub const KTX_GL_UNPACK_ALIGNMENT: u32 = 4;
 pub const KTX_FACESLICE_WHOLE_LEVEL: u32 = u32::MAX;
 
 /// KTX 1 file identifier.
-pub const KTX_IDENTIFIER_REF: [u8; 12] =
-    [0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];
+pub const KTX_IDENTIFIER_REF: [u8; 12] = [
+    0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
+];
 /// KTX 2 file identifier.
-pub const KTX2_IDENTIFIER_REF: [u8; 12] =
-    [0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];
+pub const KTX2_IDENTIFIER_REF: [u8; 12] = [
+    0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
+];
 /// Endianness marker as written by a little/big matching writer.
 pub const KTX_ENDIAN_REF: u32 = 0x04030201;
 /// Endianness marker from an opposite-endian writer.
@@ -72,7 +74,11 @@ pub struct Orientation {
 
 impl Default for Orientation {
     fn default() -> Self {
-        Orientation { x: OrientationX::RIGHT, y: OrientationY::DOWN, z: OrientationZ::OUT }
+        Orientation {
+            x: OrientationX::RIGHT,
+            y: OrientationY::DOWN,
+            z: OrientationZ::OUT,
+        }
     }
 }
 
@@ -172,7 +178,11 @@ pub fn ktx_transcode_format_string(format: TranscodeFmt) -> &'static str {
 
 /// Port of `_KTX_PADN`: round `nbytes` up to a multiple of `n`.
 pub const fn ktx_padn(n: u64, nbytes: u64) -> u64 {
-    if n == 0 { nbytes } else { nbytes.div_ceil(n) * n }
+    if n == 0 {
+        nbytes
+    } else {
+        nbytes.div_ceil(n) * n
+    }
 }
 
 /// Port of `_KTX_PADN_LEN`: padding bytes required to reach a multiple of `n`.

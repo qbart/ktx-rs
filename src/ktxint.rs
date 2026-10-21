@@ -163,7 +163,10 @@ impl KtxHeader2 {
                 byte_offset: rd_u32(b, 48),
                 byte_length: rd_u32(b, 52),
             },
-            key_value_data: IndexEntry32 { byte_offset: rd_u32(b, 56), byte_length: rd_u32(b, 60) },
+            key_value_data: IndexEntry32 {
+                byte_offset: rd_u32(b, 56),
+                byte_length: rd_u32(b, 60),
+            },
             supercompression_global_data: IndexEntry64 {
                 byte_offset: rd_u64(b, 64),
                 byte_length: rd_u64(b, 72),
@@ -242,12 +245,7 @@ pub struct SupplementalInfo {
     pub texture_dimension: u16,
 }
 
-fn check_dims_and_levels(
-    width: u32,
-    height: u32,
-    depth: u32,
-    layers: u32,
-) -> KtxResult<u16> {
+fn check_dims_and_levels(width: u32, height: u32, depth: u32, layers: u32) -> KtxResult<u16> {
     // KTX files can store 8 types of textures: 1D, 2D, 3D, cube, and array
     // variants of these. There is no extension for 3D array textures.
     if width == 0 || (depth > 0 && height == 0) {
@@ -402,6 +400,11 @@ pub fn ktx_check_header2(header: &mut KtxHeader2) -> KtxResult<SupplementalInfo>
         _ => return Err(ErrorCode::UnsupportedFeature),
     }
 
-    check_level_count(header.level_count, header.pixel_width, header.pixel_height, header.pixel_depth)?;
+    check_level_count(
+        header.level_count,
+        header.pixel_width,
+        header.pixel_height,
+        header.pixel_depth,
+    )?;
     Ok(supp)
 }

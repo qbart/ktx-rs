@@ -12,9 +12,9 @@ pub mod vk2dfd;
 pub use access::*;
 pub use colourspaces::*;
 pub use createdfd::*;
+pub use dfd2vk::dfd2vk;
 pub use interpret::*;
 pub use queries::*;
-pub use dfd2vk::dfd2vk;
 pub use vk2dfd::vk2dfd;
 
 /// Port of `enum VkSuffix`: qualifier suffix to the format, in Vulkan terms.

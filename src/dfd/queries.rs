@@ -54,7 +54,9 @@ pub fn reconstruct_dfd_bytes_plane0_from_samples(dfd: &[u32]) -> u32 {
             if dfdsval(b, 0, BITLENGTH) + 1 == 16 {
                 return 4; // D16_UNORM_S8_UINT
             }
-            if dfdsval(b, 0, BITLENGTH) + 1 == 32 && dfdsval(b, 1, CHANNELID) == KHR_DF_CHANNEL_COMMON_STENCIL {
+            if dfdsval(b, 0, BITLENGTH) + 1 == 32
+                && dfdsval(b, 1, CHANNELID) == KHR_DF_CHANNEL_COMMON_STENCIL
+            {
                 return 8; // D32_SFLOAT_S8_UINT
             }
         }

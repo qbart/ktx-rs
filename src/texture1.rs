@@ -2,20 +2,23 @@
 
 use std::ops::{Deref, DerefMut};
 
-use crate::defs::{KTX_ENDIAN_REF_REV, KTX_HEADER_SIZE, KTX_ORIENTATION_KEY, OrientationX, OrientationY, OrientationZ};
+use crate::defs::{
+    KTX_ENDIAN_REF_REV, KTX_HEADER_SIZE, KTX_ORIENTATION_KEY, OrientationX, OrientationY,
+    OrientationZ,
+};
 use crate::error::{ErrorCode, KtxResult};
 use crate::formatsize::KTX_FORMAT_SIZE_COMPRESSED_BIT;
 use crate::gl_format::{
-    GL_INVALID_VALUE, gl_get_format_from_internal_format, gl_get_format_size, gl_get_type_from_internal_format,
-    gl_get_type_size_from_type,
+    GL_INVALID_VALUE, gl_get_format_from_internal_format, gl_get_format_size,
+    gl_get_type_from_internal_format, gl_get_type_size_from_type,
 };
 use crate::ktxint::{KtxHeader, ktx_check_header1};
 use crate::stream::{FileStream, MemStream, Stream};
 use crate::swap::ktx_swap_endian_bytes;
 use crate::texture::{
-    ClassId, FormatVersion, IterCb, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, KTX_TEXTURE_CREATE_RAW_KVDATA_BIT,
-    KTX_TEXTURE_CREATE_SKIP_KVDATA_BIT, KtxTexture, Texture, TextureCreateFlags, TextureCreateInfo,
-    TextureCreateStorage,
+    ClassId, FormatVersion, IterCb, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
+    KTX_TEXTURE_CREATE_RAW_KVDATA_BIT, KTX_TEXTURE_CREATE_SKIP_KVDATA_BIT, KtxTexture, Texture,
+    TextureCreateFlags, TextureCreateInfo, TextureCreateStorage,
 };
 use crate::vk_format::RgbaAstcMapping;
 
@@ -55,7 +58,8 @@ impl DerefMut for Texture1 {
 
 fn try_alloc(len: usize) -> KtxResult<Vec<u8>> {
     let mut v = Vec::new();
-    v.try_reserve_exact(len).map_err(|_| ErrorCode::OutOfMemory)?;
+    v.try_reserve_exact(len)
+        .map_err(|_| ErrorCode::OutOfMemory)?;
     v.resize(len, 0);
     Ok(v)
 }
@@ -94,7 +98,10 @@ impl Texture1 {
             gl_base_internalformat: 0,
             gl_type: 0,
             // HDR is the best default mapping to resolve the ASTC ambiguity.
-            private: Texture1Private { rgba_astc_mapping: RgbaAstcMapping::ToHdr, ..Default::default() },
+            private: Texture1Private {
+                rgba_astc_mapping: RgbaAstcMapping::ToHdr,
+                ..Default::default()
+            },
         }
     }
 
@@ -104,7 +111,10 @@ impl Texture1 {
     }
 
     /// Port of `ktxTexture1_construct` / `ktxTexture1_Create`.
-    pub fn create(create_info: &TextureCreateInfo, storage_allocation: TextureCreateStorage) -> KtxResult<Texture1> {
+    pub fn create(
+        create_info: &TextureCreateInfo,
+        storage_allocation: TextureCreateStorage,
+    ) -> KtxResult<Texture1> {
         let format_size = gl_get_format_size(create_info.gl_internalformat);
         if format_size.block_size_in_bits == 0 {
             // Most likely a deprecated legacy format.
@@ -207,13 +217,19 @@ impl Texture1 {
                     let mut src = 0usize;
                     while src + 4 <= kvd.len() {
                         kvd[src..src + 4].reverse();
-                        let sz = u32::from_le_bytes([kvd[src], kvd[src + 1], kvd[src + 2], kvd[src + 3]]);
+                        let sz = u32::from_le_bytes([
+                            kvd[src],
+                            kvd[src + 1],
+                            kvd[src + 2],
+                            kvd[src + 3],
+                        ]);
                         src += 4 + crate::defs::ktx_pad4(sz as u64) as usize;
                     }
                 }
                 if create_flags & KTX_TEXTURE_CREATE_RAW_KVDATA_BIT == 0 {
                     this.base.kv_data_head.deserialize(&kvd)?;
-                    if let Ok(orientation) = this.base.kv_data_head.find_value(KTX_ORIENTATION_KEY) {
+                    if let Ok(orientation) = this.base.kv_data_head.find_value(KTX_ORIENTATION_KEY)
+                    {
                         let mut orient = scan_ktx1_orientation(orientation);
                         orient.resize(3, 0);
                         let nd = this.base.num_dimensions;
@@ -268,7 +284,10 @@ impl Texture1 {
     }
 
     /// Port of `ktxTexture1_CreateFromStream`.
-    pub fn create_from_stream(mut stream: Box<dyn Stream>, create_flags: TextureCreateFlags) -> KtxResult<Texture1> {
+    pub fn create_from_stream(
+        mut stream: Box<dyn Stream>,
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture1> {
         let mut this = Self::create_from_borrowed_stream(&mut *stream, None, create_flags)?;
         if create_flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
             this.base.protected.stream = Some(stream);
@@ -277,7 +296,10 @@ impl Texture1 {
     }
 
     /// Port of `ktxTexture1_CreateFromStdioStream`.
-    pub fn create_from_stdio_stream(file: std::fs::File, create_flags: TextureCreateFlags) -> KtxResult<Texture1> {
+    pub fn create_from_stdio_stream(
+        file: std::fs::File,
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture1> {
         Self::create_from_stream(Box::new(FileStream::construct(file)?), create_flags)
     }
 
@@ -290,14 +312,18 @@ impl Texture1 {
     }
 
     /// Port of `ktxTexture1_CreateFromMemory`.
-    pub fn create_from_memory(bytes: &[u8], create_flags: TextureCreateFlags) -> KtxResult<Texture1> {
+    pub fn create_from_memory(
+        bytes: &[u8],
+        create_flags: TextureCreateFlags,
+    ) -> KtxResult<Texture1> {
         if bytes.is_empty() {
             return Err(ErrorCode::InvalidValue);
         }
         let mut stream = MemStream::construct_ro(bytes)?;
         let mut this = Self::create_from_borrowed_stream(&mut stream, None, create_flags)?;
         if create_flags & KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT == 0 {
-            this.base.protected.stream = Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
+            this.base.protected.stream =
+                Some(Box::new(MemStream::construct_ro_owned(bytes.to_vec())?));
         }
         Ok(this)
     }
@@ -352,13 +378,25 @@ impl Texture1 {
         let mut b = [0u8; 4];
         stream.read(&mut b)?;
         let v = u32::from_le_bytes(b);
-        Ok(if self.private.need_swap { v.swap_bytes() } else { v })
+        Ok(if self.private.need_swap {
+            v.swap_bytes()
+        } else {
+            v
+        })
     }
 
     /// Port of `ktxTexture1_LoadImageData` body using `stream`.
-    fn load_image_data_int(&mut self, stream: &mut dyn Stream, buffer: Option<&mut [u8]>) -> KtxResult<()> {
+    fn load_image_data_int(
+        &mut self,
+        stream: &mut dyn Stream,
+        buffer: Option<&mut [u8]>,
+    ) -> KtxResult<()> {
         let use_own = buffer.is_none();
-        let mut own = if use_own { try_alloc(self.base.data_size)? } else { Vec::new() };
+        let mut own = if use_own {
+            try_alloc(self.base.data_size)?
+        } else {
+            Vec::new()
+        };
         let dest: &mut [u8] = match buffer {
             None => &mut own,
             Some(b) => {
@@ -373,9 +411,15 @@ impl Texture1 {
         for _miplevel in 0..self.base.num_levels {
             let face_lod_size = self.read_face_lod_size(stream)? as usize;
             // KTX_GL_UNPACK_ALIGNMENT is 4 so no padding.
-            let inner = if self.base.is_cubemap && !self.base.is_array { self.base.num_faces } else { 1 };
+            let inner = if self.base.is_cubemap && !self.base.is_array {
+                self.base.num_faces
+            } else {
+                1
+            };
             for _face in 0..inner {
-                let d = dest.get_mut(p..p.saturating_add(face_lod_size)).ok_or(ErrorCode::InvalidValue)?;
+                let d = dest
+                    .get_mut(p..p.saturating_add(face_lod_size))
+                    .ok_or(ErrorCode::InvalidValue)?;
                 stream.read(d)?;
                 self.swap_image(d, face_lod_size);
                 p += face_lod_size;
@@ -387,7 +431,11 @@ impl Texture1 {
         Ok(())
     }
 
-    fn iterate_load_level_faces_int(&self, stream: &mut dyn Stream, iter_cb: &mut IterCb<'_>) -> KtxResult<()> {
+    fn iterate_load_level_faces_int(
+        &self,
+        stream: &mut dyn Stream,
+        iter_cb: &mut IterCb<'_>,
+    ) -> KtxResult<()> {
         self.seek_to_data(stream)?;
         let mut data: Vec<u8> = Vec::new();
         for miplevel in 0..self.base.num_levels {
@@ -400,12 +448,24 @@ impl Texture1 {
                 // subsequent miplevels cannot be larger than the base miplevel
                 return Err(ErrorCode::FileDataError);
             }
-            let inner = if self.base.is_cubemap && !self.base.is_array { self.base.num_faces } else { 1 };
+            let inner = if self.base.is_cubemap && !self.base.is_array {
+                self.base.num_faces
+            } else {
+                1
+            };
             for face in 0..inner {
                 let d = &mut data[..face_lod_size];
                 stream.read(d)?;
                 self.swap_image(d, face_lod_size);
-                iter_cb(miplevel, face, width, height, depth, face_lod_size as u64, d)?;
+                iter_cb(
+                    miplevel,
+                    face,
+                    width,
+                    height,
+                    depth,
+                    face_lod_size as u64,
+                    d,
+                )?;
             }
         }
         Ok(())
@@ -424,7 +484,9 @@ impl KtxTexture for Texture1 {
     /// Port of `ktxTexture1_calcDataSizeLevels`.
     fn calc_data_size_levels(&self, levels: u32) -> usize {
         // KTX_GL_UNPACK_ALIGNMENT == 4 so no mip padding.
-        (0..levels).map(|i| self.calc_level_size(i, FormatVersion::One)).sum()
+        (0..levels)
+            .map(|i| self.calc_level_size(i, FormatVersion::One))
+            .sum()
     }
 
     /// Port of `ktxTexture1_calcFaceLodSize`.
@@ -484,7 +546,9 @@ impl KtxTexture for Texture1 {
             let (width, height, depth) = self.level_dims(miplevel);
             let level_size = self.calc_level_size(miplevel, FormatVersion::One);
             let offset = self.get_image_offset(miplevel, 0, 0)?;
-            let pixels = data.get(offset..offset + level_size).ok_or(ErrorCode::FileDataError)?;
+            let pixels = data
+                .get(offset..offset + level_size)
+                .ok_or(ErrorCode::FileDataError)?;
             iter_cb(miplevel, 0, width, height, depth, level_size as u64, pixels)?;
         }
         Ok(())
@@ -492,7 +556,12 @@ impl KtxTexture for Texture1 {
 
     /// Port of `ktxTexture1_IterateLoadLevelFaces`. The stream is consumed.
     fn iterate_load_level_faces(&mut self, iter_cb: &mut IterCb<'_>) -> KtxResult<()> {
-        let mut stream = self.base.protected.stream.take().ok_or(ErrorCode::InvalidOperation)?;
+        let mut stream = self
+            .base
+            .protected
+            .stream
+            .take()
+            .ok_or(ErrorCode::InvalidOperation)?;
         self.iterate_load_level_faces_int(&mut *stream, iter_cb)
     }
 
@@ -501,7 +570,12 @@ impl KtxTexture for Texture1 {
         if self.p_data.is_some() {
             return Err(ErrorCode::InvalidOperation);
         }
-        let mut stream = self.base.protected.stream.take().ok_or(ErrorCode::InvalidOperation)?;
+        let mut stream = self
+            .base
+            .protected
+            .stream
+            .take()
+            .ok_or(ErrorCode::InvalidOperation)?;
         self.load_image_data_int(&mut *stream, buffer)
     }
 

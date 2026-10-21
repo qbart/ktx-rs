@@ -13,18 +13,24 @@ enum ChannelsInfoType {
     NonColor,
 }
 
-fn write_header(num_samples: u32, bytes: u32, suffix: VkSuffix, infotype: ChannelsInfoType) -> Vec<u32> {
+fn write_header(
+    num_samples: u32,
+    bytes: u32,
+    suffix: VkSuffix,
+    infotype: ChannelsInfoType,
+) -> Vec<u32> {
     let words = 1 + KHR_DF_WORD_SAMPLESTART + num_samples * KHR_DF_WORD_SAMPLEWORDS;
     let mut dfd = vec![0u32; words as usize];
     dfd[0] = 4 * words;
     let b = bdb_mut(&mut dfd);
     b[KHR_DF_WORD_VENDORID as usize] = (KHR_DF_VENDORID_KHRONOS << KHR_DF_SHIFT_VENDORID)
         | (KHR_DF_KHR_DESCRIPTORTYPE_BASICFORMAT << KHR_DF_SHIFT_DESCRIPTORTYPE);
-    b[KHR_DF_WORD_VERSIONNUMBER as usize] = (KHR_DF_VERSIONNUMBER_LATEST << KHR_DF_SHIFT_VERSIONNUMBER)
+    b[KHR_DF_WORD_VERSIONNUMBER as usize] = (KHR_DF_VERSIONNUMBER_LATEST
+        << KHR_DF_SHIFT_VERSIONNUMBER)
         | ((4 * (KHR_DF_WORD_SAMPLESTART + num_samples * KHR_DF_WORD_SAMPLEWORDS))
             << KHR_DF_SHIFT_DESCRIPTORBLOCKSIZE);
-    b[KHR_DF_WORD_MODEL as usize] =
-        (KHR_DF_MODEL_RGBSDA << KHR_DF_SHIFT_MODEL) | (KHR_DF_FLAG_ALPHA_STRAIGHT << KHR_DF_SHIFT_FLAGS);
+    b[KHR_DF_WORD_MODEL as usize] = (KHR_DF_MODEL_RGBSDA << KHR_DF_SHIFT_MODEL)
+        | (KHR_DF_FLAG_ALPHA_STRAIGHT << KHR_DF_SHIFT_FLAGS);
     if infotype == ChannelsInfoType::Color {
         b[KHR_DF_WORD_PRIMARIES as usize] |= KHR_DF_PRIMARIES_BT709 << KHR_DF_SHIFT_PRIMARIES;
     } else {
@@ -60,7 +66,11 @@ fn set_channel_flags(mut channel: u32, suffix: VkSuffix) -> u32 {
 
 /// `(1 << bits) - 1` for 1..=32 bits, saturating.
 fn low_mask(bits: u32) -> u32 {
-    if bits >= 32 { 0xFFFF_FFFF } else { (1u32 << bits) - 1 }
+    if bits >= 32 {
+        0xFFFF_FFFF
+    } else {
+        (1u32 << bits) - 1
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -128,7 +138,12 @@ pub fn create_dfd_unpacked(
     }
     let mut dfd;
     if big_endian {
-        dfd = write_header(num_channels * bytes, num_channels * bytes, suffix, ChannelsInfoType::Color);
+        dfd = write_header(
+            num_channels * bytes,
+            num_channels * bytes,
+            suffix,
+            ChannelsInfoType::Color,
+        );
         for channel_counter in 0..num_channels {
             let mut channel = channel_counter;
             if red_blue_swap && (channel == 0 || channel == 2) {
@@ -148,13 +163,27 @@ pub fn create_dfd_unpacked(
             }
         }
     } else {
-        dfd = write_header(num_channels, num_channels * bytes, suffix, ChannelsInfoType::Color);
+        dfd = write_header(
+            num_channels,
+            num_channels * bytes,
+            suffix,
+            ChannelsInfoType::Color,
+        );
         for sample_counter in 0..num_channels {
             let mut channel = sample_counter;
             if red_blue_swap && (channel == 0 || channel == 2) {
                 channel ^= 2;
             }
-            write_sample(&mut dfd, sample_counter, channel, 8 * bytes, 8 * sample_counter * bytes, true, true, suffix);
+            write_sample(
+                &mut dfd,
+                sample_counter,
+                channel,
+                8 * bytes,
+                8 * sample_counter * bytes,
+                true,
+                true,
+                suffix,
+            );
         }
     }
     Some(dfd)
@@ -175,22 +204,53 @@ pub fn create_dfd_packed_shifted(
         let mut dfd = write_header(num_channels, 4, VkSuffix::Ufloat, ChannelsInfoType::Color);
         write_sample(&mut dfd, 0, 0, 9, 0, true, true, VkSuffix::Unorm);
         dfdsetsval(bdb_mut(&mut dfd), 0, SAMPLEUPPER, 8448);
-        write_sample(&mut dfd, 1, KHR_DF_SAMPLE_DATATYPE_EXPONENT, 5, 27, true, true, VkSuffix::Unorm);
+        write_sample(
+            &mut dfd,
+            1,
+            KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            5,
+            27,
+            true,
+            true,
+            VkSuffix::Unorm,
+        );
         dfdsetsval(bdb_mut(&mut dfd), 1, SAMPLELOWER, 15);
         dfdsetsval(bdb_mut(&mut dfd), 1, SAMPLEUPPER, 31);
         write_sample(&mut dfd, 2, 1, 9, 9, true, true, VkSuffix::Unorm);
         dfdsetsval(bdb_mut(&mut dfd), 2, SAMPLEUPPER, 8448);
-        write_sample(&mut dfd, 3, 1 | KHR_DF_SAMPLE_DATATYPE_EXPONENT, 5, 27, true, true, VkSuffix::Unorm);
+        write_sample(
+            &mut dfd,
+            3,
+            1 | KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            5,
+            27,
+            true,
+            true,
+            VkSuffix::Unorm,
+        );
         dfdsetsval(bdb_mut(&mut dfd), 3, SAMPLELOWER, 15);
         dfdsetsval(bdb_mut(&mut dfd), 3, SAMPLEUPPER, 31);
         write_sample(&mut dfd, 4, 2, 9, 18, true, true, VkSuffix::Unorm);
         dfdsetsval(bdb_mut(&mut dfd), 4, SAMPLEUPPER, 8448);
-        write_sample(&mut dfd, 5, 2 | KHR_DF_SAMPLE_DATATYPE_EXPONENT, 5, 27, true, true, VkSuffix::Unorm);
+        write_sample(
+            &mut dfd,
+            5,
+            2 | KHR_DF_SAMPLE_DATATYPE_EXPONENT,
+            5,
+            27,
+            true,
+            true,
+            VkSuffix::Unorm,
+        );
         dfdsetsval(bdb_mut(&mut dfd), 5, SAMPLELOWER, 15);
         dfdsetsval(bdb_mut(&mut dfd), 5, SAMPLEUPPER, 31);
         return Some(dfd);
     }
-    if num_channels == 0 || num_channels > 4 || bits.len() < n || shift_bits.len() < n || channels.len() < n
+    if num_channels == 0
+        || num_channels > 4
+        || bits.len() < n
+        || shift_bits.len() < n
+        || channels.len() < n
     {
         return None;
     }
@@ -221,7 +281,12 @@ pub fn create_dfd_packed_shifted(
             }
             bit_offset += bits[c];
         }
-        let mut dfd = write_header(num_samples, total_bits >> 3, suffix, ChannelsInfoType::Color);
+        let mut dfd = write_header(
+            num_samples,
+            total_bits >> 3,
+            suffix,
+            ChannelsInfoType::Color,
+        );
         let mut sample_counter = 0u32;
         bit_offset = 0;
         while bit_offset < total_bits {
@@ -261,7 +326,8 @@ pub fn create_dfd_packed_shifted(
                     );
                     sample_counter += 1;
                     // Mark that we've already handled this sample
-                    *bit_channel.get_mut(((be_channel_start[this_channel] ^ be_mask) & 31) as usize)? = -1;
+                    *bit_channel
+                        .get_mut(((be_channel_start[this_channel] ^ be_mask) & 31) as usize)? = -1;
                     write_sample(
                         &mut dfd,
                         sample_counter,
@@ -283,11 +349,25 @@ pub fn create_dfd_packed_shifted(
         for c in 0..n {
             total_bits += shift_bits[c] + bits[c];
         }
-        let mut dfd = write_header(num_channels, total_bits >> 3, suffix, ChannelsInfoType::Color);
+        let mut dfd = write_header(
+            num_channels,
+            total_bits >> 3,
+            suffix,
+            ChannelsInfoType::Color,
+        );
         let mut bit_offset = 0u32;
         for c in 0..n {
             bit_offset += shift_bits[c];
-            write_sample(&mut dfd, c as u32, channels[c], bits[c], bit_offset, true, true, suffix);
+            write_sample(
+                &mut dfd,
+                c as u32,
+                channels[c],
+                bits[c],
+                bit_offset,
+                true,
+                true,
+                suffix,
+            );
             bit_offset += bits[c];
         }
         Some(dfd)
@@ -355,7 +435,15 @@ pub fn create_dfd_422(
     dfdsetval(b, TEXELBLOCKDIMENSION2, 0);
     dfdsetval(b, TEXELBLOCKDIMENSION3, 0);
     dfdsetval(b, BYTESPLANE0, total_bits / 8);
-    for f in [BYTESPLANE1, BYTESPLANE2, BYTESPLANE3, BYTESPLANE4, BYTESPLANE5, BYTESPLANE6, BYTESPLANE7] {
+    for f in [
+        BYTESPLANE1,
+        BYTESPLANE2,
+        BYTESPLANE3,
+        BYTESPLANE4,
+        BYTESPLANE5,
+        BYTESPLANE6,
+        BYTESPLANE7,
+    ] {
         dfdsetval(b, f, 0);
     }
     let mut bit_offset = 0u32;
@@ -387,7 +475,15 @@ struct CompInfo {
     bytes: u32,
 }
 
-const fn ci(model: u32, sample_count: u32, first: u32, second: u32, off: u32, bits: u32, bytes: u32) -> CompInfo {
+const fn ci(
+    model: u32,
+    sample_count: u32,
+    first: u32,
+    second: u32,
+    off: u32,
+    bits: u32,
+    bytes: u32,
+) -> CompInfo {
     CompInfo {
         model,
         sample_count,
@@ -402,7 +498,15 @@ const fn ci(model: u32, sample_count: u32, first: u32, second: u32, off: u32, bi
 fn comp_info(scheme: VkCompScheme) -> CompInfo {
     use VkCompScheme::*;
     match scheme {
-        Bc1Rgb => ci(KHR_DF_MODEL_BC1A, 1, KHR_DF_CHANNEL_BC1A_COLOR, KHR_DF_CHANNEL_BC1A_COLOR, 0, 64, 8),
+        Bc1Rgb => ci(
+            KHR_DF_MODEL_BC1A,
+            1,
+            KHR_DF_CHANNEL_BC1A_COLOR,
+            KHR_DF_CHANNEL_BC1A_COLOR,
+            0,
+            64,
+            8,
+        ),
         Bc1Rgba => ci(
             KHR_DF_MODEL_BC1A,
             1,
@@ -412,23 +516,141 @@ fn comp_info(scheme: VkCompScheme) -> CompInfo {
             64,
             8,
         ),
-        Bc2 => ci(KHR_DF_MODEL_BC2, 2, KHR_DF_CHANNEL_BC2_ALPHA, KHR_DF_CHANNEL_BC2_COLOR, 64, 64, 16),
-        Bc3 => ci(KHR_DF_MODEL_BC3, 2, KHR_DF_CHANNEL_BC3_ALPHA, KHR_DF_CHANNEL_BC3_COLOR, 64, 64, 16),
-        Bc4 => ci(KHR_DF_MODEL_BC4, 1, KHR_DF_CHANNEL_BC4_DATA, KHR_DF_CHANNEL_BC4_DATA, 0, 64, 8),
-        Bc5 => ci(KHR_DF_MODEL_BC5, 2, KHR_DF_CHANNEL_BC5_RED, KHR_DF_CHANNEL_BC5_GREEN, 64, 64, 16),
-        Bc6h => ci(KHR_DF_MODEL_BC6H, 1, KHR_DF_CHANNEL_BC6H_COLOR, KHR_DF_CHANNEL_BC6H_COLOR, 0, 128, 16),
-        Bc7 => ci(KHR_DF_MODEL_BC7, 1, KHR_DF_CHANNEL_BC7_COLOR, KHR_DF_CHANNEL_BC7_COLOR, 0, 128, 16),
-        Etc2R8G8B8 => ci(KHR_DF_MODEL_ETC2, 1, KHR_DF_CHANNEL_ETC2_COLOR, KHR_DF_CHANNEL_ETC2_COLOR, 0, 64, 8),
-        Etc2R8G8B8A1 => ci(KHR_DF_MODEL_ETC2, 2, KHR_DF_CHANNEL_ETC2_COLOR, KHR_DF_CHANNEL_ETC2_ALPHA, 0, 64, 8),
-        Etc2R8G8B8A8 => {
-            ci(KHR_DF_MODEL_ETC2, 2, KHR_DF_CHANNEL_ETC2_ALPHA, KHR_DF_CHANNEL_ETC2_COLOR, 64, 64, 16)
-        }
-        EacR11 => ci(KHR_DF_MODEL_ETC2, 1, KHR_DF_CHANNEL_ETC2_RED, KHR_DF_CHANNEL_ETC2_RED, 0, 64, 8),
-        EacR11G11 => ci(KHR_DF_MODEL_ETC2, 2, KHR_DF_CHANNEL_ETC2_RED, KHR_DF_CHANNEL_ETC2_GREEN, 64, 64, 16),
-        Astc => ci(KHR_DF_MODEL_ASTC, 1, KHR_DF_CHANNEL_ASTC_DATA, KHR_DF_CHANNEL_ASTC_DATA, 0, 128, 16),
-        Etc1s => ci(KHR_DF_MODEL_ETC1S, 1, KHR_DF_CHANNEL_ETC1S_RGB, KHR_DF_CHANNEL_ETC1S_RGB, 0, 64, 8),
-        Pvrtc => ci(KHR_DF_MODEL_PVRTC, 1, KHR_DF_CHANNEL_PVRTC_COLOR, KHR_DF_CHANNEL_PVRTC_COLOR, 0, 64, 8),
-        Pvrtc2 => ci(KHR_DF_MODEL_PVRTC2, 1, KHR_DF_CHANNEL_PVRTC2_COLOR, KHR_DF_CHANNEL_PVRTC2_COLOR, 0, 64, 8),
+        Bc2 => ci(
+            KHR_DF_MODEL_BC2,
+            2,
+            KHR_DF_CHANNEL_BC2_ALPHA,
+            KHR_DF_CHANNEL_BC2_COLOR,
+            64,
+            64,
+            16,
+        ),
+        Bc3 => ci(
+            KHR_DF_MODEL_BC3,
+            2,
+            KHR_DF_CHANNEL_BC3_ALPHA,
+            KHR_DF_CHANNEL_BC3_COLOR,
+            64,
+            64,
+            16,
+        ),
+        Bc4 => ci(
+            KHR_DF_MODEL_BC4,
+            1,
+            KHR_DF_CHANNEL_BC4_DATA,
+            KHR_DF_CHANNEL_BC4_DATA,
+            0,
+            64,
+            8,
+        ),
+        Bc5 => ci(
+            KHR_DF_MODEL_BC5,
+            2,
+            KHR_DF_CHANNEL_BC5_RED,
+            KHR_DF_CHANNEL_BC5_GREEN,
+            64,
+            64,
+            16,
+        ),
+        Bc6h => ci(
+            KHR_DF_MODEL_BC6H,
+            1,
+            KHR_DF_CHANNEL_BC6H_COLOR,
+            KHR_DF_CHANNEL_BC6H_COLOR,
+            0,
+            128,
+            16,
+        ),
+        Bc7 => ci(
+            KHR_DF_MODEL_BC7,
+            1,
+            KHR_DF_CHANNEL_BC7_COLOR,
+            KHR_DF_CHANNEL_BC7_COLOR,
+            0,
+            128,
+            16,
+        ),
+        Etc2R8G8B8 => ci(
+            KHR_DF_MODEL_ETC2,
+            1,
+            KHR_DF_CHANNEL_ETC2_COLOR,
+            KHR_DF_CHANNEL_ETC2_COLOR,
+            0,
+            64,
+            8,
+        ),
+        Etc2R8G8B8A1 => ci(
+            KHR_DF_MODEL_ETC2,
+            2,
+            KHR_DF_CHANNEL_ETC2_COLOR,
+            KHR_DF_CHANNEL_ETC2_ALPHA,
+            0,
+            64,
+            8,
+        ),
+        Etc2R8G8B8A8 => ci(
+            KHR_DF_MODEL_ETC2,
+            2,
+            KHR_DF_CHANNEL_ETC2_ALPHA,
+            KHR_DF_CHANNEL_ETC2_COLOR,
+            64,
+            64,
+            16,
+        ),
+        EacR11 => ci(
+            KHR_DF_MODEL_ETC2,
+            1,
+            KHR_DF_CHANNEL_ETC2_RED,
+            KHR_DF_CHANNEL_ETC2_RED,
+            0,
+            64,
+            8,
+        ),
+        EacR11G11 => ci(
+            KHR_DF_MODEL_ETC2,
+            2,
+            KHR_DF_CHANNEL_ETC2_RED,
+            KHR_DF_CHANNEL_ETC2_GREEN,
+            64,
+            64,
+            16,
+        ),
+        Astc => ci(
+            KHR_DF_MODEL_ASTC,
+            1,
+            KHR_DF_CHANNEL_ASTC_DATA,
+            KHR_DF_CHANNEL_ASTC_DATA,
+            0,
+            128,
+            16,
+        ),
+        Etc1s => ci(
+            KHR_DF_MODEL_ETC1S,
+            1,
+            KHR_DF_CHANNEL_ETC1S_RGB,
+            KHR_DF_CHANNEL_ETC1S_RGB,
+            0,
+            64,
+            8,
+        ),
+        Pvrtc => ci(
+            KHR_DF_MODEL_PVRTC,
+            1,
+            KHR_DF_CHANNEL_PVRTC_COLOR,
+            KHR_DF_CHANNEL_PVRTC_COLOR,
+            0,
+            64,
+            8,
+        ),
+        Pvrtc2 => ci(
+            KHR_DF_MODEL_PVRTC2,
+            1,
+            KHR_DF_CHANNEL_PVRTC2_COLOR,
+            KHR_DF_CHANNEL_PVRTC2_COLOR,
+            0,
+            64,
+            8,
+        ),
     }
 }
 
@@ -451,7 +673,8 @@ pub fn create_dfd_compressed(
     let b = bdb_mut(&mut dfd);
     b[KHR_DF_WORD_VENDORID as usize] = (KHR_DF_VENDORID_KHRONOS << KHR_DF_SHIFT_VENDORID)
         | (KHR_DF_KHR_DESCRIPTORTYPE_BASICFORMAT << KHR_DF_SHIFT_DESCRIPTORTYPE);
-    b[KHR_DF_WORD_VERSIONNUMBER as usize] = (KHR_DF_VERSIONNUMBER_LATEST << KHR_DF_SHIFT_VERSIONNUMBER)
+    b[KHR_DF_WORD_VERSIONNUMBER as usize] = (KHR_DF_VERSIONNUMBER_LATEST
+        << KHR_DF_SHIFT_VERSIONNUMBER)
         | ((4 * (KHR_DF_WORD_SAMPLESTART + num_samples * KHR_DF_WORD_SAMPLEWORDS))
             << KHR_DF_SHIFT_DESCRIPTORBLOCKSIZE);
     b[KHR_DF_WORD_MODEL as usize] = (info.model << KHR_DF_SHIFT_MODEL)
@@ -479,7 +702,8 @@ pub fn create_dfd_compressed(
 
     let s0 = KHR_DF_WORD_SAMPLESTART as usize;
     let channel = set_channel_flags(info.first_channel, suffix);
-    b[s0] = ((info.channel_bits - 1) << KHR_DF_SAMPLESHIFT_BITLENGTH) | (channel << KHR_DF_SAMPLESHIFT_CHANNELID);
+    b[s0] = ((info.channel_bits - 1) << KHR_DF_SAMPLESHIFT_BITLENGTH)
+        | (channel << KHR_DF_SAMPLESHIFT_CHANNELID);
     b[s0 + 1] = 0;
     b[s0 + 2] = lower;
     b[s0 + 3] = upper;
@@ -497,25 +721,88 @@ pub fn create_dfd_compressed(
 }
 
 /// Port of `createDFDDepthStencil`. Little-endian is assumed.
-pub fn create_dfd_depth_stencil(depth_bits: u32, stencil_bits: u32, size_bytes: u32) -> Option<Vec<u32>> {
+pub fn create_dfd_depth_stencil(
+    depth_bits: u32,
+    stencil_bits: u32,
+    size_bytes: u32,
+) -> Option<Vec<u32>> {
     let num_samples = u32::from(depth_bits > 0) + u32::from(stencil_bits > 0);
-    let mut dfd = write_header(num_samples, size_bytes, VkSuffix::Unorm, ChannelsInfoType::NonColor);
+    let mut dfd = write_header(
+        num_samples,
+        size_bytes,
+        VkSuffix::Unorm,
+        ChannelsInfoType::NonColor,
+    );
     // Special case D24_UNORM_S8_UINT: stencil is in the LSBs.
     if depth_bits == 24 && stencil_bits == 8 {
-        write_sample(&mut dfd, 0, KHR_DF_CHANNEL_RGBSDA_STENCIL, 8, 0, true, true, VkSuffix::Uint);
-        write_sample(&mut dfd, 1, KHR_DF_CHANNEL_RGBSDA_DEPTH, 24, 8, true, true, VkSuffix::Unorm);
+        write_sample(
+            &mut dfd,
+            0,
+            KHR_DF_CHANNEL_RGBSDA_STENCIL,
+            8,
+            0,
+            true,
+            true,
+            VkSuffix::Uint,
+        );
+        write_sample(
+            &mut dfd,
+            1,
+            KHR_DF_CHANNEL_RGBSDA_DEPTH,
+            24,
+            8,
+            true,
+            true,
+            VkSuffix::Unorm,
+        );
         return Some(dfd);
     }
     if depth_bits == 32 {
-        write_sample(&mut dfd, 0, KHR_DF_CHANNEL_RGBSDA_DEPTH, 32, 0, true, true, VkSuffix::Sfloat);
+        write_sample(
+            &mut dfd,
+            0,
+            KHR_DF_CHANNEL_RGBSDA_DEPTH,
+            32,
+            0,
+            true,
+            true,
+            VkSuffix::Sfloat,
+        );
     } else if depth_bits > 0 {
-        write_sample(&mut dfd, 0, KHR_DF_CHANNEL_RGBSDA_DEPTH, depth_bits, 0, true, true, VkSuffix::Unorm);
+        write_sample(
+            &mut dfd,
+            0,
+            KHR_DF_CHANNEL_RGBSDA_DEPTH,
+            depth_bits,
+            0,
+            true,
+            true,
+            VkSuffix::Unorm,
+        );
     }
     if stencil_bits > 0 {
         if depth_bits > 0 {
-            write_sample(&mut dfd, 1, KHR_DF_CHANNEL_RGBSDA_STENCIL, stencil_bits, depth_bits, true, true, VkSuffix::Uint);
+            write_sample(
+                &mut dfd,
+                1,
+                KHR_DF_CHANNEL_RGBSDA_STENCIL,
+                stencil_bits,
+                depth_bits,
+                true,
+                true,
+                VkSuffix::Uint,
+            );
         } else {
-            write_sample(&mut dfd, 0, KHR_DF_CHANNEL_RGBSDA_STENCIL, stencil_bits, 0, true, true, VkSuffix::Uint);
+            write_sample(
+                &mut dfd,
+                0,
+                KHR_DF_CHANNEL_RGBSDA_STENCIL,
+                stencil_bits,
+                0,
+                true,
+                true,
+                VkSuffix::Uint,
+            );
         }
     }
     Some(dfd)

@@ -47,7 +47,9 @@ pub fn write_all(stream: &mut dyn Stream, src: &[u8]) -> KtxResult<()> {
 
 /// Bytes `size * count` checked against `src` length.
 pub(crate) fn write_len(src: &[u8], size: usize, count: usize) -> KtxResult<usize> {
-    let n = size.checked_mul(count).ok_or(crate::ErrorCode::FileOverflow)?;
+    let n = size
+        .checked_mul(count)
+        .ok_or(crate::ErrorCode::FileOverflow)?;
     if n > src.len() {
         return Err(crate::ErrorCode::InvalidValue);
     }

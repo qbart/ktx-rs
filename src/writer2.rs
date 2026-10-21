@@ -2,10 +2,15 @@
 
 use std::cell::Cell;
 
-use crate::defs::{KTX_FACESLICE_WHOLE_LEVEL, KTX_WRITER_KEY, KTX2_IDENTIFIER_REF, SupercmpScheme, ktx_pad8_len, ktx_padn_len};
+use crate::defs::{
+    KTX_FACESLICE_WHOLE_LEVEL, KTX_WRITER_KEY, KTX2_IDENTIFIER_REF, SupercmpScheme, ktx_pad8_len,
+    ktx_padn_len,
+};
 use crate::error::{ErrorCode, KtxResult};
 use crate::hashlist::HashList;
-use crate::ktxint::{IndexEntry32, IndexEntry64, KtxHeader2, LEVEL_INDEX_ENTRY_SIZE, LevelIndexEntry};
+use crate::ktxint::{
+    IndexEntry32, IndexEntry64, KtxHeader2, LEVEL_INDEX_ENTRY_SIZE, LevelIndexEntry,
+};
 use crate::stream::{FileStream, MemStream, Stream};
 use crate::strings::strnstr;
 use crate::texture::{FormatVersion, KtxTexture};
@@ -44,7 +49,11 @@ pub fn append_lib_id(head: &mut HashList) -> KtxResult<()> {
     };
 
     // strnstr needed because KTXwriter values may not be NUL terminated.
-    let lib_ver = if strnstr(&id, DEFAULT_ID, id_len).is_some() { LIBKTX_DEFAULT_VERSION } else { LIBKTX_VERSION };
+    let lib_ver = if strnstr(&id, DEFAULT_ID, id_len).is_some() {
+        LIBKTX_DEFAULT_VERSION
+    } else {
+        LIBKTX_VERSION
+    };
     let mut lib_id = LIB_ID_INTRO.to_vec();
     lib_id.extend_from_slice(lib_ver.as_bytes());
 
@@ -100,14 +109,23 @@ impl Texture2 {
             return Err(ErrorCode::InvalidOperation);
         }
         let (image_byte_offset, image_byte_length) = if face_slice == KTX_FACESLICE_WHOLE_LEVEL {
-            (self.get_image_offset(level, layer, 0)?, self.calc_level_size(level, FormatVersion::Two))
+            (
+                self.get_image_offset(level, layer, 0)?,
+                self.calc_level_size(level, FormatVersion::Two),
+            )
         } else {
-            (self.get_image_offset(level, layer, face_slice)?, self.get_image_size(level))
+            (
+                self.get_image_offset(level, layer, face_slice)?,
+                self.get_image_size(level),
+            )
         };
         if src_size != image_byte_length {
             return Err(ErrorCode::InvalidOperation);
         }
-        let data = self.p_data.as_deref_mut().ok_or(ErrorCode::InvalidOperation)?;
+        let data = self
+            .p_data
+            .as_deref_mut()
+            .ok_or(ErrorCode::InvalidOperation)?;
         let dst = data
             .get_mut(image_byte_offset..image_byte_offset + src_size)
             .ok_or(ErrorCode::InvalidOperation)?;
@@ -130,7 +148,13 @@ impl Texture2 {
     }
 
     /// Port of `ktxTexture2_SetImageFromMemory`.
-    pub fn set_image_from_memory(&mut self, level: u32, layer: u32, face_slice: u32, src: &[u8]) -> KtxResult<()> {
+    pub fn set_image_from_memory(
+        &mut self,
+        level: u32,
+        layer: u32,
+        face_slice: u32,
+        src: &[u8],
+    ) -> KtxResult<()> {
         let mut s = MemStream::construct_ro(src)?;
         self.set_image_from_stream(level, layer, face_slice, &mut s, src.len())
     }
@@ -146,8 +170,16 @@ impl Texture2 {
             vk_format: self.vk_format,
             type_size: self.type_size(),
             pixel_width: self.base_width,
-            pixel_height: if self.num_dimensions > 1 { self.base_height } else { 0 },
-            pixel_depth: if self.num_dimensions > 2 { self.base_depth } else { 0 },
+            pixel_height: if self.num_dimensions > 1 {
+                self.base_height
+            } else {
+                0
+            },
+            pixel_depth: if self.num_dimensions > 2 {
+                self.base_depth
+            } else {
+                0
+            },
             layer_count: if self.is_array { self.num_layers } else { 0 },
             face_count: self.num_faces,
             level_count: if self.generate_mipmaps { 0 } else { num_levels },
@@ -157,7 +189,10 @@ impl Texture2 {
         let level_index_size = LEVEL_INDEX_ENTRY_SIZE as u64 * num_levels as u64;
         let mut base_offset: u64 = crate::defs::KTX2_HEADER_SIZE as u64 + level_index_size;
         let dfd_len = self.p_dfd.first().copied().unwrap_or(0);
-        header.data_format_descriptor = IndexEntry32 { byte_offset: base_offset as u32, byte_length: dfd_len };
+        header.data_format_descriptor = IndexEntry32 {
+            byte_offset: base_offset as u32,
+            byte_length: dfd_len,
+        };
         base_offset += dfd_len as u64;
 
         // Check for invalid metadata.
@@ -179,8 +214,10 @@ impl Texture2 {
         self.kv_data_head.sort()?; // KTX2 requires sorted metadata.
         let kvd = self.kv_data_head.serialize()?;
         let kvd_len = kvd.len() as u32;
-        header.key_value_data =
-            IndexEntry32 { byte_offset: if kvd_len != 0 { base_offset as u32 } else { 0 }, byte_length: kvd_len };
+        header.key_value_data = IndexEntry32 {
+            byte_offset: if kvd_len != 0 { base_offset as u32 } else { 0 },
+            byte_length: kvd_len,
+        };
         base_offset += kvd_len as u64;
 
         let sgd_len = self.private().sgd_byte_length;
@@ -189,8 +226,10 @@ impl Texture2 {
             align8_pad_len = ktx_pad8_len(base_offset);
             base_offset += align8_pad_len;
         }
-        header.supercompression_global_data =
-            IndexEntry64 { byte_offset: if sgd_len != 0 { base_offset } else { 0 }, byte_length: sgd_len };
+        header.supercompression_global_data = IndexEntry64 {
+            byte_offset: if sgd_len != 0 { base_offset } else { 0 },
+            byte_length: sgd_len,
+        };
         base_offset += sgd_len;
         let required = self.private().required_level_alignment as u64;
         let initial_level_pad_len = ktx_padn_len(required, base_offset);
@@ -234,10 +273,16 @@ impl Texture2 {
         // write the image data
         let data = self.p_data.as_deref().unwrap_or(&[]);
         for level in (0..num_levels).rev() {
-            let e = self.level_index().get(level as usize).copied().unwrap_or_default();
+            let e = self
+                .level_index()
+                .get(level as usize)
+                .copied()
+                .unwrap_or_default();
             let start = e.byte_offset as usize;
             let len = e.byte_length as usize;
-            let src = data.get(start..start + len).ok_or(ErrorCode::InvalidOperation)?;
+            let src = data
+                .get(start..start + len)
+                .ok_or(ErrorCode::InvalidOperation)?;
             dststr.write(src, 1, len)?;
             if level > 0 {
                 // No padding at end.
@@ -285,14 +330,18 @@ impl Texture2 {
         for level in (0..num_levels).rev() {
             let c = cindex.get(level).copied().unwrap_or_default();
             let start = c.byte_offset as usize;
-            let src = data.get(start..start + c.byte_length as usize).ok_or(ErrorCode::InvalidOperation)?;
+            let src = data
+                .get(start..start + c.byte_length as usize)
+                .ok_or(ErrorCode::InvalidOperation)?;
             let out = compress(src)?;
             nindex[level] = LevelIndexEntry {
                 byte_offset: cmp_data.len() as u64,
                 uncompressed_byte_length: c.byte_length,
                 byte_length: out.len() as u64,
             };
-            cmp_data.try_reserve(out.len()).map_err(|_| ErrorCode::OutOfMemory)?;
+            cmp_data
+                .try_reserve(out.len())
+                .map_err(|_| ErrorCode::OutOfMemory)?;
             cmp_data.extend_from_slice(&out);
         }
         // Now modify the texture.
@@ -314,7 +363,10 @@ impl Texture2 {
             return Err(ErrorCode::InvalidValue);
         }
         self.deflate_with(SupercmpScheme::ZSTD, &|src: &[u8]| {
-            Ok(ruzstd::encoding::compress_to_vec(src, ruzstd::encoding::CompressionLevel::Fastest))
+            Ok(ruzstd::encoding::compress_to_vec(
+                src,
+                ruzstd::encoding::CompressionLevel::Fastest,
+            ))
         })
     }
 

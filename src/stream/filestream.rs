@@ -7,7 +7,11 @@ use super::{Stream, StreamType, write_len};
 use crate::error::{ErrorCode, KtxResult};
 
 fn read_err(e: &std::io::Error) -> ErrorCode {
-    if e.kind() == ErrorKind::UnexpectedEof { ErrorCode::FileUnexpectedEof } else { ErrorCode::FileReadError }
+    if e.kind() == ErrorKind::UnexpectedEof {
+        ErrorCode::FileUnexpectedEof
+    } else {
+        ErrorCode::FileReadError
+    }
 }
 
 fn write_err(e: &std::io::Error) -> ErrorCode {
@@ -31,12 +35,16 @@ impl FileStream {
 
     /// Opens `path` for reading.
     pub fn open(path: impl AsRef<std::path::Path>) -> KtxResult<FileStream> {
-        File::open(path).map(|file| FileStream { file }).map_err(|_| ErrorCode::FileOpenFailed)
+        File::open(path)
+            .map(|file| FileStream { file })
+            .map_err(|_| ErrorCode::FileOpenFailed)
     }
 
     /// Creates/truncates `path` for writing.
     pub fn create(path: impl AsRef<std::path::Path>) -> KtxResult<FileStream> {
-        File::create(path).map(|file| FileStream { file }).map_err(|_| ErrorCode::FileOpenFailed)
+        File::create(path)
+            .map(|file| FileStream { file })
+            .map_err(|_| ErrorCode::FileOpenFailed)
     }
 
     /// Releases the underlying file.
@@ -60,20 +68,27 @@ impl Stream for FileStream {
             let _ = self.file.seek(SeekFrom::End(0));
             return Err(ErrorCode::FileUnexpectedEof);
         }
-        self.file.seek(SeekFrom::Start(newpos)).map(|_| ()).map_err(|_| ErrorCode::FileReadError)
+        self.file
+            .seek(SeekFrom::Start(newpos))
+            .map(|_| ())
+            .map_err(|_| ErrorCode::FileReadError)
     }
 
     fn write(&mut self, src: &[u8], size: usize, count: usize) -> KtxResult<()> {
         let n = write_len(src, size, count)?;
-        self.file.write_all(src.get(..n).ok_or(ErrorCode::InvalidValue)?).map_err(|e| write_err(&e))
+        self.file
+            .write_all(src.get(..n).ok_or(ErrorCode::InvalidValue)?)
+            .map_err(|e| write_err(&e))
     }
 
     fn getpos(&mut self) -> KtxResult<u64> {
-        self.file.stream_position().map_err(|e| match e.raw_os_error() {
-            Some(29) => ErrorCode::FileIsPipe, // ESPIPE
-            Some(75) => ErrorCode::FileOverflow, // EOVERFLOW
-            _ => ErrorCode::FileSeekError,
-        })
+        self.file
+            .stream_position()
+            .map_err(|e| match e.raw_os_error() {
+                Some(29) => ErrorCode::FileIsPipe,   // ESPIPE
+                Some(75) => ErrorCode::FileOverflow, // EOVERFLOW
+                _ => ErrorCode::FileSeekError,
+            })
     }
 
     fn setpos(&mut self, pos: u64) -> KtxResult<()> {
@@ -81,7 +96,10 @@ impl Stream for FileStream {
         if pos > file_size {
             return Err(ErrorCode::InvalidOperation);
         }
-        self.file.seek(SeekFrom::Start(pos)).map(|_| ()).map_err(|_| ErrorCode::FileSeekError)
+        self.file
+            .seek(SeekFrom::Start(pos))
+            .map(|_| ())
+            .map_err(|_| ErrorCode::FileSeekError)
     }
 
     fn getsize(&mut self) -> KtxResult<u64> {
