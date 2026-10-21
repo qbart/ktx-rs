@@ -14,7 +14,7 @@ use ktx::{
 
 #[test]
 fn unicode_file_names_create_from() {
-    // TODO(texture1): add the KTX 1 file set once ktxTexture1 is ported.
+    let ktx_file_set = ["hűtő.ktx", "نَسِيج.ktx", "テクスチャ.ktx", "质地.ktx", "조직.ktx"];
     let ktx2_file_set = [
         "hűtő.ktx2",
         "نَسِيج.ktx2",
@@ -27,12 +27,30 @@ fn unicode_file_names_create_from() {
         "质地_zstd.ktx2",
         "조직_zstd.ktx2",
     ];
-    for name in ktx2_file_set {
+    let check_creation = |name: &str, ktx: bool| {
         let path = common::unicode_path().join(name);
-        let result = Texture2::create_from_named_file(&path, KTX_TEXTURE_CREATE_NO_FLAGS);
-        if let Err(e) = &result {
-            panic!("ktxTexture2_CreateFromNamedFile \"{}\" failed: {}", path.display(), ktx_error_string(*e));
+        if let Err(e) = ktx::AnyTexture::create_from_named_file(&path, KTX_TEXTURE_CREATE_NO_FLAGS) {
+            panic!("ktxTexture_CreateFromNamedFile \"{}\" failed: {}", path.display(), ktx_error_string(e));
         }
+        let result = if ktx {
+            ktx::Texture1::create_from_named_file(&path, KTX_TEXTURE_CREATE_NO_FLAGS).map(|_| ())
+        } else {
+            Texture2::create_from_named_file(&path, KTX_TEXTURE_CREATE_NO_FLAGS).map(|_| ())
+        };
+        if let Err(e) = result {
+            panic!(
+                "ktxTexture{}_CreateFromNamedFile \"{}\" failed: {}",
+                if ktx { 1 } else { 2 },
+                path.display(),
+                ktx_error_string(e)
+            );
+        }
+    };
+    for name in ktx_file_set {
+        check_creation(name, true);
+    }
+    for name in ktx2_file_set {
+        check_creation(name, false);
     }
 }
 
@@ -279,4 +297,83 @@ fn ktx2_resources_write_round_trip() {
             "{name}"
         );
     }
+}
+
+///////////////////////////////////////////////////////////
+// Additional KTX1 coverage: load, rewrite as KTX1 and convert to KTX2.
+///////////////////////////////////////////////////////////
+
+#[test]
+fn ktx1_resources_round_trip_and_convert() {
+    let mut entries: Vec<_> = match std::fs::read_dir(common::resources_path().join("ktx")) {
+        Ok(rd) => rd.filter_map(|e| e.ok()).map(|e| e.path()).collect(),
+        Err(e) => panic!("cannot read resources: {e}"),
+    };
+    entries.sort();
+    let mut converted = 0;
+    for path in entries {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        if !name.ends_with(".ktx") {
+            continue;
+        }
+        let mut tex = match ktx::Texture1::create_from_named_file(&path, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+            Ok(t) => t,
+            // Legacy (e.g. luminance) GL formats are not supported by libktx.
+            Err(ErrorCode::UnsupportedTextureType) => continue,
+            Err(e) => panic!("{name}: {}", ktx_error_string(e)),
+        };
+        assert_eq!(tex.get_data().map(|d| d.len()), Some(tex.data_size), "{name}");
+        assert_eq!(tex.data_size, tex.calc_data_size_texture(), "{name}");
+        let bytes = match tex.write_to_memory() {
+            Ok(b) => b,
+            Err(e) => panic!("{name}: write {}", ktx_error_string(e)),
+        };
+        let back = match ktx::Texture1::create_from_memory(&bytes, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+            Ok(t) => t,
+            Err(e) => panic!("{name}: reload {}", ktx_error_string(e)),
+        };
+        assert_eq!(back.get_data(), tex.get_data(), "{name}");
+        assert_eq!(back.kv_data_head, tex.kv_data_head, "{name}");
+        assert_eq!(back.gl_internalformat, tex.gl_internalformat, "{name}");
+
+        match tex.write_ktx2_to_memory() {
+            Ok(k2) => {
+                let t2 = match Texture2::create_from_memory(&k2, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+                    Ok(t) => t,
+                    Err(e) => panic!("{name}: converted KTX2 reload {}", ktx_error_string(e)),
+                };
+                assert_eq!(t2.base_width, tex.base_width, "{name}");
+                assert_eq!(t2.num_levels, tex.num_levels, "{name}");
+                // Unpadded size equals KTX1 size whenever rows need no padding.
+                {
+                    let d1 = tex.get_data().unwrap_or_default();
+                    let d2 = t2.get_data().unwrap_or_default();
+                    for level in 0..tex.num_levels {
+                        let (rows, row_bytes, pad) = if tex.is_compressed { (0, 0, 0) } else { tex.row_info(level) };
+                        if pad != 0 {
+                            // Compare row by row, dropping KTX1 row padding.
+                            let packed = (row_bytes - pad) as usize;
+                            let images = (tex.get_level_size(level) / tex.get_image_size(level)) as usize;
+                            let mut o1 = tex.calc_level_offset(level);
+                            let mut o2 = t2.level_data_offset(level) as usize;
+                            for _ in 0..images * rows as usize {
+                                assert!(d1.get(o1..o1 + packed) == d2.get(o2..o2 + packed), "{name} level {level}");
+                                o1 += row_bytes as usize;
+                                o2 += packed;
+                            }
+                            continue;
+                        }
+                        let size = tex.get_level_size(level);
+                        let o1 = tex.calc_level_offset(level);
+                        let o2 = t2.level_data_offset(level) as usize;
+                        assert!(d1.get(o1..o1 + size) == d2.get(o2..o2 + size), "{name} level {level}");
+                    }
+                }
+                converted += 1;
+            }
+            Err(ErrorCode::UnsupportedTextureType) => {}
+            Err(e) => panic!("{name}: convert {}", ktx_error_string(e)),
+        }
+    }
+    assert!(converted > 10);
 }

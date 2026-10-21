@@ -7,15 +7,20 @@ pub mod defs;
 pub mod dfd;
 pub mod error;
 pub mod formatsize;
+pub mod gl_format;
 pub mod hashlist;
 pub mod ktxint;
 pub mod stream;
 pub mod strings;
 pub mod swap;
 pub mod texture;
+pub mod texture1;
 pub mod texture2;
+pub mod texture_any;
 pub mod version;
+pub mod vk_format;
 pub mod vkformat;
+pub mod writer1;
 pub mod writer2;
 pub mod zlib;
 
@@ -28,3 +33,5 @@ pub use texture::{
     create_flags::*,
 };
 pub use texture2::Texture2;
+pub use texture1::Texture1;
+pub use texture_any::AnyTexture;

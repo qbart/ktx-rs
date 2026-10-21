@@ -23,12 +23,14 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Texture core
 - [x] `formatsize` (`ktxFormatSize_initFromDfd`)
-- [ ] GL format tables (`gl_format.h`, `vkFormat2gl*`)
+- [x] GL/Vk format tables (`gl_format.h`, `vk_format.h`, generated)
+- [ ] `vkFormat2gl*` tables (vk2gl.h, GL loader only)
 - [x] `ktxTexture` base (texture.c): sizes, offsets, iterate, kv data
-- [ ] `ktxTexture1` read/create/write (texture1.c, writer1.c)
+- [x] `ktxTexture1` read/create/write (texture1.c, writer1.c)
 - [x] `ktxTexture2` read/create (texture2.c)
 - [x] `ktxTexture2` write (writer2.c), SetImageFromMemory
-- [ ] Texture1 -> Texture2 conversion on write
+- [x] Texture1 -> Texture2 conversion on write
+- [x] `ktxTexture_CreateFrom*` (`AnyTexture`)
 - [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate + deflate; deflate ignores level (ruzstd only has fastest)
 - [x] Supercompression: Zlib (pure Rust, `miniz_oxide`)
 - [ ] `info.c` (ktxPrintInfo, JSON)
@@ -56,6 +58,6 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] unittests: strnstr, test_string_to_vkformat
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
 - [ ] unittests: Swizzle, WriterTestHelper
-- [~] texturetests: UnicodeFileNames (KTX2 part), GetDataSizeUncompressed, InvalidWidth, IterateLoadLevelFaces ZLIB/Zstd
+- [~] texturetests: UnicodeFileNames, GetDataSizeUncompressed, InvalidWidth, IterateLoadLevelFaces ZLIB/Zstd
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)
