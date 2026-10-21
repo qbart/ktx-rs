@@ -136,3 +136,147 @@ fn ktx_texture2_invalid_create_info_params_invalid_width() {
     let result = Texture2::create(&create_info, ktx::TextureCreateStorage::NoStorage);
     assert_eq!(result.err(), Some(ErrorCode::InvalidValue));
 }
+
+/////////////////////////////////////////
+// ktxTexture2_IterateLoadLevelFaces with supercompression
+/////////////////////////////////////////
+
+#[derive(Default)]
+struct SupercompressionIterCbData {
+    calls: u32,
+    miplevel: u32,
+    face: u32,
+    width: u32,
+    height: u32,
+    depth: u32,
+    face_lod_size: u64,
+    pixel: u8,
+}
+
+fn r8_1x1_create_info() -> ktx::TextureCreateInfo {
+    ktx::TextureCreateInfo {
+        gl_internalformat: 0,
+        vk_format: ktx::VkFormat::R8_UNORM,
+        dfd: None,
+        base_width: 1,
+        base_height: 1,
+        base_depth: 1,
+        num_dimensions: 2,
+        num_levels: 1,
+        num_layers: 1,
+        num_faces: 1,
+        is_array: false,
+        generate_mipmaps: false,
+    }
+}
+
+fn iterate_load_level_faces_supercompressed(zlib: bool) {
+    let pixel: u8 = 7;
+    let mut texture = match Texture2::create(&r8_1x1_create_info(), ktx::TextureCreateStorage::AllocStorage) {
+        Ok(t) => t,
+        Err(e) => panic!("ktxTexture2_Create failed: {}", ktx_error_string(e)),
+    };
+    assert_eq!(texture.set_image_from_memory(0, 0, 0, &[pixel]), Ok(()));
+    if zlib {
+        assert_eq!(texture.deflate_zlib(9), Ok(()));
+    } else {
+        assert_eq!(texture.deflate_zstd(3), Ok(()));
+    }
+    let ktx_mem_file = match texture.write_to_memory() {
+        Ok(m) => m,
+        Err(e) => panic!("ktxTexture2_WriteToMemory failed: {}", ktx_error_string(e)),
+    };
+
+    // Control: a normal load inflates the level.
+    let texture = match Texture2::create_from_memory(&ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+        Ok(t) => t,
+        Err(e) => panic!("ktxTexture2_CreateFromMemory failed: {}", ktx_error_string(e)),
+    };
+    let data = match texture.get_data() {
+        Some(d) => d,
+        None => panic!("Image data not loaded"),
+    };
+    assert_eq!(data[0], pixel);
+
+    let mut texture = match Texture2::create_from_memory(&ktx_mem_file, KTX_TEXTURE_CREATE_NO_FLAGS) {
+        Ok(t) => t,
+        Err(e) => panic!("ktxTexture2_CreateFromMemory failed: {}", ktx_error_string(e)),
+    };
+    let expected_scheme = if zlib { SupercmpScheme::ZLIB } else { SupercmpScheme::ZSTD };
+    assert_eq!(texture.supercompression_scheme, expected_scheme);
+
+    let mut data = SupercompressionIterCbData::default();
+    let result = texture.iterate_load_level_faces(&mut |miplevel, face, width, height, depth, face_lod_size, pixels| {
+        data.calls += 1;
+        data.miplevel = miplevel;
+        data.face = face;
+        data.width = width;
+        data.height = height;
+        data.depth = depth;
+        data.face_lod_size = face_lod_size;
+        data.pixel = pixels.first().copied().unwrap_or_default();
+        Ok(())
+    });
+    assert_eq!(result, Ok(()));
+    assert_eq!(data.calls, 1);
+    assert_eq!(data.miplevel, 0);
+    assert_eq!(data.face, 0);
+    assert_eq!(data.width, 1);
+    assert_eq!(data.height, 1);
+    assert_eq!(data.depth, 1);
+    assert_eq!(data.face_lod_size, 1);
+    assert_eq!(data.pixel, pixel);
+}
+
+#[test]
+fn ktx_texture2_iterate_load_level_faces_zlib_iterate_image() {
+    iterate_load_level_faces_supercompressed(true);
+}
+
+#[test]
+fn ktx_texture2_iterate_load_level_faces_zstd_iterate_image() {
+    iterate_load_level_faces_supercompressed(false);
+}
+
+///////////////////////////////////////////////////////////
+// Additional writer coverage: load -> write -> reload round trip.
+///////////////////////////////////////////////////////////
+
+#[test]
+fn ktx2_resources_write_round_trip() {
+    let mut entries: Vec<_> = match std::fs::read_dir(common::ktx2_path()) {
+        Ok(rd) => rd.filter_map(|e| e.ok()).map(|e| e.path()).collect(),
+        Err(e) => panic!("cannot read resources: {e}"),
+    };
+    entries.sort();
+    for path in entries {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        if !name.ends_with(".ktx2") || name.starts_with("invalid_") {
+            continue;
+        }
+        let mut tex = match Texture2::create_from_named_file(&path, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+            Ok(t) => t,
+            Err(e) => panic!("{name}: {}", ktx_error_string(e)),
+        };
+        let bytes = match tex.write_to_memory() {
+            Ok(b) => b,
+            Err(e) => panic!("{name}: write {}", ktx_error_string(e)),
+        };
+        let back = match Texture2::create_from_memory(&bytes, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT) {
+            Ok(t) => t,
+            Err(e) => panic!("{name}: reload {}", ktx_error_string(e)),
+        };
+        assert_eq!(back.get_data(), tex.get_data(), "{name}");
+        assert_eq!(back.vk_format, tex.vk_format, "{name}");
+        assert_eq!(back.p_dfd, tex.p_dfd, "{name}");
+        assert_eq!(back.supercompression_scheme, tex.supercompression_scheme, "{name}");
+        assert_eq!(back.supercompression_global_data(), tex.supercompression_global_data(), "{name}");
+        assert_eq!(back.kv_data_head, tex.kv_data_head, "{name}");
+        assert_eq!(back.level_index(), tex.level_index(), "{name}");
+        assert_eq!(
+            (back.base_width, back.base_height, back.base_depth, back.num_levels, back.num_layers, back.num_faces),
+            (tex.base_width, tex.base_height, tex.base_depth, tex.num_levels, tex.num_layers, tex.num_faces),
+            "{name}"
+        );
+    }
+}

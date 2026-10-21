@@ -14,7 +14,9 @@ pub mod strings;
 pub mod swap;
 pub mod texture;
 pub mod texture2;
+pub mod version;
 pub mod vkformat;
+pub mod writer2;
 pub mod zlib;
 
 pub use defs::*;

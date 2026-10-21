@@ -27,10 +27,10 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] `ktxTexture` base (texture.c): sizes, offsets, iterate, kv data
 - [ ] `ktxTexture1` read/create/write (texture1.c, writer1.c)
 - [x] `ktxTexture2` read/create (texture2.c)
-- [ ] `ktxTexture2` write (writer2.c), SetImageFromMemory
+- [x] `ktxTexture2` write (writer2.c), SetImageFromMemory
 - [ ] Texture1 -> Texture2 conversion on write
-- [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate done; deflate needs levels > fastest
-- [~] Supercompression: Zlib (pure Rust, `miniz_oxide`): inflate done; deflate todo
+- [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate + deflate; deflate ignores level (ruzstd only has fastest)
+- [x] Supercompression: Zlib (pure Rust, `miniz_oxide`)
 - [ ] `info.c` (ktxPrintInfo, JSON)
 
 ## Basis Universal (pure Rust port)
@@ -56,6 +56,6 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] unittests: strnstr, test_string_to_vkformat
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
 - [ ] unittests: Swizzle, WriterTestHelper
-- [~] texturetests: UnicodeFileNames (KTX2 part), GetDataSizeUncompressed, InvalidWidth
+- [~] texturetests: UnicodeFileNames (KTX2 part), GetDataSizeUncompressed, InvalidWidth, IterateLoadLevelFaces ZLIB/Zstd
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)
