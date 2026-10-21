@@ -13,6 +13,7 @@ use super::dxt::{Dxt1Block, Dxt5aBlock, convert_etc1s_to_dxt1, convert_etc1s_to_
 use super::eac::{EacBlock, convert_etc1s_to_etc2_eac_a8, convert_etc1s_to_etc2_eac_r11};
 use super::etc::{Color32, DecoderEtcBlock, Endpoint, Selector, mul_8};
 use super::pvrtc;
+use super::pvrtc2::{Pvrtc2Block, convert_etc1s_to_pvrtc2_rgb, convert_etc1s_to_pvrtc2_rgba};
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
     basis_get_bytes_per_block_or_pixel, basis_validate_output_buffer_size, decode_flags,
@@ -585,6 +586,28 @@ impl LowlevelEtc1sTranscoder {
                             _ => false,
                         }
                     }
+                    BlockFormat::Pvrtc2_4Rgb => {
+                        let mut b = Pvrtc2Block::default();
+                        convert_etc1s_to_pvrtc2_rgb(&mut b, ep, sel);
+                        dst.write(block_ofs, &b.to_bytes())
+                    }
+                    BlockFormat::Pvrtc2_4Rgba => {
+                        let start = dst.offset + block_ofs;
+                        let mut raw = [0u8; 8];
+                        match dst.buf.get(start..start + 8) {
+                            Some(existing) => raw.copy_from_slice(existing),
+                            None => return TranscodeStatus::Failed,
+                        }
+                        // The alpha pass stored endpoint/selector indices here.
+                        let ei = u16::from_le_bytes([raw[0], raw[1]]) as usize;
+                        let si = u16::from_le_bytes([raw[2], raw[3]]) as usize;
+                        let (Some(aep), Some(asel)) = (endpoints.get(ei), selectors.get(si)) else {
+                            return TranscodeStatus::Failed;
+                        };
+                        let mut b = Pvrtc2Block::from_bytes(&raw);
+                        convert_etc1s_to_pvrtc2_rgba(&mut b, ep, sel, aep, asel);
+                        dst.write(block_ofs, &b.to_bytes())
+                    }
                     BlockFormat::AstcLdr4x4 => {
                         let start = dst.offset + block_ofs;
                         let mut b = [0u8; 16];
@@ -749,6 +772,8 @@ impl LowlevelEtc1sTranscoder {
                 | Bc4
                 | Pvrtc1_4Rgb
                 | Pvrtc1_4Rgba
+                | Pvrtc2_4Rgb
+                | Pvrtc2_4Rgba
                 | AstcLdr4x4
                 | Bc7
                 | Bc7M5Color
@@ -1122,6 +1147,52 @@ impl LowlevelEtc1sTranscoder {
                     0,
                     decode_flags_in,
                 )
+            }
+            F::PVRTC2_4_RGB => run(
+                output,
+                0,
+                data,
+                BlockFormat::Pvrtc2_4Rgb,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::PVRTC2_4_RGBA => {
+                if basis_file_has_alpha_slices {
+                    // Alpha indices go to the output first (used as a temp buffer).
+                    let s = run(
+                        output,
+                        0,
+                        alpha_data,
+                        BlockFormat::Indices,
+                        bytes_per_block_or_pixel,
+                        true,
+                        state,
+                    );
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                    run_ta(
+                        output,
+                        0,
+                        rgb_data,
+                        BlockFormat::Pvrtc2_4Rgba,
+                        bytes_per_block_or_pixel,
+                        false,
+                        state,
+                        true,
+                    )
+                } else {
+                    run(
+                        output,
+                        0,
+                        rgb_data,
+                        BlockFormat::Pvrtc2_4Rgb,
+                        bytes_per_block_or_pixel,
+                        false,
+                        state,
+                    )
+                }
             }
             F::ASTC_LDR_4x4_RGBA => {
                 if basis_file_has_alpha_slices {

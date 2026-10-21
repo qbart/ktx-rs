@@ -77,29 +77,6 @@ fn all_formats() -> Vec<FormatFeature> {
     ]
 }
 
-/// Target formats whose ETC1S transcoders are ported so far.
-/// TODO(basis): grow this list until it covers `all_formats()`.
-fn implemented(f: TranscodeFmt) -> bool {
-    matches!(
-        f,
-        TranscodeFmt::ETC1_RGB
-            | TranscodeFmt::ETC2_RGBA
-            | TranscodeFmt::ETC2_EAC_RG11
-            | TranscodeFmt::BC1_RGB
-            | TranscodeFmt::BC3_RGBA
-            | TranscodeFmt::BC4_R
-            | TranscodeFmt::BC5_RG
-            | TranscodeFmt::BC7_RGBA
-            | TranscodeFmt::RGBA32
-            | TranscodeFmt::RGB565
-            | TranscodeFmt::BGR565
-            | TranscodeFmt::RGBA4444
-            | TranscodeFmt::ASTC_4x4_RGBA
-            | TranscodeFmt::PVRTC1_4_RGB
-            | TranscodeFmt::PVRTC1_4_RGBA
-    )
-}
-
 fn golden() -> HashMap<String, (usize, String)> {
     let path = common::resources_path()
         .join("golden")
@@ -172,7 +149,7 @@ fn texture_combinations_test_basic() {
     let golden = golden();
     let mut checked = 0;
     for ts in &ALL_TEXTURE_SETS {
-        for format in all_formats().iter().filter(|f| implemented(f.format)) {
+        for format in all_formats().iter() {
             if test_texture_set(&golden, ts, format) {
                 checked += 1;
             }
@@ -184,7 +161,6 @@ fn texture_combinations_test_basic() {
         .map(|ts| {
             all_formats()
                 .iter()
-                .filter(|f| implemented(f.format))
                 .filter(|f| {
                     (ts.has_alpha || f.supports_non_alpha) && (ts.is_po2 || f.supports_non_po2)
                 })
