@@ -9,7 +9,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] `ktx.h` constants, orientation, supercompression, transcode enums (`defs.rs`)
 - [x] `strings.c` helpers + `strnstr`
 - [x] VkFormat enum, string, parse, check, typesize (generated, `scripts/gen_vkformat.py`)
-- [ ] Hash list (key/value data) — `hashlist.c`
+- [x] Hash list (key/value data) — `hashlist.c`
 - [ ] Streams: memory, file, custom — `memstream.c`, `filestream.c`
 - [ ] Header checks KTX1/KTX2 — `checkheader.c`
 - [ ] Endian swap — `swap.c`
@@ -51,7 +51,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
-- [ ] unittests: CheckHeader, MemStream, HashList, DFD, Swizzle
+- [x] unittests: HashList
+- [ ] unittests: CheckHeader, MemStream, DFD, Swizzle
 - [ ] texturetests
 - [ ] transcodetests
 - [ ] CLI tests (tests/cts)
