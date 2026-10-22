@@ -18,7 +18,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] khr_df constants + accessors, createdfd
 - [x] interpretdfd, queries
 - [x] vk2dfd / dfd2vk tables (generated)
-- [ ] printdfd
+- [x] printdfd (text + JSON, byte exact vs C)
 - [x] colourspaces
 
 ## Texture core

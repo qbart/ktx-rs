@@ -20,5 +20,12 @@ Source: `external/dfdutils/*` (`KHR/khr_df.h`, `dfd.h`, `createdfd.c`, `interpre
   `.inl` files by `scripts/gen_dfd_tables.py` (C subset translator). Vulkan `_EXT` alias
   names map to core names.
 
-Status: done except printdfd.
-Tests: `tests/unittests.rs::{create_dfd_test, dfd_vk_format_list_test}`.
+- printdfd: `dfd_to_string_*` (name or `None`, aliases print as the C name), `write_dfd`,
+  `write_dfd_json(out, dfd, data_size, base_indent, indent_width, minified)` append to a
+  `String`; `print_dfd`/`print_dfd_json` write it to stdout (C `printf`). Block/sample limits
+  (10/16) and unsigned `blockSize - 24` math kept; reads past the slice are 0.
+
+Status: done.
+Tests: `tests/unittests.rs::{create_dfd_test, dfd_vk_format_list_test}`, `tests/printdfd.rs`
+(text/JSON/minified/truncated output of every KTX2 test file vs C, golden from
+`scripts/golden/gen_printdfd_golden.sh`).

@@ -6,6 +6,7 @@ pub mod createdfd;
 pub mod dfd2vk;
 pub mod interpret;
 pub mod khr_df;
+pub mod printdfd;
 pub mod queries;
 pub mod vk2dfd;
 
