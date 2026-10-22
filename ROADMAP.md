@@ -40,8 +40,9 @@ Legend: [x] done, [~] partial, [ ] todo.
   all KTX transcode targets done; todo ATC, FXT1 (basisu-only formats)
 - [x] UASTC LDR 4x4 transcoder: all KTX targets (ASTC, BC1/3/4/5/7, ETC1/ETC2, EAC R11/RG11,
   PVRTC1, RGBA32/565/4444) byte exact vs C++ on every level of 4 UASTC files; PVRTC2 rejected like C
-- [ ] UASTC HDR 4x4 / 6x6 intermediate transcoder
-- [~] `ktxTexture2_TranscodeBasis` (ETC1S path)
+- [x] UASTC HDR 4x4 transcoder: ASTC HDR 4x4, BC6H, RGB/RGBA half, RGB9E5 byte exact vs C++
+- [ ] UASTC HDR 6x6 intermediate transcoder
+- [~] `ktxTexture2_TranscodeBasis`: ETC1S, UASTC LDR 4x4, UASTC HDR 4x4 (todo 6x6i)
 - [ ] ETC1S encoder (`ktxTexture2_CompressBasis`)
 - [ ] UASTC encoder + RDO
 

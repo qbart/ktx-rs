@@ -21,6 +21,7 @@ pub mod uastc;
 pub mod uastc_bc1;
 pub mod uastc_bc7;
 pub mod uastc_etc;
+pub mod uastc_hdr;
 pub mod uastc_ldr;
 pub mod uastc_pvrtc;
 pub mod uastc_tables;
@@ -109,6 +110,11 @@ pub enum BlockFormat {
     RgbaHalf,
     RgbHalf,
     Rgb9e5,
+    Uastc4x4,
+    UastcHdr4x4,
+    Bc6h,
+    AstcHdr4x4,
+    AstcHdr6x6,
 }
 
 /// Port of `basisu_decode_flags`.

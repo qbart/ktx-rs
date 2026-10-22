@@ -35,9 +35,17 @@ for all BC7 modes), RGBA32, RGB565, BGR565, RGBA4444; PVRTC2 rejected like C. ET
 EAC R11/RG11 (pack_eac, pack_eac_high_quality)
 in `basisu::uastc_etc`. PVRTC1 RGB/RGBA in `basisu::uastc_pvrtc` (reuses the ETC1S
 fix-up pass; C ignores its result, so does the port). Goldens size PVRTC1 images like libktx
-(2x2 block minimum). Todo: UASTC HDR 4x4 / 6x6i.
-Todo: ATC, FXT1 (not reachable from libktx), ATC, FXT1;
-UASTC LDR/HDR transcoders; video P-frames untested.
+(2x2 block minimum).
+
+UASTC HDR 4x4: `basisu::astc_helpers` (astc_helpers: unpack_block, decode_block for
+SRGB8/LDR8/HDR16/RGB9E5, half/9E5 packing, ISE dequant tables; `m_weights`/`m_solid_color`
+union emulated by `LogAstcBlock::solid_color`), `basisu::bc6h` (pack_bc6h_block, the
+1/2-subset BC6H encoders, decode_mode7/11_to_qlog12, astc_hdr_transcode_to_bc6h),
+`basisu::uastc_hdr::LowlevelUastcHdr4x4Transcoder` (ASTC HDR copy, BC6H, RGB/RGBA half,
+RGB9E5), `Texture2::transcode_uastc_hdr_4x4` (transcodeUastcHDR4x4, shares the level loop
+with the LDR path). Tables: `src/basisu/hdr_tables.rs` from `scripts/gen_hdr_tables.py`.
+Verification: `tests/transcode_uastc_hdr.rs` vs `golden/transcode_uastc_hdr.txt`.
+Todo: UASTC HDR 6x6 intermediate; ATC, FXT1 (not reachable from libktx); video P-frames untested.
 
 Test guard: `texture_combinations_test_basic` asserts the number of golden comparisons,
 and `bc7_chroma_filter_is_exercised` proves the BC7 filter path is covered.

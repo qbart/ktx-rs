@@ -2,6 +2,7 @@
 //! Port of lib/src/basis_transcode.cpp: `ktxTexture2_TranscodeBasis`.
 
 use crate::basisu::etc1s::{LowlevelEtc1sTranscoder, TranscodeStatus};
+use crate::basisu::uastc_hdr::LowlevelUastcHdr4x4Transcoder;
 use crate::basisu::uastc_ldr::LowlevelUastcLdr4x4Transcoder;
 use crate::basisu::{
     BasisTexFormat, TranscoderState, TranscoderTextureFormat, basis_is_format_supported,
@@ -464,8 +465,15 @@ impl Texture2 {
                 output_format,
                 transcode_flags_in,
             )
+        } else if color_model == KHR_DF_MODEL_UASTC_HDR_4x4 {
+            self.transcode_uastc_hdr_4x4(
+                alpha_content,
+                prototype,
+                output_format,
+                transcode_flags_in,
+            )
         } else {
-            // TODO(basis): UASTC HDR 4x4 / 6x6 intermediate transcoders.
+            // TODO(basis): UASTC HDR 6x6 intermediate transcoder.
             Err(ErrorCode::UnsupportedFeature)
         }
     }
@@ -473,6 +481,42 @@ impl Texture2 {
     /// Port of `transcodeUastcLDR4x4`.
     fn transcode_uastc_ldr_4x4(
         &self,
+        alpha_content: AlphaContent,
+        prototype: &mut Texture2,
+        output_format: TranscodeFmt,
+        transcode_flags_in: u32,
+    ) -> KtxResult<()> {
+        self.transcode_uastc_4x4(
+            &LowlevelUastcLdr4x4Transcoder::new(),
+            alpha_content,
+            prototype,
+            output_format,
+            transcode_flags_in,
+        )
+    }
+
+    /// Port of `transcodeUastcHDR4x4`.
+    fn transcode_uastc_hdr_4x4(
+        &self,
+        alpha_content: AlphaContent,
+        prototype: &mut Texture2,
+        output_format: TranscodeFmt,
+        transcode_flags_in: u32,
+    ) -> KtxResult<()> {
+        self.transcode_uastc_4x4(
+            &LowlevelUastcHdr4x4Transcoder::new(),
+            alpha_content,
+            prototype,
+            output_format,
+            transcode_flags_in,
+        )
+    }
+
+    /// Shared body of `transcodeUastcLDR4x4` and `transcodeUastcHDR4x4`
+    /// (identical in C apart from the low-level transcoder type).
+    fn transcode_uastc_4x4(
+        &self,
+        uit: &dyn UastcImageTranscoder,
         alpha_content: AlphaContent,
         prototype: &mut Texture2,
         output_format: TranscodeFmt,
@@ -492,7 +536,6 @@ impl Texture2 {
             .map(|l| self.calc_image_size(l as u32, FormatVersion::Two) as u64)
             .collect();
 
-        let uit = LowlevelUastcLdr4x4Transcoder::new();
         let mut xcoder_states = vec![
             TranscoderState::new();
             if self.is_video {
@@ -565,3 +608,85 @@ impl Texture2 {
         Ok(())
     }
 }
+
+/// The `transcode_image` entry point shared by the UASTC 4x4 low-level transcoders.
+trait UastcImageTranscoder {
+    #[allow(clippy::too_many_arguments)]
+    fn transcode_image(
+        &self,
+        target_format: TranscoderTextureFormat,
+        output: &mut [u8],
+        output_blocks_buf_size_in_blocks_or_pixels: u32,
+        compressed_data: &[u8],
+        num_blocks_x: u32,
+        num_blocks_y: u32,
+        orig_width: u32,
+        orig_height: u32,
+        level_index: u32,
+        slice_offset: u64,
+        slice_length: u32,
+        decode_flags: u32,
+        has_alpha: bool,
+        is_video: bool,
+        output_row_pitch_in_blocks_or_pixels: u32,
+        state: &mut TranscoderState,
+        output_rows_in_pixels: u32,
+        channel0: i32,
+        channel1: i32,
+    ) -> TranscodeStatus;
+}
+
+macro_rules! impl_uastc_image_transcoder {
+    ($t:ty) => {
+        impl UastcImageTranscoder for $t {
+            fn transcode_image(
+                &self,
+                target_format: TranscoderTextureFormat,
+                output: &mut [u8],
+                output_blocks_buf_size_in_blocks_or_pixels: u32,
+                compressed_data: &[u8],
+                num_blocks_x: u32,
+                num_blocks_y: u32,
+                orig_width: u32,
+                orig_height: u32,
+                level_index: u32,
+                slice_offset: u64,
+                slice_length: u32,
+                decode_flags: u32,
+                has_alpha: bool,
+                is_video: bool,
+                output_row_pitch_in_blocks_or_pixels: u32,
+                state: &mut TranscoderState,
+                output_rows_in_pixels: u32,
+                channel0: i32,
+                channel1: i32,
+            ) -> TranscodeStatus {
+                <$t>::transcode_image(
+                    self,
+                    target_format,
+                    output,
+                    output_blocks_buf_size_in_blocks_or_pixels,
+                    compressed_data,
+                    num_blocks_x,
+                    num_blocks_y,
+                    orig_width,
+                    orig_height,
+                    level_index,
+                    slice_offset,
+                    slice_length,
+                    decode_flags,
+                    has_alpha,
+                    is_video,
+                    output_row_pitch_in_blocks_or_pixels,
+                    state,
+                    output_rows_in_pixels,
+                    channel0,
+                    channel1,
+                )
+            }
+        }
+    };
+}
+
+impl_uastc_image_transcoder!(LowlevelUastcLdr4x4Transcoder);
+impl_uastc_image_transcoder!(LowlevelUastcHdr4x4Transcoder);

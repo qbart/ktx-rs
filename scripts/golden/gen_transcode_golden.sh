@@ -36,3 +36,17 @@ rm -rf "$WORK/uout" && mkdir -p "$WORK/uout"
     echo "$f $(stat -c %s "$f") $(sha256sum "$f" | cut -d' ' -f1)"
   done ) > "$ROOT/tests/resources/golden/transcode_uastc.txt"
 echo "wrote tests/resources/golden/transcode_uastc.txt"
+
+# UASTC HDR (libktx transcodeUastcHDR4x4 call path).
+g++ -O2 -std=c++17 -w \
+  -DBASISD_SUPPORT_KTX2=0 -DBASISD_SUPPORT_KTX2_ZSTD=0 \
+  -I"$BU" -I"$BU/transcoder" -I"$BU/zstd" \
+  "$ROOT/scripts/golden/hdr_golden.cpp" \
+  "$BU/transcoder/basisu_transcoder.cpp" "$WORK/zstddeclib.o" \
+  -o "$WORK/hdr_golden"
+rm -rf "$WORK/hout" && mkdir -p "$WORK/hout"
+"$WORK/hdr_golden" "$REF/tests/resources/ktx2" "$WORK/hout"
+( cd "$WORK/hout" && for f in $(ls | sort); do
+    echo "$f $(stat -c %s "$f") $(sha256sum "$f" | cut -d' ' -f1)"
+  done ) > "$ROOT/tests/resources/golden/transcode_uastc_hdr.txt"
+echo "wrote tests/resources/golden/transcode_uastc_hdr.txt"
