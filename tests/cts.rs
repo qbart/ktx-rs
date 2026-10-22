@@ -14,10 +14,10 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-/// Test files whose outputs are zlib/zstd supercompressed. Byte-exact output
-/// needs ports of the C zlib / libzstd compressors (ROADMAP); until then such
-/// outputs only need to match their reference after inflation.
-const INEXACT_DEFLATE: [&str; 2] = ["transcode_zlib.json", "transcode_zstd.json"];
+/// Test files whose outputs are zstd supercompressed. Byte-exact output needs
+/// a port of the libzstd compressor (ROADMAP); until then such outputs only
+/// need to match their reference after inflation.
+const INEXACT_DEFLATE: [&str; 1] = ["transcode_zstd.json"];
 
 /// Both files load and hold identical headers, DFD, key/value data and
 /// inflated image data.
