@@ -21,6 +21,8 @@ pub struct OptionSpec {
     pub arg_help: String,
     pub is_container: bool,
     pub group: String,
+    /// `cxxopts::value<uint32_t>()`: values must parse as `u32`.
+    pub is_u32: bool,
 }
 
 impl OptionSpec {
@@ -37,6 +39,7 @@ impl OptionSpec {
             arg_help: String::new(),
             is_container: false,
             group: String::new(),
+            is_u32: false,
         }
     }
 
@@ -53,6 +56,7 @@ impl OptionSpec {
             arg_help: arg_help.to_string(),
             is_container: false,
             group: String::new(),
+            is_u32: false,
         }
     }
 
@@ -71,6 +75,12 @@ impl OptionSpec {
     /// `cxxopts::value<std::vector<T>>()`.
     pub fn container(mut self) -> OptionSpec {
         self.is_container = true;
+        self
+    }
+
+    /// `cxxopts::value<uint32_t>()`.
+    pub fn u32(mut self) -> OptionSpec {
+        self.is_u32 = true;
         self
     }
 
@@ -140,10 +150,48 @@ impl ParseResult {
         self.get(name).is_some_and(is_true_text)
     }
 
+    /// `as<uint32_t>()` (values were checked while parsing).
+    pub fn as_u32(&self, name: &str) -> u32 {
+        self.get(name).and_then(parse_u32).unwrap_or(0)
+    }
+
     /// `unmatched()`.
     pub fn unmatched(&self) -> &[String] {
         &self.unmatched
     }
+}
+
+/// Port of `integer_parser<uint32_t>`: `(-)?(0x)?([0-9a-zA-Z]+)|((0x)?0)`,
+/// decimal or hex digits, overflow detected like C (`result > next` after a
+/// wrapping multiply-add), negative values rejected.
+pub fn parse_u32(text: &str) -> Option<u32> {
+    let all_alnum = |s: &str| !s.is_empty() && s.bytes().all(is_alnum);
+    let (negative, rest) = match text.strip_prefix('-') {
+        Some(r) => (true, r),
+        None => (false, text),
+    };
+    let (base, digits) = match rest.strip_prefix("0x") {
+        Some(d) if all_alnum(d) => (16u32, d),
+        _ => (10u32, rest),
+    };
+    if !all_alnum(digits) {
+        return None;
+    }
+    let mut result = 0u32;
+    for ch in digits.bytes() {
+        let digit = match ch {
+            b'0'..=b'9' => u32::from(ch - b'0'),
+            b'a'..=b'f' if base == 16 => u32::from(ch - b'a' + 10),
+            b'A'..=b'F' if base == 16 => u32::from(ch - b'A' + 10),
+            _ => return None,
+        };
+        let next = result.wrapping_mul(base).wrapping_add(digit);
+        if result > next {
+            return None;
+        }
+        result = next;
+    }
+    if negative { None } else { Some(result) }
 }
 
 /// `truthy_pattern`: `(t|T)(rue)?|1`.
@@ -263,6 +311,9 @@ impl Options {
         arg: &str,
     ) -> Result<(), ParseError> {
         if spec.is_boolean && !is_true_text(arg) && !is_false_text(arg) {
+            return Err(ParseError(format!("Argument '{arg}' failed to parse")));
+        }
+        if spec.is_u32 && parse_u32(arg).is_none() {
             return Err(ParseError(format!("Argument '{arg}' failed to parse")));
         }
         result
@@ -583,6 +634,19 @@ impl Options {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integer_parser_u32() {
+        assert_eq!(parse_u32("11"), Some(11));
+        assert_eq!(parse_u32("0"), Some(0));
+        assert_eq!(parse_u32("0x1F"), Some(31));
+        assert_eq!(parse_u32("0x0"), Some(0));
+        assert_eq!(parse_u32("4294967295"), Some(u32::MAX));
+        assert_eq!(parse_u32("4294967296"), None);
+        for bad in ["", "-1", "-0", "0x", "1a", "abc", " 1", "1.5", "0xg"] {
+            assert_eq!(parse_u32(bad), None, "{bad:?}");
+        }
+    }
 
     fn args(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| (*s).to_string()).collect()
