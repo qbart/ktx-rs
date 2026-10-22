@@ -52,3 +52,11 @@ pub fn strnstr(haystack: &[u8], needle: &[u8], len: usize) -> Option<usize> {
     }
     (0..=limit - needle_len).find(|&i| haystack[i..i + needle_len] == needle[..needle_len])
 }
+
+/// C `printf("%#x", value)`: `0` for zero, otherwise `0x` + lowercase hex.
+pub fn c_hash_x(value: impl Into<u64>) -> String {
+    match value.into() {
+        0 => "0".to_string(),
+        v => format!("{v:#x}"),
+    }
+}

@@ -10,6 +10,7 @@ pub mod dfd;
 pub mod error;
 pub mod formatsize;
 pub mod gl_format;
+pub mod glformat_str;
 pub mod hashlist;
 pub mod ktxint;
 pub mod stream;
