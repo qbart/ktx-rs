@@ -29,10 +29,13 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   target table, `determineTranscodeSwizzle`, RGBA8 -> R/RG/RGB conversion into a fresh texture
   (drops source KV data like C++), in-place swizzle; `deflate_utils.rs`: `OptionsDeflate`;
   rewrites `KTXwriter` / `KTXwriterScParams`); `help` (runs `man`, page next to the
-  executable first; Windows opens the html page). Others: todo.
+  executable first; Windows opens the html page); `deflate` (`command_deflate.rs`: warning for
+  ZLIB/ZSTD input, fatal for BasisLZ; `--warnings-as-errors` parsed but unused like C++; the
+  `std::regex_search` patterns for old deflate options are hand-written byte matchers with
+  ECMAScript greedy semantics). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
-backtick regex) and runs every validate, info, help and transcode case of KTX-Software-CTS 59f0a653 against the binary
+backtick regex) and runs every validate, info, help, transcode and deflate case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
 exactly. `tests/validate.rs`: corrupted files never panic.

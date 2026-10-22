@@ -62,7 +62,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] validate (validator + text/JSON output, all CTS validate cases pass)
 - [x] info (text/JSON, KTX1 + KTX2, all CTS info cases pass)
 - [x] transcode (all targets, swizzle/channel conversion, --zstd/--zlib), help (man pages)
-- [ ] extract, create, encode, compare, deflate, convert
+- [x] deflate (KTXwriter / KTXwriterScParams rewrite rules, all CTS deflate cases pass)
+- [ ] extract, create, encode, compare, convert
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
@@ -74,4 +75,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
-- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help, transcode done
+- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help, transcode, deflate done

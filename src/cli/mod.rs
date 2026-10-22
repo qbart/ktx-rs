@@ -1,6 +1,7 @@
 //! Port of the `ktx` command line tool (tools/ktx).
 
 pub mod command;
+pub mod command_deflate;
 pub mod command_help;
 pub mod command_info;
 pub mod command_transcode;
