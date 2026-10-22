@@ -78,7 +78,10 @@ int main(int argc, char** argv) {
                 transcoder_texture_format tf = (transcoder_texture_format)fmt;
                 uint32_t bpb = basis_get_bytes_per_block_or_pixel(tf);
                 bool unc = basis_transcoder_format_is_uncompressed(tf);
-                uint32_t outSize = unc ? lw * lh * bpb : bx * by * bpb;
+                // libktx sizes PVRTC1 images with a 2x2 block minimum.
+                bool pvrtc1 = fmt == 8 || fmt == 9;
+                uint32_t kbx = pvrtc1 && bx < 2 ? 2 : bx, kby = pvrtc1 && by < 2 ? 2 : by;
+                uint32_t outSize = unc ? lw * lh * bpb : kbx * kby * bpb;
                 for (uint32_t flags : flagsets) {
                     std::vector<uint8_t> out((size_t)outSize * images);
                     basisu_lowlevel_uastc_ldr_4x4_transcoder uit;

@@ -11,6 +11,7 @@ use super::uastc_etc::{
     transcode_uastc_to_etc1, transcode_uastc_to_etc1_channel, transcode_uastc_to_etc2_eac_r11,
     transcode_uastc_to_etc2_eac_rg11, transcode_uastc_to_etc2_rgba,
 };
+use super::uastc_pvrtc::{transcode_uastc_to_pvrtc1_4_rgb, transcode_uastc_to_pvrtc1_4_rgba};
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
     basis_get_bytes_per_block_or_pixel, basis_validate_output_buffer_size, decode_flags,
@@ -65,6 +66,17 @@ impl LowlevelUastcLdr4x4Transcoder {
         let high_quality = decode_flags_in & decode_flags::HIGH_QUALITY != 0;
         let from_alpha = has_alpha
             && decode_flags_in & decode_flags::TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS != 0;
+
+        if fmt == BlockFormat::Pvrtc1_4Rgb || fmt == BlockFormat::Pvrtc1_4Rgba {
+            // C ignores the PVRTC1 helpers' result here and reports success.
+            let src = &image_data[..16 * total_blocks];
+            if fmt == BlockFormat::Pvrtc1_4Rgba {
+                transcode_uastc_to_pvrtc1_4_rgba(src, dst, num_blocks_x, num_blocks_y);
+            } else {
+                transcode_uastc_to_pvrtc1_4_rgb(src, dst, num_blocks_x, num_blocks_y, from_alpha);
+            }
+            return TranscodeStatus::Ok;
+        }
 
         let pitch = output_row_pitch_in_blocks_or_pixels as usize;
         let stride = output_block_or_pixel_stride_in_bytes as usize;

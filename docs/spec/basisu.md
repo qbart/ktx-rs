@@ -33,7 +33,9 @@ for all BC7 modes), RGBA32, RGB565, BGR565, RGBA4444; PVRTC2 rejected like C. ET
 (goldens also cover TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS). BC1/3/4/5 in `basisu::uastc_bc1`
 (encode_bc1 PCA+LS, encode_bc4, hint0/hint1; encode_bc1_alt unused by the transcoder, not ported).
 EAC R11/RG11 (pack_eac, pack_eac_high_quality)
-in `basisu::uastc_etc`. Todo: PVRTC1; UASTC HDR.
+in `basisu::uastc_etc`. PVRTC1 RGB/RGBA in `basisu::uastc_pvrtc` (reuses the ETC1S
+fix-up pass; C ignores its result, so does the port). Goldens size PVRTC1 images like libktx
+(2x2 block minimum). Todo: UASTC HDR 4x4 / 6x6i.
 Todo: ATC, FXT1 (not reachable from libktx), ATC, FXT1;
 UASTC LDR/HDR transcoders; video P-frames untested.
 

@@ -19,6 +19,7 @@ pub mod uastc_bc1;
 pub mod uastc_bc7;
 pub mod uastc_etc;
 pub mod uastc_ldr;
+pub mod uastc_pvrtc;
 pub mod uastc_tables;
 
 /// Port of `transcoder_texture_format`.

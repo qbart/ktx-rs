@@ -255,7 +255,7 @@ pub fn set_endpoint_ceil(endpoints: &mut u32, endpoint_index: u32, c: [u8; 4]) {
 
 /// Free function `get_opaque_endpoint_l0`.
 #[inline]
-fn get_opaque_endpoint_l0(packed: u32) -> u32 {
+pub(crate) fn get_opaque_endpoint_l0(packed: u32) -> u32 {
     let r = (packed >> 10) & 31;
     let g = (packed >> 5) & 31;
     let mut b = packed & 30;
@@ -265,7 +265,7 @@ fn get_opaque_endpoint_l0(packed: u32) -> u32 {
 
 /// Free function `get_opaque_endpoint_l1`.
 #[inline]
-fn get_opaque_endpoint_l1(endpoints: u32) -> u32 {
+pub(crate) fn get_opaque_endpoint_l1(endpoints: u32) -> u32 {
     let packed = endpoints >> 16;
     let r = (packed >> 10) & 31;
     let g = (packed >> 5) & 31;
@@ -307,7 +307,7 @@ pub fn get_endpoint_8888(endpoints: u32, endpoint_index: u32) -> [u32; 4] {
 
 /// Free function `get_endpoint_l8`.
 #[inline]
-fn get_endpoint_l8(endpoints: u32, endpoint_index: u32) -> u32 {
+pub(crate) fn get_endpoint_l8(endpoints: u32, endpoint_index: u32) -> u32 {
     get_endpoint_8888(endpoints, endpoint_index).iter().sum()
 }
 
@@ -335,7 +335,7 @@ const PIX_WEIGHTS: [(u32, u32, [i32; 4]); 16] = [
 /// Shared body of the two fix-up passes. `lum(e, idx)` is the endpoint
 /// luminance and `pixel(block_index, lx, ly)` the source pixel's luminance on the
 /// same scale (x16).
-fn fixup_pvrtc1_4_modulation<L, P>(
+pub(crate) fn fixup_pvrtc1_4_modulation<L, P>(
     pvrtc_endpoints: &[u32],
     dst: &mut [u8],
     num_blocks_x: u32,

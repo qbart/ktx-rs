@@ -43,30 +43,6 @@ const FORMATS: [TranscodeFmt; 18] = [
     TranscodeFmt::RGBA4444,
 ];
 
-/// Target formats whose UASTC transcoders are ported so far.
-/// TODO(basis): grow this list until it covers `FORMATS`.
-fn implemented(f: TranscodeFmt) -> bool {
-    matches!(
-        f,
-        TranscodeFmt::ASTC_4x4_RGBA
-            | TranscodeFmt::BC7_RGBA
-            | TranscodeFmt::ETC1_RGB
-            | TranscodeFmt::ETC2_RGBA
-            | TranscodeFmt::BC1_RGB
-            | TranscodeFmt::BC3_RGBA
-            | TranscodeFmt::BC4_R
-            | TranscodeFmt::BC5_RG
-            | TranscodeFmt::ETC2_EAC_R11
-            | TranscodeFmt::ETC2_EAC_RG11
-            | TranscodeFmt::RGBA32
-            | TranscodeFmt::RGB565
-            | TranscodeFmt::BGR565
-            | TranscodeFmt::RGBA4444
-            | TranscodeFmt::PVRTC2_4_RGB
-            | TranscodeFmt::PVRTC2_4_RGBA
-    )
-}
-
 fn golden() -> HashMap<String, (usize, String)> {
     let path = common::resources_path()
         .join("golden")
@@ -100,7 +76,7 @@ fn uastc_ldr_transcode_matches_basisu() {
             Ok(d) => d,
             Err(e) => panic!("{file}: {e}"),
         };
-        for fmt in FORMATS.iter().copied().filter(|f| implemented(*f)) {
+        for fmt in FORMATS {
             for flags in [
                 0,
                 transcode_flags::TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS,
