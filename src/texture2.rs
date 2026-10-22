@@ -483,7 +483,8 @@ impl Texture2 {
 
         // Calculate size of the image data. Level 0 is the last level in the data.
         let l0 = this.level_entry(0);
-        this.base.data_size = usize::try_from(l0.byte_offset.saturating_add(l0.byte_length))
+        // size_t arithmetic: wraps like C for out-of-order level indices.
+        this.base.data_size = usize::try_from(l0.byte_offset.wrapping_add(l0.byte_length))
             .map_err(|_| ErrorCode::FileOverflow)?;
         Ok(this)
     }
