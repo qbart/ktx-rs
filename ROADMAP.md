@@ -32,7 +32,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] Texture1 -> Texture2 conversion on write
 - [x] `ktxTexture_CreateFrom*` (`AnyTexture`)
 - [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate + deflate; deflate ignores level (ruzstd only has fastest)
-- [x] Supercompression: Zlib (pure Rust, `miniz_oxide`)
+- [~] Supercompression: Zlib (pure Rust, `miniz_oxide`); output not byte-identical to C zlib
+- [ ] Byte-exact deflate: port zlib `deflate` and libzstd compressor (CTS transcode_zlib/zstd
+  outputs currently match only after inflation)
 - [x] `info.c` (ktxPrintInfo text + KTX2 JSON, byte exact vs C) + `glformat_str.c`
 
 ## Basis Universal (pure Rust port)
@@ -59,7 +61,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] framework: cxxopts port (parsing, errors, help layout), Reporter, option groups
 - [x] validate (validator + text/JSON output, all CTS validate cases pass)
 - [x] info (text/JSON, KTX1 + KTX2, all CTS info cases pass)
-- [ ] extract, create, encode, transcode, compare, deflate, help, convert
+- [x] transcode (all targets, swizzle/channel conversion, --zstd/--zlib), help (man pages)
+- [ ] extract, create, encode, compare, deflate, convert
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
@@ -71,4 +74,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
-- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info done
+- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help, transcode done

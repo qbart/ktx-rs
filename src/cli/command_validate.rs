@@ -192,9 +192,6 @@ impl CommandValidate {
 
     /// A `std::exception` escaping validation: `{name} fatal: {what}`, exit 4.
     fn runtime(&self, result: Result<i32, String>) -> CmdResult<i32> {
-        result.map_err(|what| {
-            print_err(format!("{} fatal: {what}\n", self.report.command_name).as_bytes());
-            FatalError(ReturnCode::RuntimeError as i32)
-        })
+        result.map_err(|what| runtime_error(&self.report, &what))
     }
 }

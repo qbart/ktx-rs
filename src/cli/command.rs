@@ -289,3 +289,201 @@ impl InputStream {
         })
     }
 }
+
+/// Port of `OptionsSingleInSingleOut<OUTPUT_FILE_OPTIONAL>`.
+#[derive(Debug, Clone, Default)]
+pub struct OptionsSingleInSingleOut<const OUTPUT_FILE_OPTIONAL: bool = false> {
+    pub input_filepath: String,
+    pub output_filepath: String,
+}
+
+impl<const OUTPUT_FILE_OPTIONAL: bool> OptionGroup
+    for OptionsSingleInSingleOut<OUTPUT_FILE_OPTIONAL>
+{
+    fn init(&mut self, opts: &mut Options) {
+        opts.add(OptionSpec::flag(
+            "stdin",
+            "Use stdin as the input file. (Using a single dash '-' as the input file has the same effect)",
+        ));
+        opts.add(OptionSpec::flag(
+            "stdout",
+            "Use stdout as the output file. (Using a single dash '-' as the output file has the same effect)",
+        ));
+        opts.add(OptionSpec::value(
+            "i,input-file",
+            "The input file. Using a single dash '-' as the input file will use stdin.",
+            "filepath",
+        ));
+        opts.add(OptionSpec::value(
+            "o,output-file",
+            "The output file. Using a single dash '-' as the output file will use stdout.",
+            "filepath",
+        ));
+        opts.parse_positional(&["input-file", "output-file"]);
+        opts.positional_help("<input-file> <output-file>");
+    }
+
+    fn process(&mut self, _opts: &Options, args: &ParseResult, report: &Reporter) -> CmdResult {
+        if !args.unmatched().is_empty() {
+            return Err(report.fatal_usage("Too many filenames specified."));
+        }
+        let n_in = args.count("stdin") + args.count("input-file");
+        if n_in == 0 {
+            return Err(report.fatal_usage(
+                "Missing input file. Either <input-file> or --stdin must be specified.",
+            ));
+        }
+        if n_in > 1 {
+            return Err(report.fatal_usage(
+                "Conflicting options: Only one can be specified from <input-file> and --stdin.",
+            ));
+        }
+        let n_out = args.count("stdout") + args.count("output-file");
+        if n_out == 0 && !OUTPUT_FILE_OPTIONAL {
+            return Err(report.fatal_usage(
+                "Missing output file. Either <output-file> or --stdout must be specified.",
+            ));
+        }
+        if n_out > 1 {
+            return Err(report.fatal_usage(
+                "Conflicting options: Only one can be specified from <output-file> and --stdout.",
+            ));
+        }
+        self.input_filepath = if args.count("stdin") > 0 {
+            "-".to_string()
+        } else {
+            args.get("input-file").unwrap_or_default().to_string()
+        };
+        if args.count("stdout") > 0 {
+            self.output_filepath = "-".to_string();
+        } else if args.count("output-file") > 0 {
+            self.output_filepath = args.get("output-file").unwrap_or_default().to_string();
+        }
+        Ok(())
+    }
+}
+
+/// Port of `OutputStream`: a created (truncated) file or stdout.
+#[derive(Debug)]
+pub struct OutputStream {
+    pub filepath: String,
+    file: Option<std::fs::File>,
+    remove_at_destruct: bool,
+}
+
+impl OutputStream {
+    /// Creates `filepath` (`-` is stdout).
+    pub fn new(filepath: &str, report: &Reporter) -> CmdResult<OutputStream> {
+        let file = if filepath == "-" {
+            None
+        } else {
+            match std::fs::File::create(filepath) {
+                Ok(f) => Some(f),
+                Err(e) => {
+                    return Err(report.fatal(
+                        ReturnCode::IoFailure,
+                        &format!(
+                            "Could not open output file \"{filepath}\": {}",
+                            super::utility::io_error_message(&e)
+                        ),
+                    ));
+                }
+            }
+        };
+        Ok(OutputStream {
+            filepath: filepath.to_string(),
+            file,
+            remove_at_destruct: false,
+        })
+    }
+
+    pub fn is_stdout(&self) -> bool {
+        self.file.is_none()
+    }
+
+    /// `removeOnDestruct`.
+    pub fn remove_on_destruct(&mut self) {
+        self.remove_at_destruct = true;
+    }
+
+    /// `write`.
+    pub fn write(&mut self, data: &[u8], report: &Reporter) -> CmdResult {
+        let result = match self.file.as_mut() {
+            Some(f) => f.write_all(data),
+            None => std::io::stdout().lock().write_all(data),
+        };
+        result.map_err(|e| {
+            report.fatal(
+                ReturnCode::IoFailure,
+                &format!(
+                    "Failed to write output file \"{}\": {}.",
+                    super::utility::fmt_out_file(&self.filepath),
+                    super::utility::io_error_message(&e)
+                ),
+            )
+        })
+    }
+
+    /// `writeKTX2`.
+    pub fn write_ktx2(&mut self, texture: &mut crate::Texture2, report: &Reporter) -> CmdResult {
+        match texture.write_to_memory() {
+            Ok(bytes) => self.write(&bytes, report),
+            Err(e) => {
+                if !self.is_stdout() {
+                    let _ = std::fs::remove_file(&self.filepath);
+                }
+                Err(report.fatal(
+                    ReturnCode::IoFailure,
+                    &format!(
+                        "Failed to write KTX file \"{}\": {}.",
+                        super::utility::fmt_out_file(&self.filepath),
+                        crate::ktx_error_string(e)
+                    ),
+                ))
+            }
+        }
+    }
+}
+
+impl Drop for OutputStream {
+    fn drop(&mut self) {
+        if let Some(f) = self.file.take() {
+            drop(f);
+            if self.remove_at_destruct {
+                let _ = std::fs::remove_file(&self.filepath);
+            }
+        }
+    }
+}
+
+/// A `std::exception` reaching a command's `main`: prints
+/// `{name} fatal: {what}` and exits with `RUNTIME_ERROR`.
+pub fn runtime_error(report: &Reporter, what: &str) -> FatalError {
+    print_err(format!("{} fatal: {what}\n", report.command_name).as_bytes());
+    ReturnCode::RuntimeError.into()
+}
+
+/// Port of `validateToolInput`: validation issues go to stderr; a failed
+/// validation exits with its return code.
+pub fn validate_tool_input(data: &[u8], report: &Reporter) -> CmdResult {
+    let result = super::validate::validate_memory(data, false, false, &mut |issue| {
+        print_err(
+            format!(
+                "{}-{:04}: {}\n",
+                issue.type_.as_str(),
+                issue.id,
+                issue.message
+            )
+            .as_bytes(),
+        );
+        let mut details = b"    ".to_vec();
+        details.extend_from_slice(&issue.details);
+        details.push(b'\n');
+        print_err(&details);
+    });
+    match result {
+        Ok(0) => Ok(()),
+        Ok(rc) => Err(FatalError(rc)),
+        Err(what) => Err(runtime_error(report, &what)),
+    }
+}
