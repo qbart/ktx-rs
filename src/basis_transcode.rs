@@ -2,6 +2,7 @@
 //! Port of lib/src/basis_transcode.cpp: `ktxTexture2_TranscodeBasis`.
 
 use crate::basisu::etc1s::{LowlevelEtc1sTranscoder, TranscodeStatus};
+use crate::basisu::uastc_ldr::LowlevelUastcLdr4x4Transcoder;
 use crate::basisu::{
     BasisTexFormat, TranscoderState, TranscoderTextureFormat, basis_is_format_supported,
 };
@@ -269,8 +270,13 @@ impl Texture2 {
                 transcode_flags_in,
             )?;
         } else {
-            // TODO(basis): UASTC LDR/HDR transcoders.
-            return Err(ErrorCode::UnsupportedFeature);
+            self.transcode_uastc(
+                color_model,
+                alpha_content,
+                &mut prototype,
+                output_format,
+                transcode_flags_in,
+            )?;
         }
 
         // Fix up the current texture.
@@ -437,6 +443,123 @@ impl Texture2 {
                     TranscodeStatus::Failed => return Err(ErrorCode::TranscodeFailed),
                 }
                 write_offset += level_image_size_out;
+            }
+        }
+        Ok(())
+    }
+
+    /// Port of `ktxTexture2_transcodeUastc`.
+    fn transcode_uastc(
+        &self,
+        color_model: u32,
+        alpha_content: AlphaContent,
+        prototype: &mut Texture2,
+        output_format: TranscodeFmt,
+        transcode_flags_in: u32,
+    ) -> KtxResult<()> {
+        if color_model == KHR_DF_MODEL_UASTC {
+            self.transcode_uastc_ldr_4x4(
+                alpha_content,
+                prototype,
+                output_format,
+                transcode_flags_in,
+            )
+        } else {
+            // TODO(basis): UASTC HDR 4x4 / 6x6 intermediate transcoders.
+            Err(ErrorCode::UnsupportedFeature)
+        }
+    }
+
+    /// Port of `transcodeUastcLDR4x4`.
+    fn transcode_uastc_ldr_4x4(
+        &self,
+        alpha_content: AlphaContent,
+        prototype: &mut Texture2,
+        output_format: TranscodeFmt,
+        transcode_flags_in: u32,
+    ) -> KtxResult<()> {
+        let output_block_byte_length = (prototype.format_size().block_size_in_bits / 8) as u64;
+        if output_block_byte_length == 0 {
+            return Err(ErrorCode::TranscodeFailed);
+        }
+        let xcoded_data_length = prototype.data_size as u64 / output_block_byte_length;
+        let proto_level_index = prototype.level_index().to_vec();
+        let num_levels = self.num_levels as usize;
+        let level_image_sizes_out: Vec<u64> = (0..num_levels)
+            .map(|l| prototype.calc_image_size(l as u32, FormatVersion::Two) as u64)
+            .collect();
+        let level_image_sizes_in: Vec<u64> = (0..num_levels)
+            .map(|l| self.calc_image_size(l as u32, FormatVersion::Two) as u64)
+            .collect();
+
+        let uit = LowlevelUastcLdr4x4Transcoder::new();
+        let mut xcoder_states = vec![
+            TranscoderState::new();
+            if self.is_video {
+                self.num_faces as usize
+            } else {
+                1
+            }
+        ];
+        let src = self.p_data.as_deref().ok_or(ErrorCode::InvalidOperation)?;
+        let dst = prototype
+            .base
+            .p_data
+            .as_deref_mut()
+            .ok_or(ErrorCode::OutOfMemory)?;
+        let target = ktx2transcoder_format(output_format);
+
+        for level in (0..num_levels).rev() {
+            let shr = |v: u32| v.checked_shr(level as u32).unwrap_or(0).max(1);
+            let mut write_offset = proto_level_index.get(level).map_or(0, |e| e.byte_offset);
+            let level_width = shr(self.base_width);
+            let level_height = shr(self.base_height);
+            let level_blocks_x = level_width.div_ceil(4);
+            let level_blocks_y = level_height.div_ceil(4);
+            let depth = shr(self.base_depth);
+            let level_image_count = self.num_layers * self.num_faces * depth;
+            let level_image_size_in = level_image_sizes_in[level];
+            let level_image_size_out = level_image_sizes_out[level];
+            let mut level_image_offset_in = self.level_data_offset(level as u32);
+            let mut state_index = 0usize;
+            for _ in 0..level_image_count {
+                let si = state_index;
+                state_index += 1;
+                if state_index == xcoder_states.len() {
+                    state_index = 0;
+                }
+                let write_offset_blocks = write_offset / output_block_byte_length;
+                let out = dst
+                    .get_mut(write_offset as usize..)
+                    .ok_or(ErrorCode::TranscodeFailed)?;
+                let status = uit.transcode_image(
+                    target,
+                    out,
+                    xcoded_data_length.saturating_sub(write_offset_blocks) as u32,
+                    src,
+                    level_blocks_x,
+                    level_blocks_y,
+                    level_width,
+                    level_height,
+                    level as u32,
+                    level_image_offset_in,
+                    level_image_size_in as u32,
+                    transcode_flags_in,
+                    alpha_content != AlphaContent::None,
+                    self.is_video,
+                    0,
+                    &mut xcoder_states[si],
+                    0,
+                    -1,
+                    -1,
+                );
+                match status {
+                    TranscodeStatus::Ok => {}
+                    TranscodeStatus::Unsupported => return Err(ErrorCode::UnsupportedFeature),
+                    TranscodeStatus::Failed => return Err(ErrorCode::TranscodeFailed),
+                }
+                write_offset += level_image_size_out;
+                level_image_offset_in += level_image_size_in;
             }
         }
         Ok(())

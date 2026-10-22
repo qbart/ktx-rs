@@ -14,6 +14,9 @@ pub mod etc1s;
 pub mod pvrtc;
 pub mod pvrtc2;
 pub mod tables;
+pub mod uastc;
+pub mod uastc_ldr;
+pub mod uastc_tables;
 
 /// Port of `transcoder_texture_format`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
