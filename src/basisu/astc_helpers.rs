@@ -485,7 +485,11 @@ pub fn compute_upsample_weights(
                 s.src_x = (g_x >> 4) as u8;
                 s.src_y = (g_y >> 4) as u8;
                 s.weights = [
-                    [(16 - f_x - f_y + w11) as u8, (f_x - w11) as u8],
+                    // C's u32 math: 16 - fX - fY may wrap before + w11.
+                    [
+                        16u32.wrapping_sub(f_x + f_y).wrapping_add(w11) as u8,
+                        (f_x - w11) as u8,
+                    ],
                     [(f_y - w11) as u8, w11 as u8],
                 ];
             }
