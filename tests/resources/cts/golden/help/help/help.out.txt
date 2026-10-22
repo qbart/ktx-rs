@@ -1,0 +1,10 @@
+ktx help: Displays the man page of a specific ktx command specified as the command argument.
+If the command option is missing the main ktx tool man page will be displayed.
+
+Usage:
+  ktx help [OPTION...] <command>
+
+  -h, --help     Print this usage message and exit
+  -v, --version  Print the version number of this program and exit
+      --testrun  Indicates test run. If enabled the tool will produce deterministic output whenever 
+                 possible
