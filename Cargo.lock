@@ -91,6 +91,7 @@ dependencies = [
  "ruzstd",
  "serde_json",
  "sha2",
+ "zstd-pure-rs",
 ]
 
 [[package]]
@@ -257,3 +258,9 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zstd-pure-rs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71cafafebc1c81515698e9b97846d619f993db5cbcf50b72e4c6e58a8477b86f"

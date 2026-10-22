@@ -17,6 +17,7 @@ use crate::texture::{FormatVersion, KtxTexture};
 use crate::texture2::Texture2;
 use crate::version::{LIBKTX_DEFAULT_VERSION, LIBKTX_VERSION};
 use crate::zlib::{ktx_compress_zlib_bounds, ktx_compress_zlib_int};
+use zstd_pure_rs::prelude as zstd;
 
 thread_local! {
     static DISABLE_WRITER_METADATA: Cell<bool> = const { Cell::new(false) };
@@ -317,7 +318,7 @@ impl Texture2 {
     fn deflate_with(
         &mut self,
         scheme: SupercmpScheme,
-        compress: &dyn Fn(&[u8]) -> KtxResult<Vec<u8>>,
+        compress: &mut dyn FnMut(&[u8]) -> KtxResult<Vec<u8>>,
     ) -> KtxResult<()> {
         if self.supercompression_scheme != SupercmpScheme::NONE {
             return Err(ErrorCode::InvalidOperation);
@@ -353,26 +354,37 @@ impl Texture2 {
         Ok(())
     }
 
-    /// Port of `ktxTexture2_DeflateZstd`.
-    ///
-    /// Note: the pure Rust `ruzstd` encoder currently implements only its fastest
-    /// level, so every valid `compression_level` (1..=22) produces a valid zstd
-    /// stream at that level.
+    /// Port of `ktxTexture2_DeflateZstd` (libzstd 1.5.7 via the pure Rust
+    /// `zstd-pure-rs` translation, byte exact with the C library).
     pub fn deflate_zstd(&mut self, compression_level: u32) -> KtxResult<()> {
-        if compression_level > 22 {
-            return Err(ErrorCode::InvalidValue);
-        }
-        self.deflate_with(SupercmpScheme::ZSTD, &|src: &[u8]| {
-            Ok(ruzstd::encoding::compress_to_vec(
-                src,
-                ruzstd::encoding::CompressionLevel::Fastest,
-            ))
+        let Some(mut cctx) = zstd::ZSTD_createCCtx() else {
+            return Err(ErrorCode::OutOfMemory);
+        };
+        self.deflate_with(SupercmpScheme::ZSTD, &mut |src: &[u8]| {
+            // C passes the remaining work buffer, which is always at least
+            // ZSTD_compressBound of this level.
+            let mut dst = Vec::new();
+            dst.try_reserve_exact(zstd::ZSTD_compressBound(src.len()))
+                .map_err(|_| ErrorCode::OutOfMemory)?;
+            dst.resize(zstd::ZSTD_compressBound(src.len()), 0);
+            let n = zstd::ZSTD_compressCCtx(&mut cctx, &mut dst, src, compression_level as i32);
+            if zstd::ZSTD_isError(n) {
+                return Err(match zstd::ZSTD_getErrorCode(n) {
+                    zstd::ErrorCode::ParameterOutOfBound => ErrorCode::InvalidValue,
+                    zstd::ErrorCode::DstSizeTooSmall
+                    | zstd::ErrorCode::WorkSpaceTooSmall
+                    | zstd::ErrorCode::MemoryAllocation => ErrorCode::OutOfMemory,
+                    _ => ErrorCode::InvalidOperation,
+                });
+            }
+            dst.truncate(n);
+            Ok(dst)
         })
     }
 
     /// Port of `ktxTexture2_DeflateZLIB`.
     pub fn deflate_zlib(&mut self, compression_level: u32) -> KtxResult<()> {
-        self.deflate_with(SupercmpScheme::ZLIB, &|src: &[u8]| {
+        self.deflate_with(SupercmpScheme::ZLIB, &mut |src: &[u8]| {
             ktx_compress_zlib_int(src, ktx_compress_zlib_bounds(src.len()), compression_level)
         })
     }
