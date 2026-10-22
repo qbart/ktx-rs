@@ -1,8 +1,8 @@
 //! Port of `basisu_astc_helpers.h`: the ASTC logical block unpacker and texel
-//! decoder used by the UASTC HDR transcoders.
+//! decoder (plus the block packer) used by the UASTC HDR transcoders.
 #![allow(clippy::needless_range_loop)]
 
-use super::hdr_tables::{QUINT_DECODE, TRIT_DECODE};
+use super::hdr_tables::{ASTC_QUINT_ENCODE, ASTC_TRIT_ENCODE, QUINT_DECODE, TRIT_DECODE};
 use std::sync::OnceLock;
 
 pub const MIN_GRID_DIM: u32 = 2;
@@ -33,7 +33,26 @@ pub const CEM_LDR_RGBA_BASE_PLUS_OFFSET: u32 = 13;
 pub const CEM_HDR_RGB_LDR_ALPHA: u32 = 14;
 pub const CEM_HDR_RGB_HDR_ALPHA: u32 = 15;
 
+pub const BISE_2_LEVELS: u32 = 0;
+pub const BISE_3_LEVELS: u32 = 1;
+pub const BISE_4_LEVELS: u32 = 2;
+pub const BISE_5_LEVELS: u32 = 3;
+pub const BISE_6_LEVELS: u32 = 4;
+pub const BISE_8_LEVELS: u32 = 5;
 pub const BISE_10_LEVELS: u32 = 6;
+pub const BISE_12_LEVELS: u32 = 7;
+pub const BISE_16_LEVELS: u32 = 8;
+pub const BISE_20_LEVELS: u32 = 9;
+pub const BISE_24_LEVELS: u32 = 10;
+pub const BISE_32_LEVELS: u32 = 11;
+pub const BISE_40_LEVELS: u32 = 12;
+pub const BISE_48_LEVELS: u32 = 13;
+pub const BISE_64_LEVELS: u32 = 14;
+pub const BISE_80_LEVELS: u32 = 15;
+pub const BISE_96_LEVELS: u32 = 16;
+pub const BISE_128_LEVELS: u32 = 17;
+pub const BISE_160_LEVELS: u32 = 18;
+pub const BISE_192_LEVELS: u32 = 19;
 pub const BISE_256_LEVELS: u32 = 20;
 pub const TOTAL_ISE_RANGES: u32 = 21;
 pub const FIRST_VALID_ENDPOINT_ISE_RANGE: u32 = 4;
@@ -297,48 +316,109 @@ fn find_nearest_bise(v: i32, ise_range: u32, weight_flag: bool) -> u32 {
     best_index
 }
 
-/// The `m_ISE_to_val` half of `create_quant_tables`.
-fn create_ise_to_val(ise_range: u32, weight_flag: bool) -> Vec<u8> {
-    let mut ise_to_val = vec![0u8; get_ise_levels(ise_range) as usize];
+/// Port of `dequant_table`.
+#[derive(Debug, Clone, Default)]
+pub struct DequantTable {
+    /// [0-255] or [0-64] value to nearest ISE symbol, [256] or [65].
+    pub val_to_ise: Vec<u8>,
+    /// ISE symbol to [0,255] or [0,64] value, [levels].
+    pub ise_to_val: Vec<u8>,
+    /// Level rank index of an ISE symbol, [levels].
+    pub ise_to_rank: Vec<u8>,
+    /// ISE symbol of a level rank (inverse of `ise_to_rank`), [levels].
+    pub rank_to_ise: Vec<u8>,
+}
+
+static EMPTY_TABLE: DequantTable = DequantTable {
+    val_to_ise: Vec::new(),
+    ise_to_val: Vec::new(),
+    ise_to_rank: Vec::new(),
+    rank_to_ise: Vec::new(),
+};
+
+/// Port of `create_quant_tables`.
+fn create_quant_tables(ise_range: u32, weight_flag: bool) -> DequantTable {
+    let num_levels = get_ise_levels(ise_range) as usize;
     let num_dequant_vals = if weight_flag {
         MAX_WEIGHT_INTERPOLANT_VALUE + 1
     } else {
         256
     };
+    let dequant = |i: u32| {
+        if weight_flag {
+            dequant_bise_weight(i, ise_range)
+        } else {
+            dequant_bise_endpoint(i, ise_range)
+        }
+    };
+    let mut tab = DequantTable {
+        val_to_ise: vec![0; num_dequant_vals as usize],
+        ise_to_val: vec![0; num_levels],
+        ise_to_rank: vec![0; num_levels],
+        rank_to_ise: vec![0; num_levels],
+    };
     for i in 0..num_dequant_vals {
         let bise_index = find_nearest_bise(i as i32, ise_range, weight_flag);
-        let v = if weight_flag {
-            dequant_bise_weight(bise_index, ise_range)
-        } else {
-            dequant_bise_endpoint(bise_index, ise_range)
-        };
-        if let Some(slot) = ise_to_val.get_mut(bise_index as usize) {
-            *slot = v as u8;
+        if let Some(slot) = tab.val_to_ise.get_mut(i as usize) {
+            *slot = bise_index as u8;
+        }
+        if let Some(slot) = tab.ise_to_val.get_mut(bise_index as usize) {
+            *slot = dequant(bise_index) as u8;
         }
     }
-    ise_to_val
+    let [_, trits, quints] = ise(ise_range);
+    if trits == 0 && quints == 0 {
+        // Only bits
+        for i in 0..num_levels {
+            tab.ise_to_rank[i] = i as u8;
+            tab.rank_to_ise[i] = i as u8;
+        }
+    } else {
+        // Range has trits or quints: sort by dequantized value.
+        let mut vals: Vec<u32> = (0..num_levels as u32)
+            .map(|i| (dequant(i) << 16) | i)
+            .collect();
+        vals.sort_unstable();
+        for (rank, v) in vals.iter().enumerate() {
+            let ise_val = *v as u8;
+            if let Some(slot) = tab.ise_to_rank.get_mut(ise_val as usize) {
+                *slot = rank as u8;
+            }
+            tab.rank_to_ise[rank] = ise_val;
+        }
+    }
+    tab
 }
 
-/// Port of `dequant_tables` (ISE symbol to value only; the transcoder never
-/// needs the rank tables).
+/// Port of `dequant_tables`.
 pub struct DequantTables {
-    weights: Vec<Vec<u8>>,
-    endpoints: Vec<Vec<u8>>,
+    weights: Vec<DequantTable>,
+    endpoints: Vec<DequantTable>,
 }
 
 impl DequantTables {
-    /// `get_weight_tab(range).m_ISE_to_val`.
-    pub fn weight_ise_to_val(&self, range: u32) -> &[u8] {
+    /// `get_weight_tab(range)` (an empty table when out of range).
+    pub fn weight_tab(&self, range: u32) -> &DequantTable {
         self.weights
             .get(range.wrapping_sub(FIRST_VALID_WEIGHT_ISE_RANGE) as usize)
-            .map_or(&[], |v| v.as_slice())
+            .unwrap_or(&EMPTY_TABLE)
+    }
+
+    /// `get_endpoint_tab(range)` (an empty table when out of range).
+    pub fn endpoint_tab(&self, range: u32) -> &DequantTable {
+        self.endpoints
+            .get(range.wrapping_sub(FIRST_VALID_ENDPOINT_ISE_RANGE) as usize)
+            .unwrap_or(&EMPTY_TABLE)
+    }
+
+    /// `get_weight_tab(range).m_ISE_to_val`.
+    pub fn weight_ise_to_val(&self, range: u32) -> &[u8] {
+        &self.weight_tab(range).ise_to_val
     }
 
     /// `get_endpoint_tab(range).m_ISE_to_val`.
     pub fn endpoint_ise_to_val(&self, range: u32) -> &[u8] {
-        self.endpoints
-            .get(range.wrapping_sub(FIRST_VALID_ENDPOINT_ISE_RANGE) as usize)
-            .map_or(&[], |v| v.as_slice())
+        &self.endpoint_tab(range).ise_to_val
     }
 }
 
@@ -347,10 +427,10 @@ pub fn dequant_tables() -> &'static DequantTables {
     static T: OnceLock<DequantTables> = OnceLock::new();
     T.get_or_init(|| DequantTables {
         weights: (FIRST_VALID_WEIGHT_ISE_RANGE..=LAST_VALID_WEIGHT_ISE_RANGE)
-            .map(|r| create_ise_to_val(r, true))
+            .map(|r| create_quant_tables(r, true))
             .collect(),
         endpoints: (FIRST_VALID_ENDPOINT_ISE_RANGE..=LAST_VALID_ENDPOINT_ISE_RANGE)
-            .map(|r| create_ise_to_val(r, false))
+            .map(|r| create_quant_tables(r, false))
             .collect(),
     })
 }
@@ -372,7 +452,48 @@ pub fn is_cem_ldr(mode: u32) -> bool {
     )
 }
 
-/// Port of `upsample_weight_grid` (with `compute_upsample_weights`).
+/// Port of `weighted_sample`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct WeightedSample {
+    pub src_x: u8,
+    pub src_y: u8,
+    /// [y][x], scaled by 16, round by adding 8.
+    pub weights: [[u8; 2]; 2],
+}
+
+/// Port of `compute_upsample_weights` (`block_width * block_height` samples).
+pub fn compute_upsample_weights(
+    block_width: u32,
+    block_height: u32,
+    weight_grid_width: u32,
+    weight_grid_height: u32,
+    out: &mut [WeightedSample],
+) {
+    if block_width < 2 || block_height < 2 {
+        return;
+    }
+    let scale_x = (1024 + block_width / 2) / (block_width - 1);
+    let scale_y = (1024 + block_height / 2) / (block_height - 1);
+    for texel_y in 0..block_height {
+        for texel_x in 0..block_width {
+            let g_x = (scale_x * texel_x * weight_grid_width.wrapping_sub(1)).wrapping_add(32) >> 6;
+            let g_y =
+                (scale_y * texel_y * weight_grid_height.wrapping_sub(1)).wrapping_add(32) >> 6;
+            let (f_x, f_y) = (g_x & 0xf, g_y & 0xf);
+            let w11 = (f_x * f_y + 8) >> 4;
+            if let Some(s) = out.get_mut((texel_x + texel_y * block_width) as usize) {
+                s.src_x = (g_x >> 4) as u8;
+                s.src_y = (g_y >> 4) as u8;
+                s.weights = [
+                    [(16 - f_x - f_y + w11) as u8, (f_x - w11) as u8],
+                    [(f_y - w11) as u8, w11 as u8],
+                ];
+            }
+        }
+    }
+}
+
+/// Port of `upsample_weight_grid`.
 pub fn upsample_weight_grid(
     bx: u32,
     by: u32,
@@ -391,38 +512,27 @@ pub fn upsample_weight_grid(
         }
         return;
     }
-    if bx < 2 || by < 2 {
-        return;
-    }
-    let scale_x = (1024 + bx / 2) / (bx - 1);
-    let scale_y = (1024 + by / 2) / (by - 1);
+    let mut weights = [WeightedSample::default(); MAX_BLOCK_PIXELS];
+    compute_upsample_weights(bx, by, wx, wy, &mut weights);
     let src = |i: u32| u32::from(src_weights.get(i as usize).copied().unwrap_or(0));
-    for texel_y in 0..by {
-        for texel_x in 0..bx {
-            let g_x = (scale_x * texel_x * (wx.wrapping_sub(1)) + 32) >> 6;
-            let g_y = (scale_y * texel_y * (wy.wrapping_sub(1)) + 32) >> 6;
-            let (sx, sy) = (g_x >> 4, g_y >> 4);
-            let (f_x, f_y) = (g_x & 0xf, g_y & 0xf);
-            let w11 = (f_x * f_y + 8) >> 4;
-            let w10 = f_y - w11;
-            let w01 = f_x - w11;
-            let w00 = 16 - f_x - f_y + w11;
-            let mut total = 8;
-            if w00 != 0 {
-                total += src(sx + sy * wx) * w00;
-            }
-            if w01 != 0 {
-                total += src(sx + 1 + sy * wx) * w01;
-            }
-            if w10 != 0 {
-                total += src(sx + (sy + 1) * wx) * w10;
-            }
-            if w11 != 0 {
-                total += src(sx + 1 + (sy + 1) * wx) * w11;
-            }
-            if let Some(d) = dst_weights.get_mut((texel_x + texel_y * bx) as usize) {
-                *d = (total >> 4) as u8;
-            }
+    for (i, ps) in weights.iter().take(total_dst_weights).enumerate() {
+        let [[w00, w01], [w10, w11]] = ps.weights.map(|r| r.map(u32::from));
+        let (sx, sy) = (u32::from(ps.src_x), u32::from(ps.src_y));
+        let mut total = 8;
+        if w00 != 0 {
+            total += src(sx + sy * wx) * w00;
+        }
+        if w01 != 0 {
+            total += src(sx + 1 + sy * wx) * w01;
+        }
+        if w10 != 0 {
+            total += src(sx + (sy + 1) * wx) * w10;
+        }
+        if w11 != 0 {
+            total += src(sx + 1 + (sy + 1) * wx) * w11;
+        }
+        if let Some(d) = dst_weights.get_mut(i) {
+            *d = (total >> 4) as u8;
         }
     }
 }
@@ -1834,6 +1944,392 @@ pub fn unpack_block(
     true
 }
 
+/// Port of `astc_set_bits` (byte-wise, like C).
+fn astc_set_bits(out: &mut [u8], bit_pos: &mut u32, mut value: u32, mut total_bits: u32) {
+    while total_bits != 0 {
+        let bits_to_write = total_bits.min(8 - (*bit_pos & 7));
+        if let Some(b) = out.get_mut((*bit_pos >> 3) as usize) {
+            *b |= value.wrapping_shl(*bit_pos & 7) as u8;
+        }
+        *bit_pos += bits_to_write;
+        total_bits -= bits_to_write;
+        value = value.checked_shr(bits_to_write).unwrap_or(0);
+    }
+}
+
+/// Port of `astc_set_bits_1_to_9`.
+fn astc_set_bits_1_to_9(buf: &mut [u8], bit_offset: &mut u32, code: u32, codesize: u32) {
+    if codesize != 0 {
+        let byte_bit_offset = *bit_offset & 7;
+        let val = code << byte_bit_offset;
+        let index = (*bit_offset >> 3) as usize;
+        if let Some(b) = buf.get_mut(index) {
+            *b |= val as u8;
+        }
+        if codesize > 8 - byte_bit_offset
+            && let Some(b) = buf.get_mut(index + 1)
+        {
+            *b |= (val >> 8) as u8;
+        }
+        *bit_offset += codesize;
+    }
+}
+
+#[inline]
+fn astc_extract_bits(bits: u32, low: u32, high: u32) -> u32 {
+    (bits >> low) & ((1 << (high - low + 1)) - 1)
+}
+
+/// Port of `astc_encode_quints`: 3 values, quints and `n` bits each.
+fn astc_encode_quints(out: &mut [u8], values: &[u8; 5], bit_pos: &mut u32, n: u32) {
+    let bit_mask = (1u32 << n) - 1;
+    let mut quints = 0u32;
+    let mut bits = [0u32; 3];
+    for (i, mul) in [1u32, 5, 25].into_iter().enumerate() {
+        quints += u32::from(values[i] >> n) * mul;
+        bits[i] = u32::from(values[i]) & bit_mask;
+    }
+    let t = u32::from(ASTC_QUINT_ENCODE.get(quints as usize).copied().unwrap_or(0));
+    astc_set_bits(
+        out,
+        bit_pos,
+        bits[0]
+            | (astc_extract_bits(t, 0, 2) << n)
+            | (bits[1] << (3 + n))
+            | (astc_extract_bits(t, 3, 4) << (3 + n * 2))
+            | (bits[2] << (5 + n * 2))
+            | (astc_extract_bits(t, 5, 6) << (5 + n * 3)),
+        7 + n * 3,
+    );
+}
+
+/// Port of `astc_encode_trits`: 5 values, trits and `n` bits each.
+fn astc_encode_trits(out: &mut [u8], values: &[u8; 5], bit_pos: &mut u32, n: u32) {
+    let bit_mask = (1u32 << n) - 1;
+    let mut trits = 0u32;
+    let mut bits = [0u32; 5];
+    for (i, mul) in [1u32, 3, 9, 27, 81].into_iter().enumerate() {
+        trits += u32::from(values[i] >> n) * mul;
+        bits[i] = u32::from(values[i]) & bit_mask;
+    }
+    let t = u32::from(ASTC_TRIT_ENCODE.get(trits as usize).copied().unwrap_or(0));
+    astc_set_bits(
+        out,
+        bit_pos,
+        bits[0] | (astc_extract_bits(t, 0, 1) << n) | (bits[1] << (2 + n)),
+        n * 2 + 2,
+    );
+    astc_set_bits(
+        out,
+        bit_pos,
+        astc_extract_bits(t, 2, 3)
+            | (bits[2] << 2)
+            | (astc_extract_bits(t, 4, 4) << (2 + n))
+            | (bits[3] << (3 + n))
+            | (astc_extract_bits(t, 5, 6) << (3 + n * 2))
+            | (bits[4] << (5 + n * 2))
+            | (astc_extract_bits(t, 7, 7) << (5 + n * 3)),
+        n * 3 + 6,
+    );
+}
+
+/// Port of `encode_bise`: ORs `num_vals` BISE-packed values into `dst` at `bit_pos`.
+pub fn encode_bise(
+    dst: &mut [u8; 16],
+    src_vals: &[u8],
+    mut bit_pos: u32,
+    num_vals: u32,
+    range: u32,
+) {
+    let mut temp = [0u8; 20];
+    let [num_bits, trits, quints] = ise(range);
+    let num_bits = u32::from(num_bits);
+    let group_size = if trits != 0 {
+        5
+    } else if quints != 0 {
+        3
+    } else {
+        0
+    };
+    let val = |i: usize| src_vals.get(i).copied().unwrap_or(0);
+    if group_size != 0 {
+        // Pack each group of 5 or 3 values (always writes a whole group).
+        let total_groups = num_vals.div_ceil(group_size);
+        for group_index in 0..total_groups {
+            let mut vals = [0u8; 5];
+            let limit = group_size.min(num_vals - group_index * group_size);
+            for i in 0..limit {
+                vals[i as usize] = val((group_index * group_size + i) as usize);
+            }
+            if group_size == 5 {
+                astc_encode_trits(&mut temp, &vals, &mut bit_pos, num_bits);
+            } else {
+                astc_encode_quints(&mut temp, &vals, &mut bit_pos, num_bits);
+            }
+        }
+    } else {
+        for i in 0..num_vals as usize {
+            astc_set_bits_1_to_9(&mut temp, &mut bit_pos, u32::from(val(i)), num_bits);
+        }
+    }
+    for (d, t) in dst.iter_mut().zip(temp) {
+        *d |= t;
+    }
+}
+
+#[inline]
+fn is_packable(value: i32, num_bits: u32) -> bool {
+    value >= 0 && value < (1 << num_bits)
+}
+
+/// Port of `get_config_bits` (tables 81-82).
+fn get_config_bits(log_block: &LogAstcBlock) -> Option<u32> {
+    let w = i32::from(log_block.grid_width);
+    let h = i32::from(log_block.grid_height);
+    let hp = u32::from(log_block.weight_ise_range >= 6); // high precision
+    let dp_p = (u32::from(log_block.dual_plane) << 1) | hp;
+    // p from the weight range, bits rearranged to p0 p2 p1
+    let mut p =
+        (2 + u32::from(log_block.weight_ise_range)).wrapping_sub(if hp != 0 { 6 } else { 0 });
+    p = (p >> 1) + ((p & 1) << 2);
+    let (wu, hu) = (w as u32, h as u32);
+
+    if is_packable(w - 4, 2) && is_packable(h - 2, 2) {
+        return Some((dp_p << 9) | ((wu - 4) << 7) | ((hu - 2) << 5) | ((p & 4) << 2) | (p & 3));
+    }
+    if is_packable(w - 8, 2) && is_packable(h - 2, 2) {
+        return Some(
+            (dp_p << 9) | ((wu - 8) << 7) | ((hu - 2) << 5) | ((p & 4) << 2) | 4 | (p & 3),
+        );
+    }
+    if is_packable(w - 2, 2) && is_packable(h - 8, 2) {
+        return Some(
+            (dp_p << 9) | ((hu - 8) << 7) | ((wu - 2) << 5) | ((p & 4) << 2) | 8 | (p & 3),
+        );
+    }
+    if is_packable(w - 2, 2) && is_packable(h - 6, 1) {
+        return Some(
+            (dp_p << 9) | ((hu - 6) << 7) | ((wu - 2) << 5) | ((p & 4) << 2) | 12 | (p & 3),
+        );
+    }
+    if is_packable(w - 2, 1) && is_packable(h - 2, 2) {
+        return Some((dp_p << 9) | (wu << 7) | ((hu - 2) << 5) | ((p & 4) << 2) | 12 | (p & 3));
+    }
+    if w == 12 && is_packable(h - 2, 2) {
+        return Some((dp_p << 9) | ((hu - 2) << 5) | (p << 2));
+    }
+    if h == 12 && is_packable(w - 2, 2) {
+        return Some((dp_p << 9) | (1 << 7) | ((wu - 2) << 5) | (p << 2));
+    }
+    if w == 6 && h == 10 {
+        return Some((dp_p << 9) | (3 << 7) | (p << 2));
+    }
+    if w == 10 && h == 6 {
+        return Some((dp_p << 9) | (0b1101 << 5) | (p << 2));
+    }
+    // W+6 H+6 (no dual plane or high prec)
+    if dp_p == 0 && is_packable(w - 6, 2) && is_packable(h - 6, 2) {
+        return Some(((hu - 6) << 9) | 256 | ((wu - 6) << 5) | (p << 2));
+    }
+    None
+}
+
+fn pack_void_extent(blk: &mut [u8; 16], ldr: bool, c: [u16; 4]) {
+    blk.fill(0xFF);
+    blk[0] = 0b1111_1100;
+    if ldr {
+        blk[1] = 0b1111_1101;
+    }
+    for (i, v) in c.iter().enumerate() {
+        blk[8 + i * 2..10 + i * 2].copy_from_slice(&v.to_le_bytes());
+    }
+}
+
+/// Port of `pack_void_extent_ldr`.
+pub fn pack_void_extent_ldr(blk: &mut [u8; 16], r: u16, g: u16, b: u16, a: u16) {
+    pack_void_extent(blk, true, [r, g, b, a]);
+}
+
+/// Port of `pack_void_extent_hdr` (half float components).
+pub fn pack_void_extent_hdr(blk: &mut [u8; 16], rh: u16, gh: u16, bh: u16, ah: u16) {
+    pack_void_extent(blk, false, [rh, gh, bh, ah]);
+}
+
+/// Port of `pack_astc_block`: logical block to physical ASTC block (no stats or
+/// validate flags; the logical endpoint ISE range must be the one the layout implies).
+pub fn pack_astc_block(phys_block: &mut [u8; 16], log_block: &LogAstcBlock) -> bool {
+    *phys_block = [0; 16];
+    if log_block.error_flag {
+        return false;
+    }
+    let solid = |c| log_block.solid_color(c);
+    if log_block.solid_color_flag_ldr {
+        pack_void_extent_ldr(phys_block, solid(0), solid(1), solid(2), solid(3));
+        return true;
+    } else if log_block.solid_color_flag_hdr {
+        pack_void_extent_hdr(phys_block, solid(0), solid(1), solid(2), solid(3));
+        return true;
+    }
+
+    let num_parts = u32::from(log_block.num_partitions);
+    if !(1..=MAX_PARTITIONS).contains(&num_parts) {
+        return false;
+    }
+    // Max usable weight range is 11
+    if u32::from(log_block.weight_ise_range) > LAST_VALID_WEIGHT_ISE_RANGE {
+        return false;
+    }
+    // See 23.24 Illegal Encodings, [0,5] is the minimum ISE encoding for endpoints
+    if !(FIRST_VALID_ENDPOINT_ISE_RANGE..=LAST_VALID_ENDPOINT_ISE_RANGE)
+        .contains(&u32::from(log_block.endpoint_ise_range))
+    {
+        return false;
+    }
+    if log_block.color_component_selector > 3 {
+        return false;
+    }
+
+    let Some(config_bits) = get_config_bits(log_block) else {
+        return false;
+    };
+    let mut bit_pos = 0u32;
+    astc_set_bits(phys_block, &mut bit_pos, config_bits, 11);
+
+    let total_grid_weights = (if log_block.dual_plane { 2 } else { 1 })
+        * (u32::from(log_block.grid_width) * u32::from(log_block.grid_height));
+    let total_weight_bits = get_ise_sequence_bits(
+        total_grid_weights as i32,
+        u32::from(log_block.weight_ise_range),
+    );
+    // 18.24 Illegal Encodings
+    if total_grid_weights == 0
+        || total_grid_weights > MAX_GRID_WEIGHTS
+        || !(24..=96).contains(&total_weight_bits)
+    {
+        return false;
+    }
+    let total_weight_bits = total_weight_bits as u32;
+
+    let mut total_extra_bits = 0u32;
+    astc_set_bits(phys_block, &mut bit_pos, num_parts - 1, 2);
+    let cems = &log_block.color_endpoint_modes;
+
+    if num_parts > 1 {
+        if u32::from(log_block.partition_id) >= NUM_PARTITION_PATTERNS {
+            return false;
+        }
+        astc_set_bits(
+            phys_block,
+            &mut bit_pos,
+            u32::from(log_block.partition_id),
+            10,
+        );
+
+        let parts = &cems[..num_parts as usize];
+        let highest_cem = parts.iter().copied().max().map_or(0, u32::from);
+        let lowest_cem = parts.iter().copied().min().map_or(u32::MAX, u32::from);
+        if highest_cem > 15 {
+            return false;
+        }
+        // Ensure CEM range is contiguous
+        if (highest_cem >> 2) > 1 + (lowest_cem >> 2) {
+            return false;
+        }
+        // See tables 79/80
+        let mut encoded_cem = u32::from(cems[0]) << 2;
+        if lowest_cem != highest_cem {
+            encoded_cem = 3.min(1 + (lowest_cem >> 2));
+            for (j, &cem) in parts.iter().enumerate() {
+                let m = i32::from(cem & 3);
+                let c = i32::from(cem >> 2) - ((encoded_cem & 3) as i32 - 1);
+                if (c & 1) != c {
+                    return false;
+                }
+                encoded_cem |= ((c << (2 + j)) | (m << (2 + num_parts as usize + 2 * j))) as u32;
+            }
+            total_extra_bits = 3 * num_parts - 4;
+            if total_weight_bits + total_extra_bits > 128 {
+                return false;
+            }
+            let mut cem_bit_pos = 128 - total_weight_bits - total_extra_bits;
+            astc_set_bits(
+                phys_block,
+                &mut cem_bit_pos,
+                encoded_cem >> 6,
+                total_extra_bits,
+            );
+        }
+        astc_set_bits(phys_block, &mut bit_pos, encoded_cem & 0x3f, 6);
+    } else {
+        if log_block.partition_id != 0 || cems[0] > 15 {
+            return false;
+        }
+        astc_set_bits(phys_block, &mut bit_pos, u32::from(cems[0]), 4);
+    }
+
+    if log_block.dual_plane {
+        if num_parts > 3 {
+            return false;
+        }
+        total_extra_bits += 2;
+        let mut ccs_bit_pos = 128 - total_weight_bits - total_extra_bits;
+        astc_set_bits(
+            phys_block,
+            &mut ccs_bit_pos,
+            u32::from(log_block.color_component_selector),
+            2,
+        );
+    }
+
+    let total_config_bits = bit_pos + total_extra_bits;
+    let num_remaining_bits = 128 - total_config_bits as i32 - total_weight_bits as i32;
+    if num_remaining_bits < 0 {
+        return false;
+    }
+    let total_cem_vals: u32 = cems[..num_parts as usize]
+        .iter()
+        .map(|&c| 2 + 2 * (u32::from(c) >> 2))
+        .sum();
+    if total_cem_vals > MAX_ENDPOINTS {
+        return false;
+    }
+    let mut endpoint_ise_range = -1i32;
+    for k in (1..=20).rev() {
+        if get_ise_sequence_bits(total_cem_vals as i32, k as u32) <= num_remaining_bits {
+            endpoint_ise_range = k;
+            break;
+        }
+    }
+    if endpoint_ise_range < FIRST_VALID_ENDPOINT_ISE_RANGE as i32 {
+        return false;
+    }
+    // Ensure the caller utilized the right endpoint ISE range.
+    if i32::from(log_block.endpoint_ise_range) != endpoint_ise_range {
+        return false;
+    }
+
+    // Pack endpoints forwards
+    encode_bise(
+        phys_block,
+        &log_block.endpoints,
+        bit_pos,
+        total_cem_vals,
+        endpoint_ise_range as u32,
+    );
+    // Pack weights backwards
+    let mut weight_data = [0u8; 16];
+    encode_bise(
+        &mut weight_data,
+        &log_block.weights,
+        0,
+        total_grid_weights,
+        u32::from(log_block.weight_ise_range),
+    );
+    let packed = u128::from_le_bytes(*phys_block) | u128::from_le_bytes(weight_data).reverse_bits();
+    *phys_block = packed.to_le_bytes();
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1851,5 +2347,24 @@ mod tests {
         assert_eq!(t.endpoint_ise_to_val(20).len(), 256);
         assert_eq!(t.weight_ise_to_val(11).len(), 32);
         assert_eq!(t.weight_ise_to_val(0), &[0, 64]);
+    }
+
+    #[test]
+    fn rank_tables_sort_by_value() {
+        let t = dequant_tables();
+        for range in FIRST_VALID_ENDPOINT_ISE_RANGE..=LAST_VALID_ENDPOINT_ISE_RANGE {
+            let tab = t.endpoint_tab(range);
+            for (rank, &ise) in tab.rank_to_ise.iter().enumerate() {
+                assert_eq!(tab.ise_to_rank[ise as usize] as usize, rank);
+                if rank > 0 {
+                    let prev = tab.rank_to_ise[rank - 1] as usize;
+                    assert!(tab.ise_to_val[prev] <= tab.ise_to_val[ise as usize]);
+                }
+            }
+            for v in 0..256 {
+                let ise = tab.val_to_ise[v] as usize;
+                assert!(ise < tab.ise_to_val.len());
+            }
+        }
     }
 }

@@ -27,6 +27,7 @@ def body_of(src, cname):
 
 def tokens(body):
     body = re.sub(r"//[^\n]*", "", body)
+    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
     return re.findall(r"0x[0-9a-fA-F]+|-?\d+", body)
 
 
@@ -77,6 +78,51 @@ for pat in top_groups(body_of(cpp, "g_bc6h_2subset_patterns")):
     assert len(v) == 16
     pats.append("[" + ", ".join(v) + "]")
 out.append(f"pub const BC6H_2SUBSET_PATTERNS: [[u8; 16]; {len(pats)}] = [{', '.join(pats)}];\n")
+
+
+def flat(src, cname, ty, n):
+    v = [str(int(t, 0)) for t in tokens(body_of(src, cname))]
+    assert len(v) == n, (cname, len(v))
+    return f"pub const {ty[0]}: [{ty[1]}; {n}] = [{', '.join(v)}];\n"
+
+
+out.append(flat(helpers, "g_astc_quint_encode", ("ASTC_QUINT_ENCODE", "u8"), 125))
+out.append(flat(helpers, "g_astc_trit_encode", ("ASTC_TRIT_ENCODE", "u8"), 243))
+
+# astc_6x6_hdr tables (UASTC HDR 6x6 intermediate).
+hdr6 = cpp[cpp.index("namespace astc_6x6_hdr\n\t{\n\t\tconst block_mode_desc") :]
+out.append(flat(hdr6, "g_part2_unique_index_to_seed", ("PART2_UNIQUE_INDEX_TO_SEED", "u16"), 521))
+out.append(flat(hdr6, "g_part3_unique_index_to_seed", ("PART3_UNIQUE_INDEX_TO_SEED", "u16"), 333))
+
+ise_levels = {}
+for i, (b, t, q) in enumerate([(1, 0, 0), (0, 1, 0), (2, 0, 0), (0, 0, 1), (1, 1, 0), (3, 0, 0), (1, 0, 1),
+                               (2, 1, 0), (4, 0, 0), (2, 0, 1), (3, 1, 0), (5, 0, 0), (3, 0, 1), (4, 1, 0),
+                               (6, 0, 0), (4, 0, 1), (5, 1, 0), (7, 0, 0), (5, 0, 1), (6, 1, 0), (8, 0, 0)]):
+    ise_levels[(1 << b) * (3 if t else 5 if q else 1)] = i
+flags = {"BASIST_HDR_6X6_LEVEL0": 1, "BASIST_HDR_6X6_LEVEL1": 2, "BASIST_HDR_6X6_LEVEL2": 4}
+
+
+def field(t):
+    t = t.strip()
+    if t in ("false", "true"):
+        return str(int(t == "true"))
+    m = re.fullmatch(r"astc_helpers::BISE_(\d+)_LEVELS", t)
+    if m:
+        return str(ise_levels[int(m.group(1))])
+    return str(sum(flags[f.strip()] if f.strip() in flags else int(f) for f in t.split("|")))
+
+
+descs = []
+for g in re.findall(r"\{([^{}]*)\}", re.sub(r"//[^\n]*", "", body_of(hdr6, "g_block_mode_descs"))):
+    v = [field(t) for t in g.split(",")]
+    assert len(v) == 11, g
+    descs.append("[" + ", ".join(v) + "]")
+assert len(descs) == 75
+out.append("// dp, cem, num_partitions, grid_x, grid_y, endpoint_ise_range, weight_ise_range,")
+out.append("// transcode_endpoint_ise_range, transcode_weight_ise_range, flags, dp_channel")
+out.append(f"pub const BLOCK_MODE_DESCS: [[u8; 11]; {len(descs)}] = [{', '.join(descs)}];\n")
+r = rows(body_of(hdr6, "g_reuse_xy_deltas"), 2)
+out.append(f"pub const REUSE_XY_DELTAS: [[i8; 2]; {len(r)}] = [{', '.join(r)}];\n")
 
 Path("src/basisu/hdr_tables.rs").write_text("\n".join(out))
 print("wrote src/basisu/hdr_tables.rs")

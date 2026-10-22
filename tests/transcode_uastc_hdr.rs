@@ -134,3 +134,24 @@ fn uastc_hdr_rejects_ldr_targets() {
         );
     }
 }
+
+/// `astc_helpers::pack_astc_block` inverts `unpack_block` on every block
+/// basisu's encoder produced (the UASTC HDR 4x4 file holds plain ASTC HDR).
+#[test]
+fn astc_pack_round_trips_uastc_hdr_blocks() {
+    use ktx::basisu::astc_helpers::{LogAstcBlock, pack_astc_block, unpack_block};
+    let tex = load(FILES[0]);
+    let data = tex.get_data().unwrap_or_default();
+    let (blocks, rest) = data.as_chunks::<16>();
+    assert!(rest.is_empty() && !blocks.is_empty());
+    let mut solid = 0;
+    for (i, blk) in blocks.iter().enumerate() {
+        let mut log_blk = LogAstcBlock::default();
+        assert!(unpack_block(blk, &mut log_blk, 4, 4), "block {i}");
+        solid += usize::from(log_blk.solid_color_flag_hdr);
+        let mut packed = [0u8; 16];
+        assert!(pack_astc_block(&mut packed, &log_blk), "block {i}");
+        assert_eq!(&packed, blk, "block {i}");
+    }
+    assert!(solid < blocks.len());
+}
