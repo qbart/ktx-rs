@@ -1,0 +1,4 @@
+Validation failed
+
+error-3001: Prohibited VkFormat.
+    VkFormat VK_FORMAT_R16G16B16_SSCALED is prohibited in a KTX2 file.

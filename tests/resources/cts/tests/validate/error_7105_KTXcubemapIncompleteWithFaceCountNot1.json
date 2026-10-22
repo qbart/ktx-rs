@@ -1,0 +1,31 @@
+{
+    "description": "faceCount must be 1 if KTXcubemapIncomplete is present.",
+    "command": "ktx validate --testrun ${format[args]} input/validate/7105/error_KTXcubemapIncompleteWithFaceCountNot1_${subcase}.ktx2",
+    "status": 3,
+    "stdout": "golden/validate/7105/error_KTXcubemapIncompleteWithFaceCountNot1_${subcase}.out.${format[ext]}",
+    "args": {
+        "format": [
+            {
+                "args": "",
+                "ext": "txt"
+            },
+            {
+                "args": "--format text",
+                "ext": "txt"
+            },
+            {
+                "args": "--format json",
+                "ext": "json"
+            },
+            {
+                "args": "--format mini-json",
+                "ext": "mini.json"
+            }
+        ],
+        "subcase": [
+            "Face0",
+            "Face2",
+            "Face6"
+        ]
+    }
+}

@@ -56,7 +56,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] OpenGL loader (out of scope unless requested)
 
 ## CLI (`ktx` tool)
-- [ ] info, validate, extract, create, encode, transcode, compare, deflate, help
+- [x] framework: cxxopts port (parsing, errors, help layout), Reporter, option groups
+- [x] validate (validator + text/JSON output, all CTS validate cases pass)
+- [ ] info, extract, create, encode, transcode, compare, deflate, help, convert
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
@@ -68,4 +70,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
-- [ ] CLI tests (tests/cts)
+- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate done

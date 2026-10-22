@@ -1,0 +1,30 @@
+{
+    "description": "The sample count must be non-zero for non-supercompressed textures with VK_FORMAT_UNDEFINED.",
+    "command": "ktx validate --testrun ${format[args]} input/validate/6027/error_ZeroSamples_${subcase}.ktx2",
+    "status": 3,
+    "stdout": "golden/validate/6027/error_ZeroSamples_${subcase}.out.${format[ext]}",
+    "args": {
+        "format": [
+            {
+                "args": "",
+                "ext": "txt"
+            },
+            {
+                "args": "--format text",
+                "ext": "txt"
+            },
+            {
+                "args": "--format json",
+                "ext": "json"
+            },
+            {
+                "args": "--format mini-json",
+                "ext": "mini.json"
+            }
+        ],
+        "subcase": [
+            "Unknown_0Sample",
+            "Unknown_ZSTD_0Sample"
+        ]
+    }
+}

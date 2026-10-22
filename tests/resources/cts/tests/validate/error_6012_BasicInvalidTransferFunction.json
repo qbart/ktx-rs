@@ -1,0 +1,30 @@
+{
+    "description": "transferFunction must be UNSPECIFIED(0) and ADOBERGB(18)",
+    "command": "ktx validate --testrun ${format[args]} input/validate/6012/error_BasicInvalidTransferFunction_${transferFunction}.ktx2",
+    "status": 3,
+    "stdout": "golden/validate/6012/error_BasicInvalidTransferFunction_${transferFunction}.out.${format[ext]}",
+    "args": {
+        "format": [
+            {
+                "args": "",
+                "ext": "txt"
+            },
+            {
+                "args": "--format text",
+                "ext": "txt"
+            },
+            {
+                "args": "--format json",
+                "ext": "json"
+            },
+            {
+                "args": "--format mini-json",
+                "ext": "mini.json"
+            }
+        ],
+        "transferFunction": [
+            "0x14",
+            "0xFF"
+        ]
+    }
+}
