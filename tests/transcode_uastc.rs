@@ -49,6 +49,7 @@ fn implemented(f: TranscodeFmt) -> bool {
     matches!(
         f,
         TranscodeFmt::ASTC_4x4_RGBA
+            | TranscodeFmt::BC7_RGBA
             | TranscodeFmt::RGBA32
             | TranscodeFmt::RGB565
             | TranscodeFmt::BGR565

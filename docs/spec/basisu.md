@@ -28,8 +28,8 @@ pack_astc_block, transcode_uastc_to_astc), `basisu::uastc_ldr::LowlevelUastcLdr4
 (transcode_slice/image), `Texture2::transcode_uastc_ldr_4x4` (transcodeUastcLDR4x4).
 Tables: `src/basisu/uastc_tables.rs` from `scripts/gen_uastc_tables.py`.
 Verification: `tests/transcode_uastc.rs` vs `golden/transcode_uastc.txt` (every level of 4 UASTC
-files, flags 0 and HIGH_QUALITY). Done: ASTC, RGBA32, RGB565, BGR565, RGBA4444; PVRTC2 rejected
-like C. Todo: BC7, ETC1, ETC2, BC1/3/4/5, EAC, PVRTC1; UASTC HDR.
+files, flags 0 and HIGH_QUALITY). Done: ASTC, BC7 (`basisu::uastc_bc7`, encode_bc7_block
+for all BC7 modes), RGBA32, RGB565, BGR565, RGBA4444; PVRTC2 rejected like C. Todo: ETC1, ETC2, BC1/3/4/5, EAC, PVRTC1; UASTC HDR.
 Todo: ATC, FXT1 (not reachable from libktx), ATC, FXT1;
 UASTC LDR/HDR transcoders; video P-frames untested.
 

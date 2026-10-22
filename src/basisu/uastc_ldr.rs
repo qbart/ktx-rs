@@ -3,6 +3,7 @@
 use super::etc::{Color32, mul_8};
 use super::etc1s::TranscodeStatus;
 use super::uastc::{transcode_uastc_to_astc, unpack_uastc_pixels};
+use super::uastc_bc7::transcode_uastc_to_bc7;
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
     basis_get_bytes_per_block_or_pixel, basis_validate_output_buffer_size, decode_flags,
@@ -71,6 +72,10 @@ impl LowlevelUastcLdr4x4Transcoder {
                 let block_ofs = (block_y * pitch + block_x) * stride;
 
                 let status = match fmt {
+                    BlockFormat::Bc7 | BlockFormat::Bc7M5Color => {
+                        let mut out = [0u8; 16];
+                        transcode_uastc_to_bc7(&sb, &mut out) && write(dst, block_ofs, &out)
+                    }
                     BlockFormat::AstcLdr4x4 => {
                         let mut out = [0u8; 16];
                         transcode_uastc_to_astc(&sb, &mut out) && write(dst, block_ofs, &out)
