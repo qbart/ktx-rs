@@ -5,6 +5,7 @@
 
 pub mod basis_transcode;
 pub mod basisu;
+pub mod cli;
 pub mod defs;
 pub mod dfd;
 pub mod error;
