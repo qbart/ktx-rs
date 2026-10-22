@@ -46,8 +46,9 @@ fn quant_p(x: &[f32; 4], scalep: f32, iscalep: i32, p: i32) -> [u8; 4] {
 
 fn scale_up(x: &[u8; 4], total_bits: u32) -> [u8; 4] {
     x.map(|v| {
+        // C shifts the promoted int, so `s >> 8` is 0 rather than an overflow.
         let s = ((v as u32) << (8 - total_bits)) as u8;
-        s | (s >> total_bits)
+        s | ((s as u32) >> total_bits) as u8
     })
 }
 
