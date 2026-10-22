@@ -28,6 +28,12 @@ pub struct Bc6hLogicalBlock {
     pub weights: [u8; 16],
 }
 
+/// Port of `bc6h_half_to_blog16` (inverts `bc6h_blog16_to_half`).
+#[inline]
+pub fn bc6h_half_to_blog16(h: HalfFloat) -> u32 {
+    (u32::from(h) * 64).div_ceil(31)
+}
+
 /// Port of `bc6h_half_to_blog`.
 #[inline]
 pub fn bc6h_half_to_blog(h: HalfFloat, num_bits: u32) -> u32 {

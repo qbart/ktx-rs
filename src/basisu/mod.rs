@@ -4,6 +4,7 @@
 //! `bool` success convention internally; libktx maps failures to `KtxResult`.
 
 pub mod astc;
+pub mod astc_6x6_hdr;
 pub mod astc_helpers;
 pub mod atc;
 pub mod bc6h;
