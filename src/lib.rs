@@ -12,6 +12,7 @@ pub mod formatsize;
 pub mod gl_format;
 pub mod glformat_str;
 pub mod hashlist;
+pub mod info;
 pub mod ktxint;
 pub mod stream;
 pub mod strings;

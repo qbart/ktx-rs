@@ -33,7 +33,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] `ktxTexture_CreateFrom*` (`AnyTexture`)
 - [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate + deflate; deflate ignores level (ruzstd only has fastest)
 - [x] Supercompression: Zlib (pure Rust, `miniz_oxide`)
-- [ ] `info.c` (ktxPrintInfo, JSON)
+- [x] `info.c` (ktxPrintInfo text + KTX2 JSON, byte exact vs C) + `glformat_str.c`
 
 ## Basis Universal (pure Rust port)
 - [~] BasisLZ/ETC1S transcoder: core + ETC1, ETC2, EAC R11/RG11, BC1, BC3, BC7, BC4, BC5, RGBA32, RGB565, BGR565, RGBA4444, ASTC 4x4, PVRTC1 RGB/RGBA, PVRTC2 RGB/RGBA (byte exact vs C++);
