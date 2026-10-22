@@ -59,6 +59,11 @@ TABLES = [
     ("BC7_COLOR_PRECISION_TABLE", "g_bc7_color_precision_table", "u8", None),
     ("BC7_ALPHA_PRECISION_TABLE", "g_bc7_alpha_precision_table", "i8", None),
     ("BC7_ALPHA_INDEX_BITCOUNT", "g_bc7_alpha_index_bitcount", "u8", None),
+    ("ETC1_SOLID_SELECTORS", "s_etc1_solid_selectors", "[u8; 4]", 4),
+    ("ETC1_Y_SOLID_BLOCK_CONFIGS", "g_etc1_y_solid_block_configs", "u16", None),
+    ("ETC1_Y_SOLID_BLOCK_4I_CONFIGS", "g_etc1_y_solid_block_4i_configs", "u16", None),
+    ("ETC1_Y_SOLID_BLOCK_2I_CONFIGS", "g_etc1_y_solid_block_2i_configs", "u16", None),
+    ("ETC1_Y_SOLID_BLOCK_1I_CONFIGS", "g_etc1_y_solid_block_1i_configs", "u16", None),
 ]
 
 

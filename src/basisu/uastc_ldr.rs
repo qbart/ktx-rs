@@ -4,6 +4,9 @@ use super::etc::{Color32, mul_8};
 use super::etc1s::TranscodeStatus;
 use super::uastc::{transcode_uastc_to_astc, unpack_uastc_pixels};
 use super::uastc_bc7::transcode_uastc_to_bc7;
+use super::uastc_etc::{
+    transcode_uastc_to_etc1, transcode_uastc_to_etc1_channel, transcode_uastc_to_etc2_rgba,
+};
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
     basis_get_bytes_per_block_or_pixel, basis_validate_output_buffer_size, decode_flags,
@@ -56,7 +59,7 @@ impl LowlevelUastcLdr4x4Transcoder {
             return TranscodeStatus::Failed;
         }
         let _high_quality = decode_flags_in & decode_flags::HIGH_QUALITY != 0;
-        let _from_alpha = has_alpha
+        let from_alpha = has_alpha
             && decode_flags_in & decode_flags::TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS != 0;
 
         let pitch = output_row_pitch_in_blocks_or_pixels as usize;
@@ -72,6 +75,19 @@ impl LowlevelUastcLdr4x4Transcoder {
                 let block_ofs = (block_y * pitch + block_x) * stride;
 
                 let status = match fmt {
+                    BlockFormat::Etc1 => {
+                        let mut out = [0u8; 8];
+                        let ok = if from_alpha {
+                            transcode_uastc_to_etc1_channel(&sb, &mut out, 3)
+                        } else {
+                            transcode_uastc_to_etc1(&sb, &mut out)
+                        };
+                        ok && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Etc2Rgba => {
+                        let mut out = [0u8; 16];
+                        transcode_uastc_to_etc2_rgba(&sb, &mut out) && write(dst, block_ofs, &out)
+                    }
                     BlockFormat::Bc7 | BlockFormat::Bc7M5Color => {
                         let mut out = [0u8; 16];
                         transcode_uastc_to_bc7(&sb, &mut out) && write(dst, block_ofs, &out)

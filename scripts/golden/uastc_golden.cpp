@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
                            "Iron_Bars_001_normal_uastc_zstd_10.ktx2",
                            "cubemap_goldengate_uastc_rdo_4_zstd_5.ktx2"};
     const uint32_t formats[] = {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 18, 19, 20, 21, 13, 14, 15, 16};
-    const uint32_t flagsets[] = {0, cDecodeFlagsHighQuality};
+    const uint32_t flagsets[] = {0, cDecodeFlagsTranscodeAlphaDataToOpaqueFormats, cDecodeFlagsHighQuality};
     for (const char* name : files) {
         std::vector<uint8_t> d;
         if (!read_file(dir + "/" + name, d)) {

@@ -50,6 +50,8 @@ fn implemented(f: TranscodeFmt) -> bool {
         f,
         TranscodeFmt::ASTC_4x4_RGBA
             | TranscodeFmt::BC7_RGBA
+            | TranscodeFmt::ETC1_RGB
+            | TranscodeFmt::ETC2_RGBA
             | TranscodeFmt::RGBA32
             | TranscodeFmt::RGB565
             | TranscodeFmt::BGR565
@@ -93,7 +95,11 @@ fn uastc_ldr_transcode_matches_basisu() {
             Err(e) => panic!("{file}: {e}"),
         };
         for fmt in FORMATS.iter().copied().filter(|f| implemented(*f)) {
-            for flags in [0, transcode_flags::HIGH_QUALITY] {
+            for flags in [
+                0,
+                transcode_flags::TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS,
+                transcode_flags::HIGH_QUALITY,
+            ] {
                 let mut tex = match Texture2::create_from_memory(
                     &data,
                     KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
