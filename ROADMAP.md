@@ -39,7 +39,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [~] BasisLZ/ETC1S transcoder: core + ETC1, ETC2, EAC R11/RG11, BC1, BC3, BC7, BC4, BC5, RGBA32, RGB565, BGR565, RGBA4444, ASTC 4x4, PVRTC1 RGB/RGBA, PVRTC2 RGB/RGBA (byte exact vs C++);
   all KTX transcode targets done; todo ATC, FXT1 (basisu-only formats)
 - [~] UASTC LDR 4x4 transcoder: core unpack + ASTC 4x4, BC7, ETC1 (RGB + single channel), ETC2 RGBA, RGBA32,
-  RGB565, BGR565, RGBA4444 (byte exact vs C++); todo BC1/3/4/5, EAC R11/RG11, PVRTC1
+  RGB565, BGR565, RGBA4444, BC1/BC3/BC4/BC5 (byte exact vs C++); todo/3/4/5, EAC R11/RG11, PVRTC1
 - [ ] UASTC HDR 4x4 / 6x6 intermediate transcoder
 - [~] `ktxTexture2_TranscodeBasis` (ETC1S path)
 - [ ] ETC1S encoder (`ktxTexture2_CompressBasis`)

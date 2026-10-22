@@ -30,7 +30,9 @@ Tables: `src/basisu/uastc_tables.rs` from `scripts/gen_uastc_tables.py`.
 Verification: `tests/transcode_uastc.rs` vs `golden/transcode_uastc.txt` (every level of 4 UASTC
 files, flags 0 and HIGH_QUALITY). Done: ASTC, BC7 (`basisu::uastc_bc7`, encode_bc7_block
 for all BC7 modes), RGBA32, RGB565, BGR565, RGBA4444; PVRTC2 rejected like C. ETC1/ETC2 RGBA in `basisu::uastc_etc`
-(goldens also cover TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS). Todo: BC1/3/4/5, EAC, PVRTC1; UASTC HDR.
+(goldens also cover TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS). BC1/3/4/5 in `basisu::uastc_bc1`
+(encode_bc1 PCA+LS, encode_bc4, hint0/hint1; encode_bc1_alt unused by the transcoder, not ported).
+Todo: EAC, PVRTC1; UASTC HDR.
 Todo: ATC, FXT1 (not reachable from libktx), ATC, FXT1;
 UASTC LDR/HDR transcoders; video P-frames untested.
 

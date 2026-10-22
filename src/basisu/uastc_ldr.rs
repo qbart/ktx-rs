@@ -3,6 +3,9 @@
 use super::etc::{Color32, mul_8};
 use super::etc1s::TranscodeStatus;
 use super::uastc::{transcode_uastc_to_astc, unpack_uastc_pixels};
+use super::uastc_bc1::{
+    transcode_uastc_to_bc1, transcode_uastc_to_bc3, transcode_uastc_to_bc4, transcode_uastc_to_bc5,
+};
 use super::uastc_bc7::transcode_uastc_to_bc7;
 use super::uastc_etc::{
     transcode_uastc_to_etc1, transcode_uastc_to_etc1_channel, transcode_uastc_to_etc2_rgba,
@@ -38,8 +41,8 @@ impl LowlevelUastcLdr4x4Transcoder {
         mut output_row_pitch_in_blocks_or_pixels: u32,
         _state: &mut TranscoderState,
         mut output_rows_in_pixels: u32,
-        _channel0: i32,
-        _channel1: i32,
+        channel0: i32,
+        channel1: i32,
         decode_flags_in: u32,
     ) -> TranscodeStatus {
         let total_blocks = num_blocks_x as usize * num_blocks_y as usize;
@@ -58,7 +61,7 @@ impl LowlevelUastcLdr4x4Transcoder {
         if image_data.len() < 16 * total_blocks {
             return TranscodeStatus::Failed;
         }
-        let _high_quality = decode_flags_in & decode_flags::HIGH_QUALITY != 0;
+        let high_quality = decode_flags_in & decode_flags::HIGH_QUALITY != 0;
         let from_alpha = has_alpha
             && decode_flags_in & decode_flags::TRANSCODE_ALPHA_DATA_TO_OPAQUE_FORMATS != 0;
 
@@ -87,6 +90,27 @@ impl LowlevelUastcLdr4x4Transcoder {
                     BlockFormat::Etc2Rgba => {
                         let mut out = [0u8; 16];
                         transcode_uastc_to_etc2_rgba(&sb, &mut out) && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Bc1 => {
+                        let mut out = [0u8; 8];
+                        transcode_uastc_to_bc1(&sb, &mut out, high_quality)
+                            && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Bc3 => {
+                        let mut out = [0u8; 16];
+                        transcode_uastc_to_bc3(&sb, &mut out, high_quality)
+                            && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Bc4 => {
+                        let mut out = [0u8; 8];
+                        transcode_uastc_to_bc4(&sb, &mut out, channel0.max(0) as u32)
+                            && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Bc5 => {
+                        let c1 = if channel1 < 0 { 3 } else { channel1 as u32 };
+                        let mut out = [0u8; 16];
+                        transcode_uastc_to_bc5(&sb, &mut out, channel0.max(0) as u32, c1)
+                            && write(dst, block_ofs, &out)
                     }
                     BlockFormat::Bc7 | BlockFormat::Bc7M5Color => {
                         let mut out = [0u8; 16];
