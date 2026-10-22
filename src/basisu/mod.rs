@@ -4,13 +4,16 @@
 //! `bool` success convention internally; libktx maps failures to `KtxResult`.
 
 pub mod astc;
+pub mod astc_helpers;
 pub mod atc;
+pub mod bc6h;
 pub mod bc7m5;
 pub mod bitreader;
 pub mod dxt;
 pub mod eac;
 pub mod etc;
 pub mod etc1s;
+pub mod hdr_tables;
 pub mod pvrtc;
 pub mod pvrtc2;
 pub mod tables;
