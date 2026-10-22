@@ -35,5 +35,4 @@ Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk a
 backtick regex) and runs every validate, info, help and transcode case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
-exactly, except zstd supercompressed ones (`INEXACT_DEFLATE`), which must be equal after
-inflation until the libzstd compressor is ported. `tests/validate.rs`: corrupted files never panic.
+exactly. `tests/validate.rs`: corrupted files never panic.

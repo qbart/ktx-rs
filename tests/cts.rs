@@ -14,37 +14,6 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-/// Test files whose outputs are zstd supercompressed. Byte-exact output needs
-/// a port of the libzstd compressor (ROADMAP); until then such outputs only
-/// need to match their reference after inflation.
-const INEXACT_DEFLATE: [&str; 1] = ["transcode_zstd.json"];
-
-/// Both files load and hold identical headers, DFD, key/value data and
-/// inflated image data.
-fn inflated_equal(a: &[u8], b: &[u8]) -> bool {
-    let load = |d: &[u8]| {
-        ktx::Texture2::create_from_memory(d, ktx::KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT).ok()
-    };
-    let (Some(ta), Some(tb)) = (load(a), load(b)) else {
-        return false;
-    };
-    let kv = |t: &ktx::Texture2| {
-        t.kv_data_head
-            .iter()
-            .map(|e| (e.get_key().1.to_vec(), e.get_value().1.to_vec()))
-            .collect::<Vec<_>>()
-    };
-    ta.vk_format == tb.vk_format
-        && ta.supercompression_scheme == tb.supercompression_scheme
-        && ta.p_dfd == tb.p_dfd
-        && (ta.base_width, ta.base_height, ta.base_depth)
-            == (tb.base_width, tb.base_height, tb.base_depth)
-        && (ta.num_levels, ta.num_layers, ta.num_faces)
-            == (tb.num_levels, tb.num_layers, tb.num_faces)
-        && kv(&ta) == kv(&tb)
-        && ta.get_data() == tb.get_data()
-}
-
 fn cts_dir() -> PathBuf {
     common::resources_path().join("cts")
 }
@@ -162,7 +131,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
     }
 
     let not_vendored = not_vendored();
-    let mut inexact = 0;
     let (mut passed, mut skipped) = (0, 0);
     let mut failures = Vec::new();
     for combo in combos {
@@ -261,13 +229,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
                     (Ok(a), Ok(b)) if a == b => {
                         let _ = std::fs::remove_file(&cur);
                     }
-                    (Ok(a), Ok(b))
-                        if INEXACT_DEFLATE.iter().any(|f| file.ends_with(f))
-                            && inflated_equal(&a, &b) =>
-                    {
-                        inexact += 1;
-                        let _ = std::fs::remove_file(&cur);
-                    }
                     (Ok(_), Ok(_)) => problems.push(format!(
                         "mismatch between output file {} and reference file {}",
                         cur.display(),
@@ -286,12 +247,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
                 problems.join("\n  ")
             ));
         }
-    }
-    if inexact > 0 {
-        eprintln!(
-            "{}: {inexact} output(s) equal only after inflation",
-            file.display()
-        );
     }
     (passed, skipped, failures)
 }

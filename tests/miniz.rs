@@ -14,79 +14,6 @@ use ktx::basisu::miniz::{
 };
 use std::collections::HashMap;
 
-fn fnv1a(data: &[u8]) -> u64 {
-    data.iter().fold(0xcbf29ce484222325u64, |h, &b| {
-        (h ^ u64::from(b)).wrapping_mul(0x100000001b3)
-    })
-}
-
-struct Lcg(u32);
-impl Lcg {
-    fn next(&mut self) -> u32 {
-        self.0 = self.0.wrapping_mul(1664525).wrapping_add(1013904223);
-        self.0 >> 8
-    }
-}
-
-/// Must match `synthetic()` in scripts/golden/miniz_golden.cpp.
-fn synthetic_inputs() -> Vec<(String, Vec<u8>)> {
-    let mut v = vec![
-        ("empty".to_string(), vec![]),
-        ("abc".to_string(), b"abc".to_vec()),
-    ];
-    let mut r = Lcg(1);
-    v.push((
-        "random".into(),
-        (0..100000).map(|_| r.next() as u8).collect(),
-    ));
-    let mut r = Lcg(2);
-    v.push((
-        "lowentropy".into(),
-        (0..300000).map(|_| (r.next() & 3) as u8).collect(),
-    ));
-    v.push((
-        "quadratic".into(),
-        (0..200000u32)
-            .map(|i| (i.wrapping_mul(i) >> 7) as u8)
-            .collect(),
-    ));
-    v.push(("zeros".into(), vec![0; 1000000]));
-    let words = [
-        "the ",
-        "quick ",
-        "brown ",
-        "fox ",
-        "jumps ",
-        "over ",
-        "lazy ",
-        "dog ",
-        "ktx ",
-        "texture\n",
-    ];
-    let mut r = Lcg(3);
-    let mut d = Vec::new();
-    while d.len() < 150000 {
-        d.extend_from_slice(words[(r.next() % 10) as usize].as_bytes());
-    }
-    v.push(("text".into(), d));
-    let mut r = Lcg(4);
-    let mut d: Vec<u8> = Vec::new();
-    for _ in 0..70000 {
-        let x = r.next();
-        if x.is_multiple_of(7) && d.len() > 300 {
-            let back = 1 + (x % 300) as usize;
-            let len = 3 + ((x >> 9) % 40) as usize;
-            for _ in 0..len {
-                d.push(d[d.len() - back]);
-            }
-        } else {
-            d.push((x >> 3) as u8);
-        }
-    }
-    v.push(("backrefs".into(), d));
-    v
-}
-
 fn golden() -> HashMap<String, (i32, usize, String)> {
     let path = common::resources_path().join("golden").join("miniz.txt");
     let text = match std::fs::read_to_string(&path) {
@@ -112,7 +39,7 @@ fn golden() -> HashMap<String, (i32, usize, String)> {
 fn deflate_matches_basisu_miniz() {
     let golden = golden();
     let r = common::resources_path();
-    let mut inputs = synthetic_inputs();
+    let mut inputs = common::synthetic::synthetic_inputs();
     for f in [
         "ktx2/r8g8b8a8_srgb.ktx2",
         "ktx2/bc3_unorm_array_7.ktx2",
@@ -142,7 +69,11 @@ fn deflate_matches_basisu_miniz() {
                 };
                 assert_eq!(status, *st, "{key}");
                 assert_eq!(out.len(), *size, "{key}");
-                assert_eq!(&format!("{:016x}", fnv1a(&out)), hash, "{key}");
+                assert_eq!(
+                    &format!("{:016x}", common::synthetic::fnv1a(&out)),
+                    hash,
+                    "{key}"
+                );
                 checked += 1;
             }
         }
@@ -157,7 +88,11 @@ fn deflate_matches_basisu_miniz() {
             };
             assert_eq!(*st, MZ_OK, "{key}");
             assert_eq!(out.len(), *size, "{key}");
-            assert_eq!(&format!("{:016x}", fnv1a(&out)), hash, "{key}");
+            assert_eq!(
+                &format!("{:016x}", common::synthetic::fnv1a(&out)),
+                hash,
+                "{key}"
+            );
             checked += 1;
         }
     }
@@ -167,7 +102,7 @@ fn deflate_matches_basisu_miniz() {
 /// Compressed output inflates back to the input.
 #[test]
 fn deflate_round_trips() {
-    for (name, data) in synthetic_inputs() {
+    for (name, data) in common::synthetic::synthetic_inputs() {
         for level in [1, 6, 10] {
             let out = match mz_compress2(&data, mz_compress_bound(data.len() as u64), level) {
                 Ok(o) => o,

@@ -21,7 +21,7 @@ static uint64_t fnv1a(const uint8_t* p, size_t n) {
 static uint32_t lcg_state;
 static uint32_t lcg() { lcg_state = lcg_state * 1664525u + 1013904223u; return lcg_state >> 8; }
 
-// Must match `synthetic_inputs` in tests/miniz.rs.
+// Must match `synthetic_inputs` in tests/common/synthetic.rs.
 static std::vector<std::pair<std::string, std::vector<uint8_t>>> synthetic() {
     std::vector<std::pair<std::string, std::vector<uint8_t>>> v;
     v.push_back({"empty", {}});
