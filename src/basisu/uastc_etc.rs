@@ -772,3 +772,244 @@ pub fn transcode_uastc_to_etc2_rgba(src: &[u8; 16], dst: &mut [u8; 16]) -> bool 
     dst[8..].copy_from_slice(&etc);
     true
 }
+
+const ETC2_EAC_BIT_OFS: [u32; 16] = [45, 33, 21, 9, 42, 30, 18, 6, 39, 27, 15, 3, 36, 24, 12, 0];
+
+/// `pack_eac_solid_block`.
+fn pack_eac_solid_block(blk: &mut EacBlock, a: u32) {
+    blk.set_base(a);
+    blk.set_table(13);
+    blk.set_multiplier(0);
+    blk.bytes[2..].copy_from_slice(&ETC2_EAC_A8_SEL4);
+}
+
+/// Shared prologue of `pack_eac` / `pack_eac_high_quality`: returns
+/// (min, max) or `None` when the block was fully written (solid or <= 5 range).
+fn pack_eac_trivial(blk: &mut EacBlock, p: &[u8; 16]) -> Option<(u32, u32)> {
+    let min_alpha = p.iter().copied().min().unwrap_or(0) as u32;
+    let max_alpha = p.iter().copied().max().unwrap_or(0) as u32;
+    if min_alpha == max_alpha {
+        pack_eac_solid_block(blk, min_alpha);
+        return None;
+    }
+    if max_alpha - min_alpha <= 5 {
+        // Table 13 is lossless for ranges <= 5.
+        let mut base = clamp255(max_alpha as i32 - 2) as i32;
+        blk.set_base(base as u32);
+        blk.set_multiplier(1);
+        blk.set_table(13);
+        base -= 3;
+        const SELS: [u8; 6] = [2, 1, 0, 4, 5, 6];
+        let mut packed = 0u64;
+        for i in 0..16 {
+            let sel = (p[i] as i32 - base).clamp(0, 5) as usize;
+            packed |= (SELS[sel] as u64) << ETC2_EAC_BIT_OFS[i];
+        }
+        blk.set_selector_bits(packed);
+        return None;
+    }
+    Some((min_alpha, max_alpha))
+}
+
+/// Base and multiplier estimate for one EAC table.
+fn eac_base_mul(table: usize, min_alpha: u32, max_alpha: u32) -> (i32, i32) {
+    let t = &EAC_MODIFIER_TABLE[table];
+    let range = (t[7] as i32 - t[3] as i32) as f32;
+    let (fa, fb) = (min_alpha as f32, max_alpha as f32);
+    let s = (0 - t[3] as i32) as f32 / range;
+    let base = clamp255((fa + (fb - fa) * s).round() as i32) as i32;
+    let mul = (((max_alpha - min_alpha) as f32 / range).round() as i32).clamp(1, 15);
+    (base, mul)
+}
+
+fn write_eac(blk: &mut EacBlock, base: i32, mul: i32, table: u32, sels: &[u8; 16]) {
+    blk.set_base(base as u32);
+    blk.set_multiplier(mul as u32);
+    blk.set_table(table);
+    let mut packed = 0u64;
+    for i in 0..16 {
+        packed |= (sels[i] as u64) << ETC2_EAC_BIT_OFS[i];
+    }
+    blk.set_selector_bits(packed);
+}
+
+/// Port of `pack_eac` (checks 4 tables).
+fn pack_eac(blk: &mut EacBlock, p: &[u8; 16]) {
+    let Some((min_alpha, max_alpha)) = pack_eac_trivial(blk, p) else {
+        return;
+    };
+    const TABLES: [usize; 4] = [2, 8, 11, 13];
+    let mut base = [0i32; 4];
+    let mut mul = [0i32; 4];
+    let mut mul_or = 0i32;
+    for i in 0..4 {
+        (base[i], mul[i]) = eac_base_mul(TABLES[i], min_alpha, max_alpha);
+        mul_or |= mul[i];
+    }
+    let mut total_err = [0u32; 4];
+    let mut sels = [[0u8; 16]; 4];
+    for i in 0..16 {
+        let a = p[i] as i32;
+        let mut l = [u32::MAX; 4];
+        for s in 0..8 {
+            for k in 0..4 {
+                let m = EAC_MODIFIER_TABLE[TABLES[k]][s] as i32;
+                let d = if !(7..=255 - 7).contains(&a) {
+                    clamp255(mul[k] * m + base[k]) as i32 - a
+                } else if mul_or == 1 {
+                    m + (base[k] - a)
+                } else {
+                    mul[k] * m + (base[k] - a)
+                };
+                l[k] = l[k].min((d.unsigned_abs() << 3) | s as u32);
+            }
+        }
+        for k in 0..4 {
+            sels[k][i] = (l[k] & 7) as u8;
+            total_err[k] = total_err[k].wrapping_add((l[k] >> 3).wrapping_mul(l[k] >> 3));
+        }
+    }
+    let mut min_err = total_err[0];
+    let mut min_index = 0;
+    for i in 1..4 {
+        if total_err[i] < min_err {
+            min_err = total_err[i];
+            min_index = i;
+        }
+    }
+    write_eac(
+        blk,
+        base[min_index],
+        mul[min_index],
+        TABLES[min_index] as u32,
+        &sels[min_index],
+    );
+}
+
+/// Port of `pack_eac_high_quality` (checks all 16 tables).
+fn pack_eac_high_quality(blk: &mut EacBlock, p: &[u8; 16]) {
+    let Some((min_alpha, max_alpha)) = pack_eac_trivial(blk, p) else {
+        return;
+    };
+    let mut base = [0i32; 16];
+    let mut mul = [0i32; 16];
+    for t in 0..16 {
+        (base[t], mul[t]) = eac_base_mul(t, min_alpha, max_alpha);
+    }
+    let mut total_err = [0u32; 16];
+    let mut sels = [[0u8; 16]; 16];
+    for t in 0..16 {
+        let tbl = &EAC_MODIFIER_TABLE[t];
+        let (m, b) = (mul[t], base[t]);
+        let (mut prev_l, mut prev_a) = (0u32, u32::MAX);
+        for i in 0..16 {
+            let a = p[i] as i32;
+            if a as u32 == prev_a {
+                sels[t][i] = (prev_l & 7) as u8;
+                total_err[t] = total_err[t].wrapping_add((prev_l >> 3) * (prev_l >> 3));
+            } else {
+                let mut l = u32::MAX;
+                for s in 0..8 {
+                    let v = clamp255(m * tbl[s] as i32 + b) as i32;
+                    let e = ((v - a).unsigned_abs() << 3) | s as u32;
+                    l = l.min(e);
+                }
+                sels[t][i] = (l & 7) as u8;
+                total_err[t] = total_err[t].wrapping_add((l >> 3) * (l >> 3));
+                prev_l = l;
+                prev_a = a as u32;
+            }
+        }
+    }
+    let mut min_err = total_err[0];
+    let mut min_index = 0;
+    for i in 1..16 {
+        if total_err[i] < min_err {
+            min_err = total_err[i];
+            min_index = i;
+        }
+    }
+    write_eac(
+        blk,
+        base[min_index],
+        mul[min_index],
+        min_index as u32,
+        &sels[min_index],
+    );
+}
+
+fn eac_channel(
+    u: &UnpackedUastcBlock,
+    px: &[Color32; 16],
+    blk: &mut EacBlock,
+    chan: u32,
+    high_quality: bool,
+) {
+    if chan == 3 {
+        transcode_uastc_to_etc2_eac_a8(u, px, blk);
+    } else {
+        let vals = px.map(|p| p.c[(chan & 3) as usize]);
+        if high_quality {
+            pack_eac_high_quality(blk, &vals);
+        } else {
+            pack_eac(blk, &vals);
+        }
+    }
+}
+
+/// Port of `transcode_uastc_to_etc2_eac_r11`.
+pub fn transcode_uastc_to_etc2_eac_r11(
+    src: &[u8; 16],
+    dst: &mut [u8; 8],
+    high_quality: bool,
+    chan0: u32,
+) -> bool {
+    let mut u = UnpackedUastcBlock::default();
+    if !unpack_uastc(src, &mut u, false, true) {
+        return false;
+    }
+    let mut blk = EacBlock { bytes: *dst };
+    if u.mode == UASTC_MODE_INDEX_SOLID_COLOR {
+        pack_eac_solid_block(&mut blk, u.solid_color.c[(chan0 & 3) as usize] as u32);
+    } else {
+        let mut px = [Color32::default(); 16];
+        if !unpack_uastc_unpacked_pixels(&u, &mut px, false) {
+            return false;
+        }
+        eac_channel(&u, &px, &mut blk, chan0, high_quality);
+    }
+    *dst = blk.bytes;
+    true
+}
+
+/// Port of `transcode_uastc_to_etc2_eac_rg11`.
+pub fn transcode_uastc_to_etc2_eac_rg11(
+    src: &[u8; 16],
+    dst: &mut [u8; 16],
+    high_quality: bool,
+    chan0: u32,
+    chan1: u32,
+) -> bool {
+    let mut u = UnpackedUastcBlock::default();
+    if !unpack_uastc(src, &mut u, false, true) {
+        return false;
+    }
+    let mut b0 = EacBlock::default();
+    let mut b1 = EacBlock::default();
+    b0.bytes.copy_from_slice(&dst[..8]);
+    b1.bytes.copy_from_slice(&dst[8..]);
+    if u.mode == UASTC_MODE_INDEX_SOLID_COLOR {
+        pack_eac_solid_block(&mut b0, u.solid_color.c[(chan0 & 3) as usize] as u32);
+        pack_eac_solid_block(&mut b1, u.solid_color.c[(chan1 & 3) as usize] as u32);
+    } else {
+        let mut px = [Color32::default(); 16];
+        if !unpack_uastc_unpacked_pixels(&u, &mut px, false) {
+            return false;
+        }
+        eac_channel(&u, &px, &mut b0, chan0, high_quality);
+        eac_channel(&u, &px, &mut b1, chan1, high_quality);
+    }
+    dst[..8].copy_from_slice(&b0.bytes);
+    dst[8..].copy_from_slice(&b1.bytes);
+    true
+}

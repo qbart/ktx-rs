@@ -8,7 +8,8 @@ use super::uastc_bc1::{
 };
 use super::uastc_bc7::transcode_uastc_to_bc7;
 use super::uastc_etc::{
-    transcode_uastc_to_etc1, transcode_uastc_to_etc1_channel, transcode_uastc_to_etc2_rgba,
+    transcode_uastc_to_etc1, transcode_uastc_to_etc1_channel, transcode_uastc_to_etc2_eac_r11,
+    transcode_uastc_to_etc2_eac_rg11, transcode_uastc_to_etc2_rgba,
 };
 use super::{
     BlockFormat, TranscoderState, TranscoderTextureFormat, basis_block_format_is_uncompressed,
@@ -111,6 +112,26 @@ impl LowlevelUastcLdr4x4Transcoder {
                         let mut out = [0u8; 16];
                         transcode_uastc_to_bc5(&sb, &mut out, channel0.max(0) as u32, c1)
                             && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Etc2EacR11 => {
+                        let mut out = [0u8; 8];
+                        transcode_uastc_to_etc2_eac_r11(
+                            &sb,
+                            &mut out,
+                            high_quality,
+                            channel0.max(0) as u32,
+                        ) && write(dst, block_ofs, &out)
+                    }
+                    BlockFormat::Etc2EacRg11 => {
+                        let c1 = if channel1 < 0 { 3 } else { channel1 as u32 };
+                        let mut out = [0u8; 16];
+                        transcode_uastc_to_etc2_eac_rg11(
+                            &sb,
+                            &mut out,
+                            high_quality,
+                            channel0.max(0) as u32,
+                            c1,
+                        ) && write(dst, block_ofs, &out)
                     }
                     BlockFormat::Bc7 | BlockFormat::Bc7M5Color => {
                         let mut out = [0u8; 16];

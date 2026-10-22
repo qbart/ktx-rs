@@ -56,6 +56,8 @@ fn implemented(f: TranscodeFmt) -> bool {
             | TranscodeFmt::BC3_RGBA
             | TranscodeFmt::BC4_R
             | TranscodeFmt::BC5_RG
+            | TranscodeFmt::ETC2_EAC_R11
+            | TranscodeFmt::ETC2_EAC_RG11
             | TranscodeFmt::RGBA32
             | TranscodeFmt::RGB565
             | TranscodeFmt::BGR565
