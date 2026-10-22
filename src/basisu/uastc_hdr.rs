@@ -12,27 +12,30 @@ use super::{
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LowlevelUastcHdr4x4Transcoder;
 
-/// Copies the decoded `blk` texels (`bpp` bytes each, row major 4x4) into the
+/// Copies the decoded texels (`bpp` bytes each, row major `dim`x`dim`) into the
 /// pixel output at block (`block_x`, `block_y`), clipped like C's max_x/max_y.
 #[allow(clippy::too_many_arguments)]
-fn write_pixels(
+pub(super) fn write_pixels(
     dst: &mut [u8],
     texels: &[u8],
     bpp: usize,
+    dim: u32,
     block_x: u32,
     block_y: u32,
     pitch: u32,
     rows: u32,
 ) -> bool {
-    let max_x = (pitch as i64 - block_x as i64 * 4).clamp(i64::MIN, 4);
-    let max_y = (rows as i64 - block_y as i64 * 4).clamp(i64::MIN, 4);
-    let base = (block_x as usize * 4 + block_y as usize * 4 * pitch as usize) * bpp;
+    let d = i64::from(dim);
+    let max_x = (pitch as i64 - block_x as i64 * d).min(d);
+    let max_y = (rows as i64 - block_y as i64 * d).min(d);
+    let dim = dim as usize;
+    let base = (block_x as usize * dim + block_y as usize * dim * pitch as usize) * bpp;
     for y in 0..max_y.max(0) as usize {
         let row = base + y * pitch as usize * bpp;
         let len = max_x.max(0) as usize * bpp;
         let (Some(d), Some(s)) = (
             dst.get_mut(row..row + len),
-            texels.get(y * 4 * bpp..y * 4 * bpp + len),
+            texels.get(y * dim * bpp..y * dim * bpp + len),
         ) else {
             return false;
         };
@@ -134,6 +137,7 @@ impl LowlevelUastcHdr4x4Transcoder {
                                 dst,
                                 &bytes,
                                 4,
+                                4,
                                 block_x,
                                 block_y,
                                 pitch,
@@ -165,6 +169,7 @@ impl LowlevelUastcHdr4x4Transcoder {
                                 dst,
                                 &bytes,
                                 comps * 2,
+                                4,
                                 block_x,
                                 block_y,
                                 pitch,

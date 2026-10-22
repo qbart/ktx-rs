@@ -45,7 +45,19 @@ union emulated by `LogAstcBlock::solid_color`), `basisu::bc6h` (pack_bc6h_block,
 RGB9E5), `Texture2::transcode_uastc_hdr_4x4` (transcodeUastcHDR4x4, shares the level loop
 with the LDR path). Tables: `src/basisu/hdr_tables.rs` from `scripts/gen_hdr_tables.py`.
 Verification: `tests/transcode_uastc_hdr.rs` vs `golden/transcode_uastc_hdr.txt`.
-Todo: UASTC HDR 6x6 intermediate; ATC, FXT1 (not reachable from libktx); video P-frames untested.
+`astc_helpers::pack_astc_block` (encode_bise, config bits, void extents) and the full
+`dequant_table` (val_to_ise, ISE_to_rank, rank_to_ISE) back the 6x6 path.
+
+UASTC HDR 6x6 intermediate: `basisu::astc_6x6_hdr` (decode_6x6_hdr: run/solid/reuse/block
+codes, 5-row reuse ring buffer, endpoint deltas via rank tables, requantize_ise_endpoints with
+the preserve2/3 tables, copy_weight_grid incl. the SIG0 `orig_behavior` 2x2 upsample quirk;
+fast_encode_bc6h: simple/complex 1-subset LS + 2-subset patterns, f32 in C order, C int wrap
+emulated), `basisu::uastc_hdr_6x6i::LowlevelUastcHdr6x6IntermediateTranscoder` (ASTC HDR 6x6
+copy, BC6H via 12x12 texel tiles, RGB/RGBA half, RGB9E5),
+`Texture2::transcode_uastc_hdr_6x6_intermediate` (SGD `ktxUASTCHDR6x6IntermediateImageDesc`
+seek table, exact-size check). Tables (block mode descs, reuse deltas, partition seeds, trit/quint
+encode) generated into `hdr_tables.rs`. Goldens cover flags 0 and HIGH_QUALITY (2-subset BC6H).
+Todo: ATC, FXT1 (not reachable from libktx); video P-frames untested.
 
 Test guard: `texture_combinations_test_basic` asserts the number of golden comparisons,
 and `bc7_chroma_filter_is_exercised` proves the BC7 filter path is covered.
