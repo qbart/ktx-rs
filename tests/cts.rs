@@ -308,3 +308,8 @@ fn cts_help() {
 fn cts_transcode() {
     run_command_dir("transcode");
 }
+
+#[test]
+fn cts_deflate() {
+    run_command_dir("deflate");
+}
