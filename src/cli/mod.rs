@@ -1,6 +1,7 @@
 //! Port of the `ktx` command line tool (tools/ktx).
 
 pub mod command;
+pub mod command_info;
 pub mod command_validate;
 pub mod fmt;
 pub mod formats;
