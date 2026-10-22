@@ -14,14 +14,19 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-/// Large sample inputs that are not vendored; subcases using them are skipped.
-const NOT_VENDORED: [&str; 2] = [
-    "input/ktx2_sample/skybox.ktx2",
-    "input/ktx2_sample/skybox_zstd.ktx2",
-];
-
 fn cts_dir() -> PathBuf {
     common::resources_path().join("cts")
+}
+
+/// Large sample inputs (> 128 KiB) that are not vendored, one path per line
+/// in `NOT_VENDORED.txt`; subcases using them are skipped.
+fn not_vendored() -> Vec<String> {
+    std::fs::read_to_string(cts_dir().join("NOT_VENDORED.txt"))
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// Python `str()` of a JSON value.
@@ -125,6 +130,7 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             .collect();
     }
 
+    let not_vendored = not_vendored();
     let (mut passed, mut skipped) = (0, 0);
     let mut failures = Vec::new();
     for combo in combos {
@@ -136,9 +142,9 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             .get("stdin")
             .and_then(Value::as_str)
             .map(|s| ctx.eval(s));
-        if NOT_VENDORED
+        if not_vendored
             .iter()
-            .any(|f| command.contains(f) || stdin_path.as_deref() == Some(*f))
+            .any(|f| command.contains(f.as_str()) || stdin_path.as_deref() == Some(f.as_str()))
         {
             skipped += 1;
             continue;
@@ -262,4 +268,9 @@ fn run_command_dir(command: &str) {
 #[test]
 fn cts_validate() {
     run_command_dir("validate");
+}
+
+#[test]
+fn cts_info() {
+    run_command_dir("info");
 }
