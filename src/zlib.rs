@@ -1,31 +1,27 @@
-//! Port of lib/src/miniz_wrapper.cpp (zlib via the pure Rust `miniz_oxide`) and
+//! Port of lib/src/miniz_wrapper.cpp (deflate: the basisu miniz port in
+//! `basisu::miniz`; inflate: the pure Rust `miniz_oxide`) and
 //! the zstd helpers used by texture2.c (via the pure Rust `ruzstd`).
 
+use crate::basisu::miniz::{MZ_BUF_ERROR, MZ_PARAM_ERROR, mz_compress_bound, mz_compress2};
 use crate::error::{ErrorCode, KtxResult};
 
 /// Port of `ktxCompressZLIBBounds` (`mz_compressBound`).
 pub fn ktx_compress_zlib_bounds(src_length: usize) -> usize {
-    let a = 128usize.saturating_add(src_length.saturating_mul(110) / 100);
-    let b = 128usize
-        .saturating_add(src_length)
-        .saturating_add((src_length / (31 * 1024) + 1).saturating_mul(5));
-    a.max(b)
+    usize::try_from(mz_compress_bound(src_length as u64)).unwrap_or(usize::MAX)
 }
 
-/// Port of `ktxCompressZLIBInt`. Returns the compressed bytes.
-/// `dest_capacity` mirrors `*pDestLength` on input.
+/// Port of `ktxCompressZLIBInt` (basisu miniz `mz_compress2`). Returns the
+/// compressed bytes. `dest_capacity` mirrors `*pDestLength` on input.
 pub fn ktx_compress_zlib_int(src: &[u8], dest_capacity: usize, level: u32) -> KtxResult<Vec<u8>> {
     if (src.len() as u64 | dest_capacity as u64) > 0xFFFF_FFFF {
         return Err(ErrorCode::InvalidValue);
     }
-    if level > 10 {
-        return Err(ErrorCode::InvalidValue);
+    match mz_compress2(src, dest_capacity as u64, level as i32) {
+        Ok(out) => Ok(out),
+        Err(MZ_PARAM_ERROR) => Err(ErrorCode::InvalidValue),
+        Err(MZ_BUF_ERROR) => Err(ErrorCode::OutOfMemory),
+        Err(_) => Err(ErrorCode::InvalidOperation),
     }
-    let out = miniz_oxide::deflate::compress_to_vec_zlib(src, level as u8);
-    if out.len() > dest_capacity {
-        return Err(ErrorCode::OutOfMemory);
-    }
-    Ok(out)
 }
 
 /// Port of `ktxUncompressZLIBInt`. Inflates `src` into `dest`, returning the

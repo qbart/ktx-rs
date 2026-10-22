@@ -61,3 +61,18 @@ Todo: ATC, FXT1 (not reachable from libktx); video P-frames untested.
 
 Test guard: `texture_combinations_test_basic` asserts the number of golden comparisons,
 and `bc7_chroma_filter_is_exercised` proves the BC7 filter path is covered.
+
+## miniz deflate (`basisu::miniz`)
+
+Port of the `tdefl` half of `encoder/basisu_miniz.h` (miniz 1.x) plus `mz_compress2`,
+`mz_compressBound`, `mz_adler32`, `tdefl_create_comp_flags_from_zip_params`. libktx's ZLIB
+supercompression (`miniz_wrapper.cpp` -> `zlib.rs`) deflates through it. The x86-64 configuration
+is ported: 16-bit word compares in `tdefl_find_match` (probes counted in groups of 3, `u16`
+distance wrap), `tdefl_compress_fast` for level 1 (4 KiB lookahead, 12-bit trigram hash), zlib
+header always `78 01`. The 64-bit `tdefl_compress_lz_codes` is replaced by the portable variant
+(same bit stream). Output goes to a growing buffer instead of the caller's/internal 85 KiB
+buffer (same bytes); a too small destination still yields `MZ_BUF_ERROR` -> `OutOfMemory`.
+Dictionary/chains are zero-initialised (miniz mallocs them; unwritten bytes never reach output).
+Inflate stays on `miniz_oxide` (inflate output is unique).
+Tests: `tests/miniz.rs` vs `scripts/golden/gen_miniz_golden.sh` (768 cases: tdefl levels 0..10 x
+5 strategies, raw/zlib, mz_compress2 1..9; synthetic inputs up to 1 MB and test files).

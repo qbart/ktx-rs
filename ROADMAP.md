@@ -32,9 +32,10 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] Texture1 -> Texture2 conversion on write
 - [x] `ktxTexture_CreateFrom*` (`AnyTexture`)
 - [~] Supercompression: Zstd (pure Rust, `ruzstd`): inflate + deflate; deflate ignores level (ruzstd only has fastest)
-- [~] Supercompression: Zlib (pure Rust, `miniz_oxide`); output not byte-identical to C zlib
-- [ ] Byte-exact deflate: port zlib `deflate` and libzstd compressor (CTS transcode_zlib/zstd
-  outputs currently match only after inflation)
+- [x] Supercompression: Zlib: deflate = port of basisu miniz `tdefl` (byte exact, x86-64 config),
+  inflate = `miniz_oxide`
+- [ ] Byte-exact zstd deflate: port the libzstd compressor (CTS transcode_zstd outputs currently
+  match only after inflation)
 - [x] `info.c` (ktxPrintInfo text + KTX2 JSON, byte exact vs C) + `glformat_str.c`
 
 ## Basis Universal (pure Rust port)

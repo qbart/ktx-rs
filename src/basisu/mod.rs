@@ -15,6 +15,7 @@ pub mod eac;
 pub mod etc;
 pub mod etc1s;
 pub mod hdr_tables;
+pub mod miniz;
 pub mod pvrtc;
 pub mod pvrtc2;
 pub mod tables;

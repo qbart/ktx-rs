@@ -11,7 +11,8 @@ Source: `lib/src/texture2.c`, `texture2.h`, `miniz_wrapper.cpp`.
   `FormatSize::init_from_dfd`, transfer/sRGB, BasisLZ/UASTC rules, glTF basisu flag.
 - `LOAD_IMAGE_DATA`, `load_image_data`, `load_deflated_image_data`,
   `iterate_load_level_faces`: stream is consumed on success, restored on error.
-- Zstd: `ruzstd` decoder. Zlib: `miniz_oxide` (`zlib.rs` = miniz_wrapper port).
+- Zstd: `ruzstd` decoder. Zlib: deflate via `basisu::miniz` (tdefl port), inflate via `miniz_oxide` (`zlib.rs` =
+  miniz_wrapper port).
 - Allocations sized from file data use `try_reserve` -> `OutOfMemory`, no abort.
 - Divergence: `KTXanimData` parsed as 3 LE u32 (C passes the array as `void**`).
 - Queries: components, transfer/primaries/model, premultiplied, transcodable, HDR,
