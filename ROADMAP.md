@@ -51,7 +51,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 
 ## Other codecs
 - [x] lodepng PNG encoder + its zlib encoder (byte exact vs C, `src/lodepng`)
-- [ ] lodepng PNG decoder (for `ktx create`)
+- [x] lodepng PNG decoder incl. KTX's split decode API and its inflater (byte exact vs C, 20800 cases)
 - [x] tinyexr EXR writer (scanline, uncompressed; byte exact vs C++, `src/tinyexr.rs`)
 - [ ] tinyexr EXR reader (for `ktx create`)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)

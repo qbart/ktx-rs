@@ -1,18 +1,25 @@
-//! Port of the LodePNG encoder (external/lodepng, version 20250506), as used
-//! by `ktx extract` (`lodepng::encode` with a `State`).
+//! Port of LodePNG (external/lodepng, version 20250506) as used by the ktx
+//! tools: the encoder (`lodepng::encode` with a `State`, `ktx extract`) and the
+//! decoder with KTX-Software's split `lodepng_decode_chunks` /
+//! `lodepng_finish_decode` API (`decode`, the inflater in `zlib`).
 //!
-//! Ported: color modes and conversion, color statistics and `auto_convert`
+//! Encoder: color modes and conversion, color statistics and `auto_convert`
 //! (palette / grey / bit depth / color key selection), scanline filters (all
 //! strategies), Adam7 interlacing, the zlib encoder (`zlib`) and the chunks
 //! IHDR, sRGB, gAMA, cHRM, sBIT, PLTE, tRNS, IDAT, IEND. Not ported (never set
 //! by the tools): iCCP, cICP, mDCV, cLLI, eXIf, bKGD, pHYs, tIME, text chunks,
 //! unknown chunks. Errors are LodePNG's numeric codes.
 
+mod decode;
 pub mod zlib;
 
 use std::collections::HashMap;
 
-pub use zlib::{CompressSettings, lodepng_zlib_compress};
+pub use decode::*;
+pub use zlib::{
+    CompressSettings, DecompressSettings, lodepng_inflate, lodepng_zlib_compress,
+    lodepng_zlib_decompress,
+};
 
 /// `LodePNGColorType`.
 pub type ColorType = u32;
@@ -909,8 +916,8 @@ fn adam7_getpassvalues(w: u32, h: u32, bpp: u32) -> Adam7Passes {
     };
     // calculate width and height in pixels of each pass
     for i in 0..7 {
-        p.passw[i] = (w + ADAM7_DX[i] - ADAM7_IX[i] - 1) / ADAM7_DX[i];
-        p.passh[i] = (h + ADAM7_DY[i] - ADAM7_IY[i] - 1) / ADAM7_DY[i];
+        p.passw[i] = w.wrapping_add(ADAM7_DX[i] - ADAM7_IX[i] - 1) / ADAM7_DX[i];
+        p.passh[i] = h.wrapping_add(ADAM7_DY[i] - ADAM7_IY[i] - 1) / ADAM7_DY[i];
         if p.passw[i] == 0 {
             p.passh[i] = 0;
         }
@@ -1330,11 +1337,51 @@ pub struct Info {
     pub sbit_g: u32,
     pub sbit_b: u32,
     pub sbit_a: u32,
+    /// Compression method of the original file (always 0).
+    pub compression_method: u32,
+    /// Filter method of the original file (always 0).
+    pub filter_method: u32,
+    /// bKGD chunk.
+    pub background_defined: bool,
+    pub background_r: u32,
+    pub background_g: u32,
+    pub background_b: u32,
+    /// tEXt / zTXt chunks: (key, string) pairs.
+    pub texts: Vec<(Vec<u8>, Vec<u8>)>,
+    /// iTXt chunks: (key, langtag, transkey, string).
+    pub itexts: Vec<[Vec<u8>; 4]>,
+    /// tIME chunk: year, month, day, hour, minute, second.
+    pub time_defined: bool,
+    pub time: [u32; 6],
+    /// pHYs chunk.
+    pub phys_defined: bool,
+    pub phys_x: u32,
+    pub phys_y: u32,
+    pub phys_unit: u32,
+    /// iCCP chunk.
+    pub iccp_defined: bool,
+    pub iccp_name: Vec<u8>,
+    pub iccp_profile: Vec<u8>,
+    /// cICP chunk: primaries, transfer, matrix coefficients, full range flag.
+    pub cicp_defined: bool,
+    pub cicp: [u32; 4],
+    /// mDCV chunk: red, green, blue, white x/y, max / min luminance.
+    pub mdcv_defined: bool,
+    pub mdcv: [u32; 10],
+    /// cLLI chunk: max CLL, max FALL.
+    pub clli_defined: bool,
+    pub clli: [u32; 2],
+    /// eXIf chunk.
+    pub exif_defined: bool,
+    pub exif: Vec<u8>,
+    /// Unknown chunks before PLTE, between PLTE and IDAT and after IDAT.
+    pub unknown_chunks_data: [Vec<u8>; 3],
 }
 
-/// Port of `LodePNGState` (encoder part).
+/// Port of `LodePNGState`.
 #[derive(Debug, Clone, Default)]
 pub struct State {
+    pub decoder: DecoderSettings,
     pub encoder: EncoderSettings,
     /// Specifies the format in which you would like to get the raw pixel buffer.
     pub info_raw: ColorMode,
