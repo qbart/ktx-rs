@@ -1,0 +1,47 @@
+{
+    "description": "Test extraction from 2D textures to raw output files with fully specifying the images with --level, --layer, --face and --depth.",
+    "command": "ktx extract --testrun --raw ${select[flags]} input/ktx2/valid_${subcase}.ktx2 output/extract/raw_select_2d/output_${subcase}/output${select[id]}.raw",
+    "status": 0,
+    "outputs": {
+        "output/extract/raw_select_2d/output_${subcase}/output${select[id]}.raw": "golden/extract/raw_select_2d/output_${subcase}/output${select[id]}.raw"
+    },
+    "args": {
+        "select": [
+            { "id": "", "flags": "--level 0" }
+        ],
+        "subcase": [
+            "A1R5G5B5_UNORM_PACK16_2D",
+            "A2R10G10B10_SINT_PACK32_2D",
+            "A2R10G10B10_UINT_PACK32_2D",
+            "A4R4G4B4_UNORM_PACK16_2D",
+            "R16G16B16A16_UNORM_2D",
+            "R16G16B16_UNORM_2D",
+            "R16G16_UNORM_2D",
+            "R16G16_S10_5_NV_2D",
+            "R16_UNORM_2D",
+            "R32G32B32A32_UINT_2D",
+            "R32G32B32_UINT_2D",
+            "R32G32_UINT_2D",
+            "R32_UINT_2D",
+            "R4G4B4A4_UNORM_PACK16_2D",
+            "R4G4_UNORM_PACK8_2D",
+            "R5G5B5A1_UNORM_PACK16_2D",
+            "R5G6B5_UNORM_PACK16_2D",
+            "R8G8B8A8_UNORM_2D",
+            "R8G8B8_UNORM_2D",
+            "R8G8_UNORM_2D",
+            "R8_SINT_2D",
+            "R8_SRGB_2D",
+            "R8_UINT_2D",
+            "R8_UNORM_2D",
+
+            "D16_UNORM_2D",
+            "D32_SFLOAT_2D",
+            "S8_UINT_2D",
+            "X8_D24_UNORM_PACK32_2D",
+            "D16_UNORM_S8_UINT_2D",
+            "D24_UNORM_S8_UINT_2D",
+            "D32_SFLOAT_S8_UINT_2D"
+        ]
+    }
+}

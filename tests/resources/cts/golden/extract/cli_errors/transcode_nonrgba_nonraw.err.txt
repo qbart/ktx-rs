@@ -1,0 +1,1 @@
+ktx extract fatal: Transcode to "bc7" for non-raw extract is not supported. For PNG/EXR output only r8, rg8, rgb8, rgba8 and rgba16f are supported. See 'ktx extract --help'.

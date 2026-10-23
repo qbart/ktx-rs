@@ -1,0 +1,60 @@
+{
+    "description": "Test extraction from 2D textures to raw output files with --all to export every image.",
+    "command": "ktx extract --testrun --raw --all input/ktx2/valid_${subcase}.ktx2 output/extract/raw_all_2d/output_${subcase}",
+    "status": 0,
+    "outputs": {
+        "output/extract/raw_all_2d/output_${subcase}/output.raw": "golden/extract/raw_all_2d/output_${subcase}/output.raw"
+    },
+    "args": {
+        "subcase": [
+            "A1R5G5B5_UNORM_PACK16_2D",
+            "A2R10G10B10_SINT_PACK32_2D",
+            "A2R10G10B10_UINT_PACK32_2D",
+            "A4R4G4B4_UNORM_PACK16_2D",
+            "R16G16B16A16_UNORM_2D",
+            "R16G16B16_UNORM_2D",
+            "R16G16_UNORM_2D",
+            "R16G16_S10_5_NV_2D",
+            "R16_UNORM_2D",
+            "R32G32B32A32_UINT_2D",
+            "R32G32B32_UINT_2D",
+            "R32G32_UINT_2D",
+            "R32_UINT_2D",
+            "R4G4B4A4_UNORM_PACK16_2D",
+            "R4G4_UNORM_PACK8_2D",
+            "R5G5B5A1_UNORM_PACK16_2D",
+            "R5G6B5_UNORM_PACK16_2D",
+            "R8G8B8A8_UNORM_2D",
+            "R8G8B8_UNORM_2D",
+            "R8G8_UNORM_2D",
+            "R8_SINT_2D",
+            "R8_SRGB_2D",
+            "R8_UINT_2D",
+            "R8_UNORM_2D",
+
+            "R10X6_UNORM_PACK16_2D",
+            "R10X6G10X6_UNORM_2PACK16_2D",
+            "R10X6G10X6B10X6A10X6_UNORM_4PACK16_2D",
+            "R12X4_UNORM_PACK16_2D",
+            "R12X4G12X4_UNORM_2PACK16_2D",
+            "R12X4G12X4B12X4A12X4_UNORM_4PACK16_2D",
+
+            "G8B8G8R8_422_UNORM_2D",
+            "B8G8R8G8_422_UNORM_2D",
+            "G10X6B10X6G10X6R10X6_422_UNORM_4PACK16_2D",
+            "B10X6G10X6R10X6G10X6_422_UNORM_4PACK16_2D",
+            "G12X4B12X4G12X4R12X4_422_UNORM_4PACK16_2D",
+            "B12X4G12X4R12X4G12X4_422_UNORM_4PACK16_2D",
+            "G16B16G16R16_422_UNORM_2D",
+            "B16G16R16G16_422_UNORM_2D",
+
+            "D16_UNORM_2D",
+            "D32_SFLOAT_2D",
+            "S8_UINT_2D",
+            "X8_D24_UNORM_PACK32_2D",
+            "D16_UNORM_S8_UINT_2D",
+            "D24_UNORM_S8_UINT_2D",
+            "D32_SFLOAT_S8_UINT_2D"
+        ]
+    }
+}

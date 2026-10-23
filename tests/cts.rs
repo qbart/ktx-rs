@@ -29,6 +29,10 @@ fn not_vendored() -> Vec<String> {
         .collect()
 }
 
+/// Image writers not ported yet (ROADMAP): subcases whose golden stdout or
+/// reference outputs have these extensions are skipped.
+const PENDING_IMAGE_OUTPUTS: [&str; 2] = [".png", ".exr"];
+
 /// Python `str()` of a JSON value.
 fn py_str(v: &Value) -> String {
     match v {
@@ -146,6 +150,24 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             .iter()
             .any(|f| command.contains(f.as_str()) || stdin_path.as_deref() == Some(f.as_str()))
         {
+            skipped += 1;
+            continue;
+        }
+        let pending = case
+            .get("stdout")
+            .and_then(Value::as_str)
+            .into_iter()
+            .chain(
+                case.get("outputs")
+                    .and_then(Value::as_object)
+                    .into_iter()
+                    .flat_map(|o| o.values().filter_map(Value::as_str)),
+            )
+            .any(|g| {
+                let g = ctx.eval(g);
+                PENDING_IMAGE_OUTPUTS.iter().any(|ext| g.ends_with(ext))
+            });
+        if pending {
             skipped += 1;
             continue;
         }
@@ -312,4 +334,9 @@ fn cts_transcode() {
 #[test]
 fn cts_deflate() {
     run_command_dir("deflate");
+}
+
+#[test]
+fn cts_extract() {
+    run_command_dir("extract");
 }
