@@ -175,6 +175,100 @@ pub fn convert_unorm(mut raw_bits: u32, source_bits: u32, target_bits: u32) -> u
     }
 }
 
+/// imageio `half_to_float` (same algorithm as tinyexr's).
+pub fn half_to_float(value: u16) -> f32 {
+    crate::tinyexr::half_to_float(value)
+}
+
+/// glm `packed11bitToFloat`; NaN / Inf encodings give `~0` converted to float (-1).
+pub fn packed11bit_to_float(x: u32) -> f32 {
+    if x == 0 {
+        0.0
+    } else if x == (1 << 11) - 1 || x == 0x1f << 6 {
+        -1.0
+    } else {
+        f32::from_bits(
+            ((((x & 0x07c0) << 17).wrapping_add(0x3800_0000)) & 0x7f80_0000) | ((x & 0x003f) << 17),
+        )
+    }
+}
+
+/// glm `packed10bitToFloat`; NaN / Inf encodings give `~0` converted to float (-1).
+pub fn packed10bit_to_float(x: u32) -> f32 {
+    if x == 0 {
+        0.0
+    } else if x == (1 << 10) - 1 || x == 0x1f << 5 {
+        -1.0
+    } else {
+        f32::from_bits(
+            ((((x & 0x03e0) << 18).wrapping_add(0x3800_0000)) & 0x7f80_0000) | ((x & 0x001f) << 18),
+        )
+    }
+}
+
+/// glm `unpackF3x9_E1x5`: (r, g, b).
+pub fn unpack_f3x9_e1x5(v: u32) -> [f32; 3] {
+    let scale = 2.0f32.powi((v >> 27) as i32 - 15 - 9);
+    [v & 0x1ff, (v >> 9) & 0x1ff, (v >> 18) & 0x1ff].map(|c| c as f32 * scale)
+}
+
+/// `convertSFloatToFloat` (16 or 32 bits).
+pub fn convert_sfloat_to_float(raw_bits: u32, num_bits: u32, scale: f32, offset: f32) -> f32 {
+    match num_bits {
+        16 => half_to_float(raw_bits as u16) * scale + offset,
+        32 => f32::from_bits(raw_bits),
+        _ => 0.0,
+    }
+}
+
+/// `convertUFloatToFloat` (10 or 11 bits).
+pub fn convert_ufloat_to_float(raw_bits: u32, num_bits: u32, scale: f32, offset: f32) -> f32 {
+    let base = match num_bits {
+        10 => packed10bit_to_float(raw_bits),
+        11 => packed11bit_to_float(raw_bits),
+        _ => 0.0,
+    };
+    base * scale + offset
+}
+
+/// `convertSIntToFloat` (sign and magnitude, like the C++).
+pub fn convert_sint_to_float(raw_bits: u32, num_bits: u32) -> f32 {
+    let sign_mask = 1u32 << (num_bits - 1);
+    let value = (raw_bits & !sign_mask) as i32;
+    (if raw_bits & sign_mask != 0 {
+        value.wrapping_neg()
+    } else {
+        value
+    }) as f32
+}
+
+/// `convertUIntToFloat`.
+pub fn convert_uint_to_float(raw_bits: u32) -> f32 {
+    raw_bits as f32
+}
+
+/// `convertSNORMToFloat` (the raw bits are not sign extended, like the C++).
+pub fn convert_snorm_to_float(raw_bits: u32, num_bits: u32, scale: f32, offset: f32) -> f32 {
+    let upper = ((1u64 << (num_bits - 1)) - 1) as u32 as f32;
+    let v = raw_bits as f32 / upper;
+    (if v < -1.0 { -1.0 } else { v }) * scale + offset
+}
+
+/// `convertUNORMToFloat`.
+pub fn convert_unorm_to_float(raw_bits: u32, num_bits: u32, scale: f32, offset: f32) -> f32 {
+    let upper = ((1u64 << num_bits) - 1) as u32 as f32;
+    (raw_bits as f32 / upper) * scale + offset
+}
+
+/// `convertSFloatToUInt`.
+pub fn convert_sfloat_to_uint(raw_bits: u32, num_bits: u32) -> u32 {
+    match num_bits {
+        16 => half_to_float(raw_bits as u16) as u32,
+        32 => f32::from_bits(raw_bits) as u32,
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +283,12 @@ mod tests {
         assert_eq!(convert_unorm(0x80, 8, 4), 0x8);
         assert_eq!(convert_unorm(0xff, 8, 4), 0xf);
         assert_eq!(convert_unorm(0x7, 8, 4), 0x0);
+        assert_eq!(packed11bit_to_float(0x3c0), 1.0);
+        assert_eq!(packed10bit_to_float(0x1e0), 1.0);
+        assert_eq!(
+            unpack_f3x9_e1x5((16 << 27) | (256 << 18) | (128 << 9) | 256),
+            [1.0, 0.5, 1.0]
+        );
+        assert_eq!(convert_sint_to_float(0x81, 8), -1.0);
     }
 }

@@ -1,11 +1,11 @@
 //! Port of tools/ktx/command_extract.cpp (`ktx extract`).
 //!
-//! Raw and PNG (lodepng) output are complete. EXR (tinyexr), ASTC decoding
+//! Raw, PNG (lodepng) and EXR (tinyexr) output are complete. ASTC decoding
 //! (astcenc) and 4:2:2 unpacking are not ported yet: those outputs fail with
 //! `NOT_IMPLEMENTED` (see ROADMAP).
 
 use super::command::*;
-use super::format_descriptor::{FormatDescriptor, convert_unorm, extract_bits};
+use super::format_descriptor::*;
 use super::formats::{to_string_model, to_string_vk_format};
 use super::fragment_uri::{FragmentURI, SelectorRange, StoiError, parse_fragment_uri, stoi};
 use super::options::{OptionSpec, Options, ParseResult};
@@ -232,10 +232,10 @@ impl OptionGroup for ExtractPositional {
     }
 }
 
-/// TinyEXR pixel types.
-const TINYEXR_PIXELTYPE_UINT: i32 = 0;
-const TINYEXR_PIXELTYPE_HALF: i32 = 1;
-const TINYEXR_PIXELTYPE_FLOAT: i32 = 2;
+use crate::tinyexr::{
+    ExrAttribute, ExrChannel, TINYEXR_PIXELTYPE_FLOAT, TINYEXR_PIXELTYPE_HALF,
+    TINYEXR_PIXELTYPE_UINT, save_exr_image_to_memory,
+};
 
 /// How `saveImageFile` stores a format.
 #[derive(Debug, Clone, PartialEq)]
@@ -243,14 +243,15 @@ enum ImageSave {
     Png,
     Astc,
     Unpack422,
-    /// EXR with per-channel pixel types (one type means every channel).
-    Exr(Vec<i32>),
+    /// EXR with per-channel pixel types (one type means every channel) and
+    /// whether the ktxMapRange scale / offset is passed on.
+    Exr(Vec<i32>, bool),
 }
 
 /// The `saveImageFile` switch.
 fn image_save_kind(vk: VkFormat) -> Option<ImageSave> {
     use ImageSave::*;
-    let exr = |t: i32| Some(Exr(vec![t]));
+    let exr = |t: i32| Some(Exr(vec![t], false));
     match vk {
         VkFormat::A8_UNORM_KHR
         | VkFormat::R8_UNORM
@@ -318,13 +319,14 @@ fn image_save_kind(vk: VkFormat) -> Option<ImageSave> {
         | VkFormat::A2R10G10B10_SINT_PACK32
         | VkFormat::A2B10G10R10_UINT_PACK32
         | VkFormat::A2B10G10R10_SINT_PACK32
-        | VkFormat::R16_SFLOAT
+        | VkFormat::S8_UINT => exr(TINYEXR_PIXELTYPE_HALF),
+
+        VkFormat::R16_SFLOAT
         | VkFormat::R16G16_SFLOAT
         | VkFormat::R16G16B16_SFLOAT
         | VkFormat::R16G16B16A16_SFLOAT
         | VkFormat::B10G11R11_UFLOAT_PACK32
-        | VkFormat::E5B9G9R9_UFLOAT_PACK32
-        | VkFormat::S8_UINT => exr(TINYEXR_PIXELTYPE_HALF),
+        | VkFormat::E5B9G9R9_UFLOAT_PACK32 => Some(Exr(vec![TINYEXR_PIXELTYPE_HALF], true)),
 
         VkFormat::R16_UINT
         | VkFormat::R16_SINT
@@ -348,9 +350,10 @@ fn image_save_kind(vk: VkFormat) -> Option<ImageSave> {
 
         VkFormat::D16_UNORM_S8_UINT
         | VkFormat::D24_UNORM_S8_UINT
-        | VkFormat::D32_SFLOAT_S8_UINT => {
-            Some(Exr(vec![TINYEXR_PIXELTYPE_FLOAT, TINYEXR_PIXELTYPE_HALF]))
-        }
+        | VkFormat::D32_SFLOAT_S8_UINT => Some(Exr(
+            vec![TINYEXR_PIXELTYPE_FLOAT, TINYEXR_PIXELTYPE_HALF],
+            false,
+        )),
 
         _ if is_astc_2d(vk) => Some(Astc),
         _ => None,
@@ -900,6 +903,218 @@ fn save_png(
     file.write(&png, report)
 }
 
+/// `saveEXR` channel description.
+struct ExrSourceChannel {
+    offset: u32,
+    bits: u32,
+    name: &'static str,
+    is_float: bool,
+    is_signed: bool,
+    is_normalized: bool,
+}
+
+/// Port of `saveEXR` (both overloads: one pixel type means every channel).
+#[allow(clippy::too_many_arguments)]
+fn save_exr(
+    report: &Reporter,
+    mut filepath: String,
+    append_extension: bool,
+    vk_format: VkFormat,
+    format: &FormatDescriptor,
+    width: u32,
+    height: u32,
+    pixel_types: &[i32],
+    data: &[u8],
+    map_range_scale: f32,
+    map_range_offset: f32,
+) -> CmdResult {
+    let is_e5b9g9r9 = vk_format == VkFormat::E5B9G9R9_UFLOAT_PACK32;
+    let num_channels = if is_e5b9g9r9 {
+        3
+    } else {
+        format.channel_count as usize
+    };
+    let pixel_types: Vec<i32> = if pixel_types.len() == 1 {
+        vec![pixel_types[0]; num_channels]
+    } else {
+        pixel_types.to_vec()
+    };
+
+    if append_extension && filepath != "-" {
+        filepath += ".exr";
+    }
+
+    let mut channels: Vec<ExrSourceChannel> = Vec::new();
+    if format.model == KHR_DF_MODEL_RGBSDA {
+        // Must be ABGR order, since most of EXR viewers expect this channel order by convention.
+        for (channel_id, name) in [
+            (KHR_DF_CHANNEL_RGBSDA_A, "A"),
+            (KHR_DF_CHANNEL_RGBSDA_D, "D"),
+            (KHR_DF_CHANNEL_RGBSDA_S, "S"),
+            (KHR_DF_CHANNEL_RGBSDA_B, "B"),
+            (KHR_DF_CHANNEL_RGBSDA_G, "G"),
+            (KHR_DF_CHANNEL_RGBSDA_R, "R"),
+        ] {
+            if let Some(sample) = format.find(channel_id) {
+                let one = if sample.qualifier_float {
+                    1.0f32.to_bits()
+                } else {
+                    1
+                };
+                channels.push(ExrSourceChannel {
+                    offset: sample.bit_offset,
+                    bits: sample.bit_length + 1,
+                    name,
+                    is_float: sample.qualifier_float,
+                    is_signed: sample.qualifier_signed,
+                    is_normalized: sample.upper != one,
+                });
+            }
+        }
+    } else {
+        return Err(report.fatal(
+            ReturnCode::NotSupported,
+            &format!(
+                "EXR saving is unsupported for {} with {}.",
+                to_string_model(format.model),
+                to_string_vk_format(vk_format)
+            ),
+        ));
+    }
+
+    let pixel_bytes = format.pixel_byte_count() as usize;
+    let do_mapping = !(map_range_scale == 1.0 && map_range_offset == 0.0);
+    let mut requested_pixel_types = pixel_types.clone();
+
+    // Image data is prepared with either floats or uint32
+    // (half output is will be converted from float by TinyEXR during save)
+    let (w, h) = (width as usize, height as usize);
+    let mut images: Vec<Vec<u32>> = vec![vec![0; w * h]; num_channels];
+
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            let raw_pixel = data.get(i * pixel_bytes..).unwrap_or_default();
+
+            if is_e5b9g9r9 {
+                // Special case for VK_FORMAT_E5B9G9R9_UFLOAT_PACK32
+                let [r, g, b] = unpack_f3x9_e1x5(extract_bits(raw_pixel, 0, 32));
+                let map = |v: f32| {
+                    if do_mapping {
+                        v * map_range_scale + map_range_offset
+                    } else {
+                        v
+                    }
+                };
+                if do_mapping {
+                    requested_pixel_types.fill(TINYEXR_PIXELTYPE_FLOAT);
+                }
+                images[2][i] = map(r).to_bits();
+                images[1][i] = map(g).to_bits();
+                images[0][i] = map(b).to_bits();
+                continue;
+            }
+            for c in 0..num_channels {
+                let Some(channel) = channels.get(c) else {
+                    continue;
+                };
+                let (scale, offset) = if channel.name == "A" {
+                    (1.0, 0.0)
+                } else {
+                    (map_range_scale, map_range_offset)
+                };
+                let bits = channel.bits;
+                let value = extract_bits(raw_pixel, channel.offset, bits);
+                let pixel_type = pixel_types
+                    .get(c)
+                    .copied()
+                    .unwrap_or(TINYEXR_PIXELTYPE_HALF);
+                let target = if pixel_type == TINYEXR_PIXELTYPE_FLOAT
+                    || pixel_type == TINYEXR_PIXELTYPE_HALF
+                {
+                    let f = if channel.is_float {
+                        if do_mapping {
+                            requested_pixel_types[c] = TINYEXR_PIXELTYPE_FLOAT;
+                        }
+                        if channel.is_signed {
+                            convert_sfloat_to_float(value, bits, scale, offset)
+                        } else {
+                            convert_ufloat_to_float(value, bits, scale, offset)
+                        }
+                    } else if channel.is_normalized {
+                        if do_mapping {
+                            requested_pixel_types[c] = TINYEXR_PIXELTYPE_FLOAT;
+                        }
+                        if channel.is_signed {
+                            convert_snorm_to_float(value, bits, scale, offset)
+                        } else {
+                            convert_unorm_to_float(value, bits, scale, offset)
+                        }
+                    } else if channel.is_signed {
+                        convert_sint_to_float(value, bits)
+                    } else {
+                        convert_uint_to_float(value)
+                    };
+                    f.to_bits()
+                } else {
+                    // TINYEXR_PIXELTYPE_UINT
+                    match (channel.is_float, channel.is_signed) {
+                        (true, true) => convert_sfloat_to_uint(value, bits),
+                        (false, false) => value,
+                        // convertUFloatToUInt / convertSIntToUInt: not yet implemented in C++
+                        _ => 0,
+                    }
+                };
+                images[c][i] = target;
+            }
+        }
+    }
+
+    let exr_channels: Vec<ExrChannel> = images
+        .into_iter()
+        .enumerate()
+        .map(|(c, data)| ExrChannel {
+            name: channels.get(c).map_or("", |ch| ch.name).to_string(),
+            // pixel type of the input image
+            pixel_type: if pixel_types.get(c) == Some(&TINYEXR_PIXELTYPE_UINT) {
+                TINYEXR_PIXELTYPE_UINT
+            } else {
+                TINYEXR_PIXELTYPE_FLOAT
+            },
+            // pixel type of the output image to be stored in .EXR file
+            requested_pixel_type: requested_pixel_types[c],
+            data,
+        })
+        .collect();
+
+    // Output primaries as chromaticities
+    let mut attributes = Vec::new();
+    if let Some(p) = get_primaries(format.primaries) {
+        let value = [p.Rx, p.Ry, p.Gx, p.Gy, p.Bx, p.By, p.Wx, p.Wy]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        attributes.push(ExrAttribute {
+            name: "chromaticities".to_string(),
+            attr_type: "chromaticities".to_string(),
+            value,
+        });
+    }
+
+    let file_data =
+        match save_exr_image_to_memory(width as i32, height as i32, &exr_channels, &attributes) {
+            Ok(d) => d,
+            Err(e) => {
+                return Err(
+                    report.fatal(ReturnCode::IoFailure, &format!("EXR Encoder error: {e}."))
+                );
+            }
+        };
+
+    let mut file = OutputStream::new(&filepath, report)?;
+    file.write(&file_data, report)
+}
+
 /// Port of `saveImageFile`.
 #[allow(clippy::too_many_arguments)]
 fn save_image_file(
@@ -910,7 +1125,7 @@ fn save_image_file(
     vk_format: VkFormat,
     format: &FormatDescriptor,
     (width, height): (u32, u32),
-    _map_range: (f32, f32),
+    (scale, offset): (f32, f32),
 ) -> CmdResult {
     let what = match image_save_kind(vk_format) {
         Some(ImageSave::Png) => {
@@ -927,7 +1142,26 @@ fn save_image_file(
         }
         Some(ImageSave::Astc) => "ASTC decoding",
         Some(ImageSave::Unpack422) => "4:2:2 unpacking",
-        Some(ImageSave::Exr(_)) => "EXR",
+        Some(ImageSave::Exr(pixel_types, map_range)) => {
+            let (scale, offset) = if map_range {
+                (scale, offset)
+            } else {
+                (1.0, 0.0)
+            };
+            return save_exr(
+                report,
+                filepath,
+                append_extension,
+                vk_format,
+                format,
+                width,
+                height,
+                &pixel_types,
+                data,
+                scale,
+                offset,
+            );
+        }
         None => {
             return Err(report.fatal(
                 ReturnCode::InvalidFile,

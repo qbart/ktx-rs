@@ -37,7 +37,10 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   `what()` = "stoi"; selection checks incl. the C++ off-by-one depth check; whole-3D raw path;
   `saveImageFile` format switch ported; `savePNG` via `lodepng` (sBIT / sRGB / gAMA / cHRM, 16-bit
   big endian input); `format_descriptor.rs`: `createFormatDescriptor`, `find`, `removeLastChannel`,
-  `extract_bits`, `convertUNORM`; EXR/ASTC/4:2:2 writers return NOT_IMPLEMENTED for now;
+  `extract_bits`, `convertUNORM` and the float conversions (`convertSNORMToFloat` keeps the C++
+  non sign-extended raw bits, `convertSIntToFloat` sign-magnitude, glm `packed1xbitToFloat` gives
+  -1 for NaN/Inf codes); `saveEXR` via `tinyexr` (ABGR channel order, ktxMapRange forces FLOAT,
+  chromaticities attribute); ASTC/4:2:2 paths return NOT_IMPLEMENTED for now;
   filesystem errors mimic libstdc++ `filesystem_error::what()`). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
