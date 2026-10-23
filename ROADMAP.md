@@ -50,6 +50,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] UASTC encoder + RDO
 
 ## Other codecs
+- [x] lodepng PNG encoder + its zlib encoder (byte exact vs C, `src/lodepng`)
+- [ ] lodepng PNG decoder (for `ktx create`)
 - [ ] ASTC encoder/decoder (astc_codec.cpp port)
 - [ ] ETC unpack (etcunpack.cxx)
 

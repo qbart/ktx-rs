@@ -15,6 +15,7 @@ pub mod glformat_str;
 pub mod hashlist;
 pub mod info;
 pub mod ktxint;
+pub mod lodepng;
 pub mod stream;
 pub mod strings;
 pub mod swap;
