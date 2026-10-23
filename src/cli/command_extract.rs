@@ -1094,8 +1094,8 @@ fn save_exr(
             .flat_map(|v| v.to_le_bytes())
             .collect();
         attributes.push(ExrAttribute {
-            name: "chromaticities".to_string(),
-            attr_type: "chromaticities".to_string(),
+            name: b"chromaticities".to_vec(),
+            attr_type: b"chromaticities".to_vec(),
             value,
         });
     }

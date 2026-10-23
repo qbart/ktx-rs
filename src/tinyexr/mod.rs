@@ -1,16 +1,57 @@
-//! Port of the tinyexr scanline writer (basis_universal
-//! encoder/3rdparty/tinyexr.h, `SaveEXRImageToMemory`) for single part,
-//! scanline, uncompressed images: the configuration `ktx extract` uses.
-//! Byte exact with the C++ writer (`tests/tinyexr.rs`).
+//! Port of tinyexr (basis_universal encoder/3rdparty/tinyexr.h).
+//!
+//! Writer: `SaveEXRImageToMemory` for single part, scanline, uncompressed
+//! images, the configuration `ktx extract` uses (byte exact with the C++
+//! writer, `tests/tinyexr.rs`). Reader (`load`): `ParseEXRVersionFromMemory`,
+//! `ParseEXRHeaderFromMemory`, `LoadEXRImageFromMemory` with NONE, RLE, ZIPS,
+//! ZIP and PIZ compression, scanline and tiled (one level, mipmap, ripmap)
+//! images, as used by the `ktx create` EXR input.
+
+mod load;
+mod piz;
+
+pub use load::*;
+
+pub const TINYEXR_SUCCESS: i32 = 0;
+pub const TINYEXR_ERROR_INVALID_MAGIC_NUMBER: i32 = -1;
+pub const TINYEXR_ERROR_INVALID_EXR_VERSION: i32 = -2;
+pub const TINYEXR_ERROR_INVALID_ARGUMENT: i32 = -3;
+pub const TINYEXR_ERROR_INVALID_DATA: i32 = -4;
+pub const TINYEXR_ERROR_INVALID_FILE: i32 = -5;
+pub const TINYEXR_ERROR_INVALID_PARAMETER: i32 = -6;
+pub const TINYEXR_ERROR_CANT_OPEN_FILE: i32 = -7;
+pub const TINYEXR_ERROR_UNSUPPORTED_FORMAT: i32 = -8;
+pub const TINYEXR_ERROR_INVALID_HEADER: i32 = -9;
+pub const TINYEXR_ERROR_UNSUPPORTED_FEATURE: i32 = -10;
+pub const TINYEXR_ERROR_CANT_WRITE_FILE: i32 = -11;
+pub const TINYEXR_ERROR_SERIALIZATION_FAILED: i32 = -12;
+pub const TINYEXR_ERROR_LAYER_NOT_FOUND: i32 = -13;
+pub const TINYEXR_ERROR_DATA_TOO_LARGE: i32 = -14;
 
 pub const TINYEXR_PIXELTYPE_UINT: i32 = 0;
 pub const TINYEXR_PIXELTYPE_HALF: i32 = 1;
 pub const TINYEXR_PIXELTYPE_FLOAT: i32 = 2;
 
-pub const TINYEXR_COMPRESSIONTYPE_NONE: i32 = 0;
+pub const TINYEXR_MAX_HEADER_ATTRIBUTES: usize = 1024;
+pub const TINYEXR_MAX_CUSTOM_ATTRIBUTES: usize = 128;
 
-pub const TINYEXR_ERROR_INVALID_DATA: i32 = -4;
-pub const TINYEXR_ERROR_UNSUPPORTED_FEATURE: i32 = -10;
+pub const TINYEXR_COMPRESSIONTYPE_NONE: i32 = 0;
+pub const TINYEXR_COMPRESSIONTYPE_RLE: i32 = 1;
+pub const TINYEXR_COMPRESSIONTYPE_ZIPS: i32 = 2;
+pub const TINYEXR_COMPRESSIONTYPE_ZIP: i32 = 3;
+pub const TINYEXR_COMPRESSIONTYPE_PIZ: i32 = 4;
+/// TinyEXR extension, not compiled in (`TINYEXR_USE_ZFP` 0).
+pub const TINYEXR_COMPRESSIONTYPE_ZFP: i32 = 128;
+
+pub const TINYEXR_TILE_ONE_LEVEL: i32 = 0;
+pub const TINYEXR_TILE_MIPMAP_LEVELS: i32 = 1;
+pub const TINYEXR_TILE_RIPMAP_LEVELS: i32 = 2;
+
+pub const TINYEXR_TILE_ROUND_DOWN: i32 = 0;
+pub const TINYEXR_TILE_ROUND_UP: i32 = 1;
+
+/// `tinyexr::kEXRVersionSize`.
+pub const K_EXR_VERSION_SIZE: usize = 8;
 
 /// One channel of an `EXRHeader` / `EXRImage`.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,11 +67,12 @@ pub struct ExrChannel {
     pub data: Vec<u32>,
 }
 
-/// `EXRAttribute` (custom header attribute).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// `EXRAttribute` (custom header attribute). `name` and `attr_type` are the
+/// bytes before the C string terminator (at most 255).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExrAttribute {
-    pub name: String,
-    pub attr_type: String,
+    pub name: Vec<u8>,
+    pub attr_type: Vec<u8>,
     pub value: Vec<u8>,
 }
 
@@ -92,10 +134,10 @@ pub fn float_to_half_full(f: f32) -> u16 {
 }
 
 /// `WriteAttributeToMemory`.
-fn write_attribute(out: &mut Vec<u8>, name: &str, attr_type: &str, data: &[u8]) {
-    out.extend_from_slice(name.as_bytes());
+fn write_attribute(out: &mut Vec<u8>, name: &[u8], attr_type: &[u8], data: &[u8]) {
+    out.extend_from_slice(name);
     out.push(0);
-    out.extend_from_slice(attr_type.as_bytes());
+    out.extend_from_slice(attr_type);
     out.push(0);
     out.extend_from_slice(&(data.len() as i32).to_le_bytes());
     out.extend_from_slice(data);
@@ -174,37 +216,37 @@ pub fn save_exr_image_to_memory(
     // Attributes
     write_attribute(
         &mut memory,
-        "channels",
-        "chlist",
+        b"channels",
+        b"chlist",
         &write_channel_info(channels),
     );
     write_attribute(
         &mut memory,
-        "compression",
-        "compression",
+        b"compression",
+        b"compression",
         &[TINYEXR_COMPRESSIONTYPE_NONE as u8],
     );
     let mut window = Vec::with_capacity(16);
     for v in [0, 0, width - 1, height - 1] {
         window.extend_from_slice(&v.to_le_bytes());
     }
-    write_attribute(&mut memory, "dataWindow", "box2i", &window);
-    write_attribute(&mut memory, "displayWindow", "box2i", &window);
-    write_attribute(&mut memory, "lineOrder", "lineOrder", &[0]);
+    write_attribute(&mut memory, b"dataWindow", b"box2i", &window);
+    write_attribute(&mut memory, b"displayWindow", b"box2i", &window);
+    write_attribute(&mut memory, b"lineOrder", b"lineOrder", &[0]);
     write_attribute(
         &mut memory,
-        "pixelAspectRatio",
-        "float",
+        b"pixelAspectRatio",
+        b"float",
         &1.0f32.to_le_bytes(),
     );
     let mut center = Vec::with_capacity(8);
     center.extend_from_slice(&0.0f32.to_le_bytes());
     center.extend_from_slice(&0.0f32.to_le_bytes());
-    write_attribute(&mut memory, "screenWindowCenter", "v2f", &center);
+    write_attribute(&mut memory, b"screenWindowCenter", b"v2f", &center);
     write_attribute(
         &mut memory,
-        "screenWindowWidth",
-        "float",
+        b"screenWindowWidth",
+        b"float",
         &1.0f32.to_le_bytes(),
     );
     for a in custom_attributes {

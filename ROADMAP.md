@@ -53,7 +53,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] lodepng PNG encoder + its zlib encoder (byte exact vs C, `src/lodepng`)
 - [x] lodepng PNG decoder incl. KTX's split decode API and its inflater (byte exact vs C, 20800 cases)
 - [x] tinyexr EXR writer (scanline, uncompressed; byte exact vs C++, `src/tinyexr.rs`)
-- [ ] tinyexr EXR reader (for `ktx create`)
+- [x] tinyexr EXR reader: version / header parsing, scanline + tiled (one level, mipmap, ripmap),
+  NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [ ] astcenc compressor; libktx `astc_codec.cpp` (ktxTexture2_DecodeAstc / CompressAstc)
 - [ ] ETC unpack (etcunpack.cxx)
