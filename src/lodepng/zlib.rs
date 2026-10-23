@@ -1005,3 +1005,540 @@ pub fn lodepng_zlib_compress(input: &[u8], settings: &CompressSettings) -> Resul
     out.extend_from_slice(&adler32(input).to_be_bytes());
     Ok(out)
 }
+
+// ---------------------------------------------------------------------------
+// Inflator (decompressor)
+
+/// Port of `LodePNGDecompressSettings` (no custom zlib / inflate callbacks).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DecompressSettings {
+    /// If true, continue and don't give an error message if the Adler32 checksum is corrupted.
+    pub ignore_adler32: bool,
+    /// Ignore complement of len checksum in uncompressed blocks.
+    pub ignore_nlen: bool,
+    /// Maximum decompressed size, 0 for no limit.
+    pub max_output_size: usize,
+}
+
+/// Port of `LodePNGBitReader`.
+struct BitReader<'a> {
+    data: &'a [u8],
+    size: usize,
+    bitsize: usize,
+    bp: usize,
+    buffer: u32,
+}
+
+impl<'a> BitReader<'a> {
+    /// `LodePNGBitReader_init`.
+    fn new(data: &'a [u8]) -> Result<BitReader<'a>, u32> {
+        let size = data.len();
+        let bitsize = size.checked_mul(8).ok_or(105u32)?;
+        bitsize.checked_add(64).ok_or(105u32)?;
+        Ok(BitReader {
+            data,
+            size,
+            bitsize,
+            bp: 0,
+            buffer: 0,
+        })
+    }
+
+    fn byte(&self, i: usize) -> u32 {
+        u32::from(self.data.get(i).copied().unwrap_or(0))
+    }
+
+    /// `ensureBits9` / `17` / `25`: reads up to `n` (2, 3 or 4) bytes.
+    fn ensure_bytes(&mut self, n: usize) {
+        let start = self.bp >> 3;
+        let mut buffer = 0u32;
+        for k in 0..n {
+            if start + k < self.size {
+                buffer |= self.byte(start + k) << (8 * k);
+            }
+        }
+        self.buffer = buffer >> (self.bp & 7);
+    }
+
+    fn ensure_bits9(&mut self) {
+        self.ensure_bytes(2);
+    }
+
+    fn ensure_bits17(&mut self) {
+        self.ensure_bytes(3);
+    }
+
+    fn ensure_bits25(&mut self) {
+        self.ensure_bytes(4);
+    }
+
+    /// `ensureBits32`.
+    fn ensure_bits32(&mut self) {
+        let start = self.bp >> 3;
+        if start + 4 < self.size {
+            let shift = self.bp & 7;
+            let word = self.byte(start)
+                | (self.byte(start + 1) << 8)
+                | (self.byte(start + 2) << 16)
+                | (self.byte(start + 3) << 24);
+            // (data[start + 4] << 24) << (8 - shift): 32-bit shifts drop the high bits
+            let extra = ((self.byte(start + 4) << 24) as u64) << (8 - shift);
+            self.buffer = (word >> shift) | (extra as u32);
+        } else {
+            self.ensure_bytes(4);
+        }
+    }
+
+    fn peek_bits(&self, nbits: u32) -> u32 {
+        self.buffer & ((1u32 << nbits) - 1)
+    }
+
+    fn advance_bits(&mut self, nbits: u32) {
+        self.buffer = self.buffer.checked_shr(nbits).unwrap_or(0);
+        self.bp += nbits as usize;
+    }
+
+    fn read_bits(&mut self, nbits: u32) -> u32 {
+        let result = self.peek_bits(nbits);
+        self.advance_bits(nbits);
+        result
+    }
+}
+
+/// Amount of bits for the first huffman table lookup.
+const FIRSTBITS: u32 = 9;
+/// A symbol value too big to represent any valid symbol.
+const INVALIDSYMBOL: u32 = 65535;
+const LAST_LENGTH_CODE_INDEX: u32 = 285;
+
+/// `reverseBits`.
+fn reverse_bits(bits: u32, num: u32) -> u32 {
+    (0..num).fold(0, |r, i| r | (((bits >> (num - i - 1)) & 1) << i))
+}
+
+/// The decoding tables of a `HuffmanTree`.
+#[derive(Debug, Default)]
+struct DecodeTree {
+    table_len: Vec<u8>,
+    table_value: Vec<u16>,
+}
+
+impl DecodeTree {
+    /// `HuffmanTree_makeFromLengths` followed by `HuffmanTree_makeTable`.
+    fn from_lengths(bitlen: &[u32], maxbitlen: u32) -> Result<DecodeTree, u32> {
+        let tree = HuffmanTree::make_from_lengths(bitlen, maxbitlen);
+        let headsize = 1usize << FIRSTBITS;
+        let mask = (1u32 << FIRSTBITS) - 1;
+
+        // compute maxlens: max total bit length of symbols sharing prefix in the first table
+        let mut maxlens = vec![0u32; headsize];
+        for (&symbol, &l) in tree.codes.iter().zip(&tree.lengths) {
+            if l <= FIRSTBITS {
+                continue;
+            }
+            let index = reverse_bits(symbol >> (l - FIRSTBITS), FIRSTBITS) as usize;
+            maxlens[index] = maxlens[index].max(l);
+        }
+        // compute total table size
+        let mut size = headsize;
+        for &l in &maxlens {
+            if l > FIRSTBITS {
+                size += 1usize << (l - FIRSTBITS);
+            }
+        }
+        let mut t = DecodeTree {
+            table_len: vec![16; size],
+            table_value: vec![0; size],
+        };
+
+        // fill in the first table for long symbols: max prefix size and pointer to secondary tables
+        let mut pointer = headsize;
+        for (i, &l) in maxlens.iter().enumerate() {
+            if l <= FIRSTBITS {
+                continue;
+            }
+            t.table_len[i] = l as u8;
+            t.table_value[i] = pointer as u16;
+            pointer += 1usize << (l - FIRSTBITS);
+        }
+
+        // fill in the first table for short symbols, or secondary table for long symbols
+        let mut numpresent = 0;
+        for (i, (&symbol, &l)) in tree.codes.iter().zip(&tree.lengths).enumerate() {
+            if l == 0 {
+                continue;
+            }
+            let reverse = reverse_bits(symbol, l);
+            numpresent += 1;
+            if l <= FIRSTBITS {
+                // short symbol, fully in first table, replicated num times if l < FIRSTBITS
+                for j in 0..(1u32 << (FIRSTBITS - l)) {
+                    let index = (reverse | (j << l)) as usize;
+                    if t.table_len[index] != 16 {
+                        return Err(55); // invalid tree: long symbol shares prefix with short symbol
+                    }
+                    t.table_len[index] = l as u8;
+                    t.table_value[index] = i as u16;
+                }
+            } else {
+                // long symbol, shares prefix with other long symbols in first lookup table
+                let index = (reverse & mask) as usize;
+                let maxlen = u32::from(t.table_len[index]);
+                if maxlen < l {
+                    return Err(55);
+                }
+                let tablelen = maxlen - FIRSTBITS;
+                let start = u32::from(t.table_value[index]);
+                let num = 1u32 << (tablelen - (l - FIRSTBITS));
+                for j in 0..num {
+                    let reverse2 = reverse >> FIRSTBITS;
+                    let index2 = (start + (reverse2 | (j << (l - FIRSTBITS)))) as usize;
+                    let (Some(len), Some(value)) =
+                        (t.table_len.get_mut(index2), t.table_value.get_mut(index2))
+                    else {
+                        return Err(55);
+                    };
+                    *len = l as u8;
+                    *value = i as u16;
+                }
+            }
+        }
+
+        if numpresent < 2 {
+            // Exactly 1 or 0 symbols: fill unused entries with an invalid symbol
+            for i in 0..size {
+                if t.table_len[i] == 16 {
+                    t.table_len[i] = if i < headsize {
+                        1
+                    } else {
+                        (FIRSTBITS + 1) as u8
+                    };
+                    t.table_value[i] = INVALIDSYMBOL as u16;
+                }
+            }
+        } else if t.table_len.contains(&16) {
+            // oversubscribed huffman tree
+            return Err(55);
+        }
+        Ok(t)
+    }
+
+    /// `huffmanDecodeSymbol`.
+    fn decode_symbol(&self, reader: &mut BitReader) -> u32 {
+        let code = reader.peek_bits(FIRSTBITS) as usize;
+        let l = u32::from(self.table_len[code]);
+        let value = u32::from(self.table_value[code]);
+        if l <= FIRSTBITS {
+            reader.advance_bits(l);
+            value
+        } else {
+            reader.advance_bits(FIRSTBITS);
+            let value = (value + reader.peek_bits(l - FIRSTBITS)) as usize;
+            let len = self
+                .table_len
+                .get(value)
+                .map_or(FIRSTBITS + 1, |&x| u32::from(x));
+            reader.advance_bits(len - FIRSTBITS);
+            self.table_value
+                .get(value)
+                .map_or(INVALIDSYMBOL, |&x| u32::from(x))
+        }
+    }
+}
+
+/// `generateFixedLitLenTree` and `generateFixedDistanceTree`.
+fn fixed_trees() -> Result<(DecodeTree, DecodeTree), u32> {
+    let mut bitlen = [0u32; NUM_DEFLATE_CODE_SYMBOLS];
+    for (i, b) in bitlen.iter_mut().enumerate() {
+        *b = match i {
+            0..=143 => 8,
+            144..=255 => 9,
+            256..=279 => 7,
+            _ => 8,
+        };
+    }
+    let ll = DecodeTree::from_lengths(&bitlen, 15)?;
+    let d = DecodeTree::from_lengths(&[5; NUM_DISTANCE_SYMBOLS], 15)?;
+    Ok((ll, d))
+}
+
+/// `getTreeInflateDynamic`.
+fn dynamic_trees(reader: &mut BitReader) -> Result<(DecodeTree, DecodeTree), u32> {
+    if reader.bitsize - reader.bp < 14 {
+        return Err(49);
+    }
+    reader.ensure_bits17();
+    let hlit = reader.read_bits(5) as usize + 257;
+    let hdist = reader.read_bits(5) as usize + 1;
+    let hclen = reader.read_bits(4) as usize + 4;
+
+    // read the code length codes out of 3 * (amount of code length codes) bits
+    if reader
+        .bp
+        .checked_add(hclen * 3)
+        .is_none_or(|e| e > reader.bitsize)
+    {
+        return Err(50);
+    }
+    let mut bitlen_cl = [0u32; NUM_CODE_LENGTH_CODES];
+    for &o in CLCL_ORDER.iter().take(hclen) {
+        reader.ensure_bits9();
+        bitlen_cl[o] = reader.read_bits(3);
+    }
+    let tree_cl = DecodeTree::from_lengths(&bitlen_cl, 7)?;
+
+    let mut bitlen_ll = [0u32; NUM_DEFLATE_CODE_SYMBOLS];
+    let mut bitlen_d = [0u32; NUM_DISTANCE_SYMBOLS];
+    let set = |i: usize, v: u32, ll: &mut [u32], d: &mut [u32]| {
+        if i < hlit {
+            if let Some(x) = ll.get_mut(i) {
+                *x = v;
+            }
+        } else if let Some(x) = d.get_mut(i - hlit) {
+            *x = v;
+        }
+    };
+    let get = |i: usize, ll: &[u32], d: &[u32]| {
+        if i < hlit {
+            ll.get(i).copied().unwrap_or(0)
+        } else {
+            d.get(i - hlit).copied().unwrap_or(0)
+        }
+    };
+    let mut i = 0usize;
+    while i < hlit + hdist {
+        reader.ensure_bits25();
+        let code = tree_cl.decode_symbol(reader);
+        match code {
+            0..=15 => {
+                set(i, code, &mut bitlen_ll, &mut bitlen_d);
+                i += 1;
+            }
+            16 => {
+                // repeat previous
+                if i == 0 {
+                    return Err(54);
+                }
+                let replength = 3 + reader.read_bits(2);
+                let value = get(i - 1, &bitlen_ll, &bitlen_d);
+                for _ in 0..replength {
+                    if i >= hlit + hdist {
+                        return Err(13);
+                    }
+                    set(i, value, &mut bitlen_ll, &mut bitlen_d);
+                    i += 1;
+                }
+            }
+            17 | 18 => {
+                // repeat "0" 3-10 or 11-138 times
+                let replength = if code == 17 {
+                    3 + reader.read_bits(3)
+                } else {
+                    11 + reader.read_bits(7)
+                };
+                for _ in 0..replength {
+                    if i >= hlit + hdist {
+                        return Err(if code == 17 { 14 } else { 15 });
+                    }
+                    set(i, 0, &mut bitlen_ll, &mut bitlen_d);
+                    i += 1;
+                }
+            }
+            _ => return Err(16),
+        }
+        if reader.bp > reader.bitsize {
+            return Err(50);
+        }
+    }
+    if bitlen_ll[256] == 0 {
+        return Err(64); // the length of the end code 256 must be larger than 0
+    }
+    let ll = DecodeTree::from_lengths(&bitlen_ll, 15)?;
+    let d = DecodeTree::from_lengths(&bitlen_d, 15)?;
+    Ok((ll, d))
+}
+
+/// `inflateHuffmanBlock`.
+fn inflate_huffman_block(
+    out: &mut Vec<u8>,
+    reader: &mut BitReader,
+    btype: u32,
+    max_output_size: usize,
+) -> Result<(), u32> {
+    let (tree_ll, tree_d) = if btype == 1 {
+        fixed_trees()?
+    } else {
+        dynamic_trees(reader)?
+    };
+    loop {
+        reader.ensure_bits32();
+        let mut code_ll = tree_ll.decode_symbol(reader);
+        if code_ll <= 255 {
+            // slightly faster code path if multiple literals in a row
+            out.push(code_ll as u8);
+            code_ll = tree_ll.decode_symbol(reader);
+        }
+        if code_ll <= 255 {
+            out.push(code_ll as u8);
+        } else if (FIRST_LENGTH_CODE_INDEX..=LAST_LENGTH_CODE_INDEX).contains(&code_ll) {
+            let index = (code_ll - FIRST_LENGTH_CODE_INDEX) as usize;
+            let mut length = LENGTHBASE[index] as usize;
+            let numextrabits_l = LENGTHEXTRA[index];
+            if numextrabits_l != 0 {
+                reader.ensure_bits25();
+                length += reader.read_bits(numextrabits_l) as usize;
+            }
+            reader.ensure_bits32();
+            let code_d = tree_d.decode_symbol(reader);
+            if code_d > 29 {
+                return Err(if code_d <= 31 { 18 } else { 16 });
+            }
+            let mut distance = DISTANCEBASE[code_d as usize] as usize;
+            let numextrabits_d = DISTANCEEXTRA[code_d as usize];
+            if numextrabits_d != 0 {
+                distance += reader.read_bits(numextrabits_d) as usize;
+            }
+            let start = out.len();
+            if distance > start {
+                return Err(52); // too long backward distance
+            }
+            let backward = start - distance;
+            for k in 0..length {
+                let b = out[backward + k];
+                out.push(b);
+            }
+        } else if code_ll == 256 {
+            break; // end code
+        } else {
+            return Err(16);
+        }
+        if reader.bp > reader.bitsize {
+            return Err(51);
+        }
+        if max_output_size != 0 && out.len() > max_output_size {
+            return Err(109);
+        }
+    }
+    // The C++ checks the bit pointer once more after the end code
+    if reader.bp > reader.bitsize {
+        return Err(51);
+    }
+    if max_output_size != 0 && out.len() > max_output_size {
+        return Err(109);
+    }
+    Ok(())
+}
+
+/// `inflateNoCompression`.
+fn inflate_no_compression(
+    out: &mut Vec<u8>,
+    reader: &mut BitReader,
+    settings: &DecompressSettings,
+) -> Result<(), u32> {
+    let size = reader.size;
+    // go to first boundary of byte
+    let mut bytepos = (reader.bp + 7) >> 3;
+    if bytepos + 4 >= size {
+        return Err(52);
+    }
+    let len = reader.byte(bytepos) + (reader.byte(bytepos + 1) << 8);
+    let nlen = reader.byte(bytepos + 2) + (reader.byte(bytepos + 3) << 8);
+    bytepos += 4;
+    if !settings.ignore_nlen && len + nlen != 65535 {
+        return Err(21);
+    }
+    let len = len as usize;
+    if bytepos + len > size {
+        return Err(23);
+    }
+    out.extend_from_slice(&reader.data[bytepos..bytepos + len]);
+    reader.bp = (bytepos + len) << 3;
+    Ok(())
+}
+
+/// `lodepng_inflatev`: appends to `out`.
+fn inflatev(out: &mut Vec<u8>, input: &[u8], settings: &DecompressSettings) -> Result<(), u32> {
+    let mut reader = BitReader::new(input)?;
+    loop {
+        if reader.bitsize - reader.bp < 3 {
+            return Err(52);
+        }
+        reader.ensure_bits9();
+        let bfinal = reader.read_bits(1);
+        let btype = reader.read_bits(2);
+        match btype {
+            3 => return Err(20),
+            0 => inflate_no_compression(out, &mut reader, settings)?,
+            _ => inflate_huffman_block(out, &mut reader, btype, settings.max_output_size)?,
+        }
+        if settings.max_output_size != 0 && out.len() > settings.max_output_size {
+            return Err(109);
+        }
+        if bfinal != 0 {
+            return Ok(());
+        }
+    }
+}
+
+/// Port of `lodepng_inflate`: on error returns the code and the partial output.
+pub fn lodepng_inflate(
+    input: &[u8],
+    settings: &DecompressSettings,
+) -> Result<Vec<u8>, (u32, Vec<u8>)> {
+    let mut out = Vec::new();
+    match inflatev(&mut out, input, settings) {
+        Ok(()) => Ok(out),
+        Err(e) => Err((e, out)),
+    }
+}
+
+/// Port of `lodepng_zlib_decompressv`: appends to `out`.
+pub fn zlib_decompressv(
+    out: &mut Vec<u8>,
+    input: &[u8],
+    settings: &DecompressSettings,
+) -> Result<(), u32> {
+    if input.len() < 2 {
+        return Err(53);
+    }
+    let (in0, in1) = (u32::from(input[0]), u32::from(input[1]));
+    if (in0 * 256 + in1) % 31 != 0 {
+        return Err(24);
+    }
+    let cm = in0 & 15;
+    let cinfo = (in0 >> 4) & 15;
+    let fdict = (in1 >> 5) & 1;
+    if cm != 8 || cinfo > 7 {
+        return Err(25);
+    }
+    if fdict != 0 {
+        return Err(26);
+    }
+    inflatev(out, &input[2..], settings)?;
+    if !settings.ignore_adler32 {
+        // The C reads the last 4 bytes of the input (before the input for tiny inputs)
+        let b = |k: usize| {
+            input
+                .len()
+                .checked_sub(4 - k)
+                .and_then(|i| input.get(i))
+                .copied()
+                .unwrap_or(0)
+        };
+        let adler = u32::from_be_bytes([b(0), b(1), b(2), b(3)]);
+        if adler32(out) != adler {
+            return Err(58);
+        }
+    }
+    Ok(())
+}
+
+/// Port of `lodepng_zlib_decompress`.
+pub fn lodepng_zlib_decompress(
+    input: &[u8],
+    settings: &DecompressSettings,
+) -> Result<Vec<u8>, u32> {
+    let mut out = Vec::new();
+    zlib_decompressv(&mut out, input, settings)?;
+    Ok(out)
+}
