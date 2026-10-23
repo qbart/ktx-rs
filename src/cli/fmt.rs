@@ -99,7 +99,70 @@ fn float_str(v: f32) -> String {
     } else if v.is_infinite() {
         if v < 0.0 { "-inf" } else { "inf" }.to_string()
     } else {
-        format!("{v}")
+        float_shortest(v)
+    }
+}
+
+/// Splits `{:e}` output into (digits, decimal exponent).
+fn split_exp(e: &str) -> (String, i32) {
+    let (mantissa, exp) = e.split_once('e').unwrap_or((e, "0"));
+    let digits = mantissa.chars().filter(|c| *c != '.').collect();
+    (digits, exp.parse().unwrap_or(0))
+}
+
+/// Shortest round-trip digits of a positive finite `v`. Dragonbox breaks an
+/// exact tie between two shortest candidates towards the even digit, Rust
+/// rounds it up.
+fn shortest_digits(v: f32) -> (String, i32) {
+    let (digits, exp) = split_exp(&format!("{v:e}"));
+    // The exact decimal expansion (an f32 has at most 112 significant digits)
+    let (exact, exact_exp) = split_exp(&format!("{:.120e}", f64::from(v)));
+    let n = digits.len();
+    let (Some(truncated), Some(rest)) = (exact.get(..n), exact.get(n..)) else {
+        return (digits, exp);
+    };
+    let tie = rest
+        .strip_prefix('5')
+        .is_some_and(|r| r.bytes().all(|c| c == b'0'));
+    let even = truncated
+        .bytes()
+        .last()
+        .is_some_and(|c| (c - b'0').is_multiple_of(2));
+    if tie && even && (truncated != digits || exp != exact_exp) {
+        let candidate = format!("{}.{}e{exact_exp}", &truncated[..1], &truncated[1..]);
+        if candidate.parse::<f32>() == Ok(v) {
+            return (truncated.to_string(), exact_exp);
+        }
+    }
+    (digits, exp)
+}
+
+/// `{fmt}` 11 `{}` of a finite `float`: shortest round-trip digits, fixed
+/// notation for decimal exponents in [-4, 7) and `d.ddde±XX` otherwise.
+pub fn float_shortest(v: f32) -> String {
+    let sign = if v.is_sign_negative() { "-" } else { "" };
+    if v == 0.0 {
+        return format!("{sign}0");
+    }
+    let (digits, output_exp) = shortest_digits(v.abs());
+    let n = digits.len() as i32;
+    if !(-4..7).contains(&output_exp) {
+        let (first, rest) = digits.split_at(1);
+        let point = if rest.is_empty() { "" } else { "." };
+        let exp_sign = if output_exp < 0 { '-' } else { '+' };
+        return format!(
+            "{sign}{first}{point}{rest}e{exp_sign}{:02}",
+            output_exp.abs()
+        );
+    }
+    let int_digits = output_exp + 1;
+    if int_digits >= n {
+        format!("{sign}{digits}{}", "0".repeat((int_digits - n) as usize))
+    } else if int_digits > 0 {
+        let (a, b) = digits.split_at(int_digits as usize);
+        format!("{sign}{a}.{b}")
+    } else {
+        format!("{sign}0.{}{digits}", "0".repeat((-int_digits) as usize))
     }
 }
 
@@ -251,6 +314,30 @@ pub fn format(fmt: &str, args: &[Arg]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn float_shortest_like_fmt() {
+        for (v, want) in [
+            (0.0f32, "0"),
+            (-0.0, "-0"),
+            (3.25, "3.25"),
+            (f32::from_bits(0x4048_f5c3), "3.14"),
+            (42.0, "42"),
+            (1120.0, "1120"),
+            (1234567.0, "1234567"),
+            (12345678.0, "1.2345678e+07"),
+            (1.6023064e19, "1.6023064e+19"),
+            (0.00010716915, "0.00010716915"),
+            (1.0860433e-05, "1.0860433e-05"),
+            (1.8436203e-27, "1.8436203e-27"),
+            (1e10, "1e+10"),
+            (-4.2, "-4.2"),
+            (2.0f32.powi(-12), "0.00024414062"),
+            (0.5, "0.5"),
+        ] {
+            assert_eq!(float_shortest(v), want);
+        }
+    }
 
     #[test]
     fn specs() {
