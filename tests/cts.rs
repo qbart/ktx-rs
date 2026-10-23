@@ -318,3 +318,8 @@ fn cts_deflate() {
 fn cts_extract() {
     run_command_dir("extract");
 }
+
+#[test]
+fn cts_compare() {
+    run_command_dir("compare");
+}

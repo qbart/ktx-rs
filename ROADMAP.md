@@ -70,7 +70,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] deflate (KTXwriter / KTXwriterScParams rewrite rules, all CTS deflate cases pass)
 - [x] extract: options, fragment URIs, selection checks, raw, PNG, EXR, ASTC decode, 4:2:2
   unpack (all vendored CTS extract cases pass)
-- [ ] create, encode, compare, convert
+- [x] compare (header, level index, DFD, KVD, SGD, raw / per texel block image content;
+  `ImageCodec` port; all CTS compare cases pass)
+- [ ] create, encode, convert
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
@@ -83,4 +85,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,
-  transcode, deflate, extract done
+  transcode, deflate, extract, compare done

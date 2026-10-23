@@ -16,7 +16,9 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   `OutputStream` (truncating create or stdout; `writeKTX2` removes the file on failure),
   `validate_tool_input` (issues to stderr), `runtime_error` (`std::exception` -> exit 4).
 - `fmt.rs`: `{fmt}` subset (`{}`, `{:d}`, `{:08b}`, `{:08X}`, `{{`); `try_format` fails with
-  "argument not found" like `fmt::format` when a placeholder lacks an argument.
+  "argument not found" like `fmt::format` when a placeholder lacks an argument. `float_shortest`
+  is `{fmt}` 11 `{}` of a `float`: shortest round-trip digits (exact ties to even, like
+  Dragonbox), fixed notation for decimal exponents in [-4, 7), else `d.ddde±XX`.
 - `validate.rs`: `ValidationContext` over in-memory data (C++ IOStream/Memory variants give the
   same output). Fatal issues unwind as `Stop::Fatal` (exit 3); an escaping `format_error`
   becomes `Err(what)` -> `ktx validate fatal: <what>`, exit 4. Bitfield structs decoded from
@@ -42,10 +44,19 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   -1 for NaN/Inf codes); `saveEXR` via `tinyexr` (ABGR channel order, ktxMapRange forces FLOAT,
   chromaticities attribute); `decodeAndSaveASTC` via `astcenc` (U8 / F16 / F32 with ktxMapRange);
   `unpackAndSave422` (V, Y, U order, linear chroma interpolation, `remap`, `convertFloatToUNORM`);
-  filesystem errors mimic libstdc++ `filesystem_error::what()`). Others: todo.
+  filesystem errors mimic libstdc++ `filesystem_error::what()`); `compare` (`command_compare.rs`:
+  `PrintDiff` and the `Diff*` value formatters, identifier display through the 30 byte buffer,
+  DFD / BDFD / sample bitfields decoded from LE words, the C++ quirks kept: raw DFD payload copied
+  from the block start and printed once per present block, `DiffTextCustom` without context, stale
+  `Sample N:` context, `"false;"` for cubemap faces, empty KV values treated as missing entries,
+  `std::map` key order / first duplicate wins, `stoull` / `getline` option parsing; a block
+  size < 8 gives the `std::vector` length error (exit 4); `image_codec.rs` ports `ImageCodec`
+  (enums instead of function pointers, incl. the `(256u << sizeof(T)) - 1` UNORM divisor) and the
+  `ImageSpan` geometry; reads past the loaded DFD / SGD / image data give zeros where the C++ is
+  undefined; stdout is buffered and printed also on errors). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
-backtick regex) and runs every validate, info, help, transcode, deflate and extract case of KTX-Software-CTS 59f0a653 against the binary
+backtick regex) and runs every validate, info, help, transcode, deflate, extract and compare case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
 exactly. `scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
