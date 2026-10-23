@@ -23,6 +23,7 @@ pub mod texture;
 pub mod texture1;
 pub mod texture2;
 pub mod texture_any;
+pub mod tinyexr;
 pub mod version;
 pub mod vk_format;
 pub mod vkformat;
