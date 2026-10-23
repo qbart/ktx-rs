@@ -40,14 +40,13 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   `extract_bits`, `convertUNORM` and the float conversions (`convertSNORMToFloat` keeps the C++
   non sign-extended raw bits, `convertSIntToFloat` sign-magnitude, glm `packed1xbitToFloat` gives
   -1 for NaN/Inf codes); `saveEXR` via `tinyexr` (ABGR channel order, ktxMapRange forces FLOAT,
-  chromaticities attribute); ASTC/4:2:2 paths return NOT_IMPLEMENTED for now;
+  chromaticities attribute); `decodeAndSaveASTC` via `astcenc` (U8 / F16 / F32 with ktxMapRange);
+  `unpackAndSave422` (V, Y, U order, linear chroma interpolation, `remap`, `convertFloatToUNORM`);
   filesystem errors mimic libstdc++ `filesystem_error::what()`). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
 backtick regex) and runs every validate, info, help, transcode, deflate and extract case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
-exactly. Subcases where the binary exits with NOT_IMPLEMENTED ("... is not implemented yet") are counted
-as pending (no CTS case expects exit code 6).
-`scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
+exactly. `scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
 reference. `tests/validate.rs`: corrupted files never panic.

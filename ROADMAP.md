@@ -54,7 +54,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] lodepng PNG decoder (for `ktx create`)
 - [x] tinyexr EXR writer (scanline, uncompressed; byte exact vs C++, `src/tinyexr.rs`)
 - [ ] tinyexr EXR reader (for `ktx create`)
-- [ ] ASTC encoder/decoder (astc_codec.cpp port)
+- [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
+- [ ] astcenc compressor; libktx `astc_codec.cpp` (ktxTexture2_DecodeAstc / CompressAstc)
 - [ ] ETC unpack (etcunpack.cxx)
 
 ## GPU upload
@@ -67,8 +68,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] info (text/JSON, KTX1 + KTX2, all CTS info cases pass)
 - [x] transcode (all targets, swizzle/channel conversion, --zstd/--zlib), help (man pages)
 - [x] deflate (KTXwriter / KTXwriterScParams rewrite rules, all CTS deflate cases pass)
-- [~] extract: options, fragment URIs, selection checks, raw, PNG and EXR output (all CTS cases
-  pass except ASTC sources); todo ASTC decode (astcenc), 4:2:2 unpack
+- [x] extract: options, fragment URIs, selection checks, raw, PNG, EXR, ASTC decode, 4:2:2
+  unpack (all vendored CTS extract cases pass)
 - [ ] create, encode, compare, convert
 
 ## Tests ported
@@ -81,5 +82,5 @@ Legend: [x] done, [~] partial, [ ] todo.
   unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
-- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help, transcode, deflate done;
-  extract raw + PNG + EXR (ASTC / 4:2:2 subcases pending)
+- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,
+  transcode, deflate, extract done

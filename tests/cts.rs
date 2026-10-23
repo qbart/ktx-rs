@@ -29,12 +29,6 @@ fn not_vendored() -> Vec<String> {
         .collect()
 }
 
-/// Exit code and message of the not yet ported `ktx extract` image paths
-/// (EXR, ASTC decoding, 4:2:2 unpacking; see ROADMAP). Such subcases are
-/// counted as pending instead of failed. No CTS case expects exit code 6.
-const PENDING_RC: i32 = 6;
-const PENDING_MESSAGE: &str = "is not implemented yet";
-
 /// Python `str()` of a JSON value.
 fn py_str(v: &Value) -> String {
     match v {
@@ -137,7 +131,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
     }
 
     let not_vendored = not_vendored();
-    let mut pending = 0;
     let (mut passed, mut skipped) = (0, 0);
     let mut failures = Vec::new();
     for combo in combos {
@@ -178,10 +171,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             Err(e) => panic!("{command}: {e}"),
         };
         let status = out.status.code().unwrap_or(-1);
-        if status == PENDING_RC && String::from_utf8_lossy(&out.stderr).contains(PENDING_MESSAGE) {
-            pending += 1;
-            continue;
-        }
         let mut problems = Vec::new();
         let expected_status = match &case["status"] {
             Value::String(s) => ctx.eval(s),
@@ -259,13 +248,7 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             ));
         }
     }
-    if pending > 0 {
-        eprintln!(
-            "{}: {pending} subcase(s) pending (not implemented)",
-            file.display()
-        );
-    }
-    (passed, skipped + pending, failures)
+    (passed, skipped, failures)
 }
 
 fn run_command_dir(command: &str) {

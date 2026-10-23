@@ -1,8 +1,7 @@
 //! Port of tools/ktx/command_extract.cpp (`ktx extract`).
 //!
-//! Raw, PNG (lodepng) and EXR (tinyexr) output are complete. ASTC decoding
-//! (astcenc) and 4:2:2 unpacking are not ported yet: those outputs fail with
-//! `NOT_IMPLEMENTED` (see ROADMAP).
+//! Raw, PNG (lodepng), EXR (tinyexr), ASTC decoding (astcenc) and 4:2:2
+//! unpacking are ported.
 
 use super::command::*;
 use super::format_descriptor::*;
@@ -1115,6 +1114,319 @@ fn save_exr(
     file.write(&file_data, report)
 }
 
+/// Port of `decodeAndSaveASTC`.
+#[allow(clippy::too_many_arguments)]
+fn decode_and_save_astc(
+    report: &Reporter,
+    filepath: String,
+    append_extension: bool,
+    vk_format: VkFormat,
+    format: &FormatDescriptor,
+    (width, height): (u32, u32),
+    (scale, offset): (f32, f32),
+    compressed_data: &[u8],
+) -> CmdResult {
+    use crate::astcenc::*;
+    let thread_count = 1;
+    let block_size_x = format.texel_block_dimension[0] + 1;
+    let block_size_y = format.texel_block_dimension[1] + 1;
+    let block_size_z = format.texel_block_dimension[2] + 1;
+    let swizzle = AstcencSwizzle::RGBA;
+
+    let do_mapping = !(scale == 1.0 && offset == 0.0);
+    let ldr = super::formats_gen::is_format_astc_ldr(vk_format);
+    let srgb = super::formats_gen::is_format_srgb(vk_format);
+    let profile = if srgb {
+        AstcencProfile::LdrSrgb
+    } else if ldr {
+        AstcencProfile::Ldr
+    } else {
+        AstcencProfile::Hdr
+    };
+    let runtime = |what: &str, ec: AstcencError| {
+        report.fatal(
+            ReturnCode::RuntimeError,
+            &format!("{what}: {}", astcenc_get_error_string(ec)),
+        )
+    };
+    let config = astcenc_config_init(
+        profile,
+        block_size_x,
+        block_size_y,
+        block_size_z,
+        ASTCENC_PRE_MEDIUM,
+        ASTCENC_FLG_DECOMPRESS_ONLY,
+    )
+    .map_err(|ec| runtime("ASTC Codec config init failed", ec))?;
+    let mut context = astcenc_context_alloc(&config, thread_count)
+        .map_err(|ec| runtime("ASTC Codec context alloc failed", ec))?;
+
+    let n = width as usize * height as usize * 4;
+    let (data, uncompressed_vk_format) = if ldr {
+        (
+            AstcencImageData::U8(vec![vec![0; n]]),
+            if srgb {
+                VkFormat::R8G8B8A8_SRGB
+            } else {
+                VkFormat::R8G8B8A8_UNORM
+            },
+        )
+    } else if do_mapping {
+        (
+            AstcencImageData::F32(vec![vec![0.0; n]]),
+            VkFormat::R32G32B32A32_SFLOAT,
+        )
+    } else {
+        (
+            AstcencImageData::F16(vec![vec![0; n]]),
+            VkFormat::R16G16B16A16_SFLOAT,
+        )
+    };
+    let mut image = AstcencImage {
+        dim_x: width,
+        dim_y: height,
+        dim_z: 1, // 3D ASTC formats are currently not supported
+        data,
+    };
+    astcenc_decompress_image(&mut context, compressed_data, &mut image, &swizzle, 0)
+        .map_err(|ec| runtime("ASTC Codec decompress failed", ec))?;
+    let _ = astcenc_decompress_reset(&mut context);
+
+    let uncompressed: Vec<u8> = match image.data {
+        AstcencImageData::U8(mut p) => p.pop().unwrap_or_default(),
+        AstcencImageData::F16(p) => p.iter().flatten().flat_map(|v| v.to_le_bytes()).collect(),
+        AstcencImageData::F32(p) => p
+            .iter()
+            .flatten()
+            .flat_map(|v| {
+                let v = if do_mapping { v * scale + offset } else { *v };
+                v.to_le_bytes()
+            })
+            .collect(),
+    };
+
+    // Range mapping has been handled here so no need to pass the parameters on to
+    // this recursive call.
+    let uncompressed_format = FormatDescriptor::from_vk_format(uncompressed_vk_format, report)?;
+    save_image_file(
+        report,
+        filepath,
+        append_extension,
+        &uncompressed,
+        uncompressed_vk_format,
+        &uncompressed_format,
+        (width, height),
+        (1.0, 0.0),
+    )
+}
+
+/// `remap` (utility.h).
+fn remap(value: f32, from_lo: f32, from_hi: f32, to_lo: f32, to_hi: f32) -> f32 {
+    to_lo + (value - from_lo) * (to_hi - to_lo) / (from_hi - from_lo)
+}
+
+/// `convertFloatToUNORM`.
+fn convert_float_to_unorm(value: f32, num_bits: u32) -> u32 {
+    let max = ((1u64 << num_bits) - 1) as u32;
+    if value.is_nan() || value < 0.0 {
+        return 0;
+    }
+    if value > 1.0 {
+        return max;
+    }
+    (value * max as f32 + 0.5) as u32
+}
+
+/// Port of `unpackAndSave422`: 4:2:2 blocks (Y0, Y1, U, V) are unpacked to two
+/// RGB pixels (V, Y, U order like the C++) with linear chroma interpolation.
+fn unpack_and_save_422(
+    report: &Reporter,
+    filepath: String,
+    append_extension: bool,
+    format: &FormatDescriptor,
+    (width, height): (u32, u32),
+    data: &[u8],
+) -> CmdResult {
+    // Create a custom format with the same precision but with only 3 channels
+    // Reuse similar 4 channel VkFormats and drop the last channel (There is no RGB variant of 10X6 and 12X4)
+    let precision = format
+        .find(KHR_DF_CHANNEL_YUVSDA_Y)
+        .map_or(0, |s| s.bit_length + 1);
+    let unpacked_vk = match precision {
+        8 => VkFormat::R8G8B8A8_UNORM,
+        10 => VkFormat::R10X6G10X6B10X6A10X6_UNORM_4PACK16,
+        12 => VkFormat::R12X4G12X4B12X4A12X4_UNORM_4PACK16,
+        16 => VkFormat::R16G16B16A16_UNORM,
+        _ => VkFormat::UNDEFINED,
+    };
+    let mut unpacked_format = FormatDescriptor::from_vk_format(unpacked_vk, report)?;
+    unpacked_format.remove_last_channel();
+
+    // 1 pixel (block) with 4 channel is unpacked to 2 pixel with 3 channels: Y0,Y1,U,V -> R0,G0,B0,R1,G1,B1
+    let block_yuv_bytes = format.pixel_byte_count() as usize;
+    let block_dimension_x = format.texel_block_dimension[0] + 1;
+    let pixel_bytes = unpacked_format.pixel_byte_count() as usize;
+    let channel_bytes = pixel_bytes / 3;
+
+    let (mut y0, mut y1, mut u, mut v) = ((0u32, 0u32, 0u32), (0, 0, 0), (0, 0, 0), (0, 0, 0));
+    for sample in &format.samples {
+        let entry = (
+            sample.bit_offset,
+            sample.bit_length + 1,
+            sample.sample_position[0],
+        );
+        match sample.channel_id {
+            KHR_DF_CHANNEL_YUVSDA_Y => {
+                if y0.1 != 0 {
+                    y1 = entry;
+                } else {
+                    y0 = entry;
+                }
+            }
+            KHR_DF_CHANNEL_YUVSDA_U => u = entry,
+            KHR_DF_CHANNEL_YUVSDA_V => v = entry,
+            _ => {}
+        }
+    }
+    if y0.2 > y1.2 {
+        // Ensure that y0 (as we refer to) is the left sample
+        std::mem::swap(&mut y0, &mut y1);
+    }
+
+    let position = |p: u32| (p * block_dimension_x) as f32 / 256.0;
+    let position_y0 = position(y0.2);
+    let position_y1 = position(y1.2);
+    let position_u = position(u.2);
+    let position_v = position(v.2);
+    let block_size = block_dimension_x as f32;
+
+    let (w, h) = (width as usize, height as usize);
+    let mut unpacked_data = vec![0u8; w * h * pixel_bytes];
+    let block_count_x = (width / block_dimension_x) as usize;
+    let value = |block: usize, (offset, bits, _): (u32, u32, u32)| {
+        let raw = data.get(block * block_yuv_bytes..).unwrap_or_default();
+        convert_unorm_to_float(extract_bits(raw, offset, bits), bits, 1.0, 0.0)
+    };
+    for y in 0..h {
+        for x in 0..block_count_x {
+            let left = y * block_count_x + if x == 0 { 0 } else { x - 1 };
+            let center = y * block_count_x + x;
+            let right = y * block_count_x
+                + if x == block_count_x - 1 {
+                    block_count_x - 1
+                } else {
+                    x + 1
+                };
+
+            let value_left_y1 = value(left, y1);
+            let value_left_u = value(left, u);
+            let value_left_v = value(left, v);
+            let value_y0 = value(center, y0);
+            let value_y1 = value(center, y1);
+            let value_u = value(center, u);
+            let value_v = value(center, v);
+            let value_right_y0 = value(right, y0);
+            let value_right_u = value(right, u);
+            let value_right_v = value(right, v);
+
+            #[allow(clippy::too_many_arguments)]
+            let interpolate_y = |pos: f32,
+                                 pos0: f32,
+                                 value0: f32,
+                                 pos1: f32,
+                                 value1: f32,
+                                 pos2: f32,
+                                 value2: f32,
+                                 pos3: f32,
+                                 value3: f32| {
+                if pos < pos1 {
+                    remap(pos, pos0, pos1, value0, value1)
+                } else if pos < pos2 {
+                    remap(pos, pos1, pos2, value1, value2)
+                } else {
+                    remap(pos, pos2, pos3, value2, value3)
+                }
+            };
+            let interpolate_uv = |pos: f32,
+                                  pos0: f32,
+                                  value0: f32,
+                                  pos1: f32,
+                                  value1: f32,
+                                  pos2: f32,
+                                  value2: f32| {
+                if pos < pos1 {
+                    remap(pos, pos0, pos1, value0, value1)
+                } else {
+                    remap(pos, pos1, pos2, value1, value2)
+                }
+            };
+
+            let mut set_pixel = |pixel: usize, pos: f32| {
+                let r = convert_float_to_unorm(
+                    interpolate_uv(
+                        pos,
+                        position_v - block_size,
+                        value_left_v,
+                        position_v,
+                        value_v,
+                        position_v + block_size,
+                        value_right_v,
+                    ),
+                    u.1,
+                );
+                let g = convert_float_to_unorm(
+                    interpolate_y(
+                        pos,
+                        position_y1 - block_size,
+                        value_left_y1,
+                        position_y0,
+                        value_y0,
+                        position_y1,
+                        value_y1,
+                        position_y0 + block_size,
+                        value_right_y0,
+                    ),
+                    y0.1,
+                );
+                let b = convert_float_to_unorm(
+                    interpolate_uv(
+                        pos,
+                        position_u - block_size,
+                        value_left_u,
+                        position_u,
+                        value_u,
+                        position_u + block_size,
+                        value_right_u,
+                    ),
+                    u.1,
+                );
+                let o = pixel * pixel_bytes;
+                for (c, val) in [r, g, b].into_iter().enumerate() {
+                    let bytes = val.to_le_bytes();
+                    let dst = o + c * channel_bytes;
+                    if let Some(d) = unpacked_data.get_mut(dst..dst + channel_bytes) {
+                        d.copy_from_slice(&bytes[..channel_bytes]);
+                    }
+                }
+            };
+            set_pixel(y * w + x * 2, 0.5);
+            set_pixel(y * w + x * 2 + 1, 1.5);
+        }
+    }
+
+    // Save unpacked data as RGBSDA with the custom format
+    save_png(
+        report,
+        filepath,
+        append_extension,
+        VkFormat::UNDEFINED,
+        &unpacked_format,
+        width,
+        height,
+        &unpacked_data,
+    )
+}
+
 /// Port of `saveImageFile`.
 #[allow(clippy::too_many_arguments)]
 fn save_image_file(
@@ -1127,28 +1439,45 @@ fn save_image_file(
     (width, height): (u32, u32),
     (scale, offset): (f32, f32),
 ) -> CmdResult {
-    let what = match image_save_kind(vk_format) {
-        Some(ImageSave::Png) => {
-            return save_png(
+    match image_save_kind(vk_format) {
+        Some(ImageSave::Png) => save_png(
+            report,
+            filepath,
+            append_extension,
+            vk_format,
+            format,
+            width,
+            height,
+            data,
+        ),
+        Some(ImageSave::Astc) => {
+            // ASTC decode will recurse into this function with the uncompressed data and format
+            decode_and_save_astc(
                 report,
                 filepath,
                 append_extension,
                 vk_format,
                 format,
-                width,
-                height,
+                (width, height),
+                (scale, offset),
                 data,
-            );
+            )
         }
-        Some(ImageSave::Astc) => "ASTC decoding",
-        Some(ImageSave::Unpack422) => "4:2:2 unpacking",
+        Some(ImageSave::Unpack422) => unpack_and_save_422(
+            report,
+            filepath,
+            append_extension,
+            format,
+            (width, height),
+            data,
+        ),
         Some(ImageSave::Exr(pixel_types, map_range)) => {
             let (scale, offset) = if map_range {
                 (scale, offset)
             } else {
                 (1.0, 0.0)
             };
-            return save_exr(
+            save_exr(
                 report,
                 filepath,
                 append_extension,
@@ -1160,20 +1489,14 @@ fn save_image_file(
                 data,
                 scale,
                 offset,
-            );
+            )
         }
-        None => {
-            return Err(report.fatal(
-                ReturnCode::InvalidFile,
-                &format!(
-                    "Requested format conversion from {} is not supported.",
-                    to_string_vk_format(vk_format)
-                ),
-            ));
-        }
-    };
-    Err(report.fatal(
-        ReturnCode::NotImplemented,
-        &format!("{what} output is not implemented yet. Use --raw."),
-    ))
+        None => Err(report.fatal(
+            ReturnCode::InvalidFile,
+            &format!(
+                "Requested format conversion from {} is not supported.",
+                to_string_vk_format(vk_format)
+            ),
+        )),
+    }
 }
