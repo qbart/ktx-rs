@@ -323,3 +323,8 @@ fn cts_extract() {
 fn cts_compare() {
     run_command_dir("compare");
 }
+
+#[test]
+fn cts_tools() {
+    run_command_dir("tools");
+}

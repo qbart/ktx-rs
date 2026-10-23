@@ -85,4 +85,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,
-  transcode, deflate, extract, compare done
+  transcode, deflate, extract, compare, tools done

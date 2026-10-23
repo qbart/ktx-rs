@@ -56,7 +56,7 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   undefined; stdout is buffered and printed also on errors). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
-backtick regex) and runs every validate, info, help, transcode, deflate, extract and compare case of KTX-Software-CTS 59f0a653 against the binary
+backtick regex) and runs every validate, info, help, transcode, deflate, extract, compare and tools (top-level usage) case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
 exactly. `scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
