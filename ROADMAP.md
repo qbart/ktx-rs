@@ -73,6 +73,8 @@ Legend: [x] done, [~] partial, [ ] todo.
   unpack (all vendored CTS extract cases pass)
 - [x] compare (header, level index, DFD, KVD, SGD, raw / per texel block image content;
   `ImageCodec` port; all CTS compare cases pass)
+- [x] imageio subset for create: FormatDescriptor, ImageSpec, ImageInput, PNG + EXR readers
+  (netpbm / JPEG readers and output plugins intentionally not ported)
 - [ ] create, encode, convert
 
 ## Tests ported
