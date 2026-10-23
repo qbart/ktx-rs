@@ -2,6 +2,7 @@
 
 pub mod command;
 pub mod command_deflate;
+pub mod command_extract;
 pub mod command_help;
 pub mod command_info;
 pub mod command_transcode;
@@ -10,6 +11,7 @@ pub mod deflate_utils;
 pub mod fmt;
 pub mod formats;
 mod formats_gen;
+pub mod fragment_uri;
 pub mod ktx_main;
 pub mod options;
 pub mod transcode_utils;
