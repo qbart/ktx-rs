@@ -65,8 +65,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] info (text/JSON, KTX1 + KTX2, all CTS info cases pass)
 - [x] transcode (all targets, swizzle/channel conversion, --zstd/--zlib), help (man pages)
 - [x] deflate (KTXwriter / KTXwriterScParams rewrite rules, all CTS deflate cases pass)
-- [~] extract: options, fragment URIs, selection checks, raw output (all raw CTS cases pass);
-  todo PNG (lodepng encoder), EXR (tinyexr writer), ASTC decode (astcenc), 4:2:2 unpack
+- [~] extract: options, fragment URIs, selection checks, raw and PNG output (all raw and
+  non-ASTC/non-4:2:2 PNG CTS cases pass); todo EXR (tinyexr writer), ASTC decode (astcenc),
+  4:2:2 unpack
 - [ ] create, encode, compare, convert
 
 ## Tests ported
@@ -80,4 +81,4 @@ Legend: [x] done, [~] partial, [ ] todo.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help, transcode, deflate done;
-  extract raw (PNG/EXR subcases skipped until the image writers are ported)
+  extract raw + PNG (EXR / ASTC / 4:2:2 subcases pending)

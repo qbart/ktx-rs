@@ -35,13 +35,16 @@ Layout: library module `ktx::cli` + thin binary `src/bin/ktx.rs` (args via `args
   ECMAScript greedy semantics); `extract` (`command_extract.rs`, `fragment_uri.rs`:
   `SelectorRange` with u32 wraps, `parseFragmentURI`, `std::stoi` emulation with libstdc++
   `what()` = "stoi"; selection checks incl. the C++ off-by-one depth check; whole-3D raw path;
-  `saveImageFile` format switch ported, PNG/EXR/ASTC/4:2:2 writers return NOT_IMPLEMENTED for now;
+  `saveImageFile` format switch ported; `savePNG` via `lodepng` (sBIT / sRGB / gAMA / cHRM, 16-bit
+  big endian input); `format_descriptor.rs`: `createFormatDescriptor`, `find`, `removeLastChannel`,
+  `extract_bits`, `convertUNORM`; EXR/ASTC/4:2:2 writers return NOT_IMPLEMENTED for now;
   filesystem errors mimic libstdc++ `filesystem_error::what()`). Others: todo.
 
 Tests: `tests/cts.rs` ports `clitest.py` (incl. its `expected[start:-1]` quirk after the last
 backtick regex) and runs every validate, info, help, transcode, deflate and extract case of KTX-Software-CTS 59f0a653 against the binary
 (data in `tests/resources/cts`; `ktx2_sample` inputs > 128 KiB are listed in `NOT_VENDORED.txt`
 and their subcases skipped; they pass with the upstream runner). `outputs` files must match
-exactly. Subcases expecting `.png`/`.exr` output are skipped until the image writers are ported.
+exactly. Subcases where the binary exits with NOT_IMPLEMENTED ("... is not implemented yet") are counted
+as pending (no CTS case expects exit code 6).
 `scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
 reference. `tests/validate.rs`: corrupted files never panic.

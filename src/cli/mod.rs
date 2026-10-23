@@ -9,6 +9,7 @@ pub mod command_transcode;
 pub mod command_validate;
 pub mod deflate_utils;
 pub mod fmt;
+pub mod format_descriptor;
 pub mod formats;
 mod formats_gen;
 pub mod fragment_uri;

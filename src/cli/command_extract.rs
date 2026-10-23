@@ -1,16 +1,20 @@
 //! Port of tools/ktx/command_extract.cpp (`ktx extract`).
 //!
-//! Raw extraction is complete. PNG (lodepng), EXR (tinyexr), ASTC decoding
+//! Raw and PNG (lodepng) output are complete. EXR (tinyexr), ASTC decoding
 //! (astcenc) and 4:2:2 unpacking are not ported yet: those outputs fail with
 //! `NOT_IMPLEMENTED` (see ROADMAP).
 
 use super::command::*;
+use super::format_descriptor::{FormatDescriptor, convert_unorm, extract_bits};
+use super::formats::{to_string_model, to_string_vk_format};
 use super::fragment_uri::{FragmentURI, SelectorRange, StoiError, parse_fragment_uri, stoi};
 use super::options::{OptionSpec, Options, ParseResult};
 use super::transcode_utils::{OptionsTranscodeTarget, transcode};
 use super::utility::{ceil_div, io_error_message};
 use crate::defs::KTX_MAP_RANGE_KEY;
-use crate::dfd::{TEXELBLOCKDIMENSION2, bdb, dfdval};
+use crate::dfd::get_primaries;
+use crate::dfd::khr_df::*;
+use crate::lodepng;
 use crate::texture::KtxTexture;
 use crate::{
     KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, Texture2, TranscodeFmt, VkFormat, ktx_error_string,
@@ -504,7 +508,8 @@ impl CommandExtract {
             ));
         }
 
-        let block_size_z = dfdval(bdb(&texture.p_dfd), TEXELBLOCKDIMENSION2) + 1;
+        let format = FormatDescriptor::from_dfd(&texture.p_dfd);
+        let block_size_z = format.texel_block_dimension[2] + 1;
 
         let last_exported_level = if uri.mip.is_all() {
             texture.num_levels.wrapping_sub(1)
@@ -680,6 +685,7 @@ impl CommandExtract {
                                 is_multi_output,
                                 image(depth_index),
                                 vk_format,
+                                &format,
                                 (image_width, image_height),
                                 (scale, offset),
                             )?;
@@ -719,18 +725,206 @@ fn save_raw_file(
     file.write(data, report)
 }
 
+/// Port of `savePNG`.
+#[allow(clippy::too_many_arguments)]
+fn save_png(
+    report: &Reporter,
+    mut filepath: String,
+    append_extension: bool,
+    vk_format: VkFormat,
+    format: &FormatDescriptor,
+    width: u32,
+    height: u32,
+    data: &[u8],
+) -> CmdResult {
+    if append_extension && filepath != "-" {
+        filepath += ".png";
+    }
+
+    let depth_format = vk_format == VkFormat::D16_UNORM;
+    let alpha_format = vk_format == VkFormat::A8_UNORM_KHR;
+
+    let mut packed_channel_count = 0usize;
+    let mut unpacked_channel_count: u32 = 3;
+    let mut color_type = lodepng::LCT_RGB;
+    let mut bit_depth: u32 = 8;
+    let mut src_offsets = [0u32; 4];
+    let mut src_bits = [0u32; 4];
+    let mut dst_channels = [0u32; 4];
+
+    let mut add_channel = |dst_channel: u32, sample: &super::format_descriptor::Sample| {
+        src_offsets[packed_channel_count] = sample.bit_offset;
+        src_bits[packed_channel_count] = sample.bit_length + 1;
+        dst_channels[packed_channel_count] = dst_channel;
+        packed_channel_count += 1;
+        if sample.bit_length >= 8 {
+            bit_depth = 16;
+        }
+    };
+
+    let mut state = lodepng::State::new();
+
+    if format.model != KHR_DF_MODEL_RGBSDA {
+        return Err(report.fatal(
+            ReturnCode::NotSupported,
+            &format!(
+                "PNG saving is not supported for {} with {}.",
+                to_string_model(format.model),
+                to_string_vk_format(vk_format)
+            ),
+        ));
+    }
+
+    if let Some(sample) = format.find(KHR_DF_CHANNEL_RGBSDA_R) {
+        add_channel(0, sample);
+    }
+    if let Some(sample) = format.find(KHR_DF_CHANNEL_RGBSDA_G) {
+        add_channel(1, sample);
+    }
+    if let Some(sample) = format.find(KHR_DF_CHANNEL_RGBSDA_B) {
+        add_channel(2, sample);
+    }
+    if let Some(sample) = format.find(KHR_DF_CHANNEL_RGBSDA_A) {
+        if alpha_format {
+            // For alpha-only formats we use grey-alpha
+            unpacked_channel_count = 2;
+            color_type = lodepng::LCT_GREY_ALPHA;
+            add_channel(1, sample);
+        } else {
+            unpacked_channel_count = 4;
+            color_type = lodepng::LCT_RGBA;
+            add_channel(3, sample);
+        }
+    }
+    if let Some(sample) = format.find(KHR_DF_CHANNEL_RGBSDA_D) {
+        if !depth_format {
+            return Err(report.fatal(
+                ReturnCode::NotSupported,
+                &format!(
+                    "PNG saving encountered unexpected depth channel in non-depth format {}.",
+                    to_string_vk_format(vk_format)
+                ),
+            ));
+        }
+        // For depth-only formats we use grey
+        unpacked_channel_count = 1;
+        color_type = lodepng::LCT_GREY;
+        add_channel(0, sample);
+    }
+
+    let byte_depth = (bit_depth / 8) as usize;
+    let pixel_bytes = format.pixel_byte_count() as usize;
+
+    state.info_raw.bitdepth = bit_depth;
+    state.info_png.color.colortype = color_type;
+    state.info_png.color.bitdepth = bit_depth;
+    state.info_raw.colortype = color_type;
+
+    // Include sBit chunk if needed
+    let include_sbits = src_bits.iter().any(|&b| b != 0 && b != bit_depth);
+    if include_sbits {
+        let sbit = |b: u32| if b == 0 { bit_depth } else { b };
+        state.info_png.sbit_defined = true;
+        state.info_png.sbit_r = sbit(src_bits[0]);
+        state.info_png.sbit_g = sbit(src_bits[1]);
+        state.info_png.sbit_b = sbit(src_bits[2]);
+        state.info_png.sbit_a = sbit(src_bits[3]);
+    }
+
+    let (w, h) = (width as usize, height as usize);
+    let channels = unpacked_channel_count as usize;
+    let mut unpacked_image = vec![0u8; w * h * channels * byte_depth];
+    for y in 0..h {
+        for x in 0..w {
+            let raw_pixel = data.get((y * w + x) * pixel_bytes..).unwrap_or_default();
+            for c in 0..packed_channel_count {
+                let bits = src_bits[c];
+                let value = convert_unorm(
+                    extract_bits(raw_pixel, src_offsets[c], bits),
+                    bits,
+                    bit_depth,
+                );
+                let o = (y * w * channels + x * channels + dst_channels[c] as usize) * byte_depth;
+                if byte_depth == 1 {
+                    unpacked_image[o] = value as u8;
+                } else {
+                    // LodePNG uses big endian input
+                    unpacked_image[o..o + 2].copy_from_slice(&(value as u16).to_be_bytes());
+                }
+            }
+        }
+    }
+
+    // Include sRGB chunk if needed
+    if format.transfer == KHR_DF_TRANSFER_SRGB {
+        state.info_png.srgb_defined = true;
+        state.info_png.srgb_intent = 0;
+    } else if format.transfer == KHR_DF_TRANSFER_LINEAR
+        || format.transfer == KHR_DF_TRANSFER_UNSPECIFIED
+    {
+        // Virtually every tool takes absence of colorspace info to mean sRGB so write gamma 1.
+        state.info_png.srgb_defined = false;
+        state.info_png.gama_defined = true;
+        state.info_png.gama_gamma = 100000;
+    }
+
+    // Output primaries as cHRM chunk
+    if let Some(p) = get_primaries(format.primaries) {
+        let fixed = |v: f32| (100000.0f32 * v) as u32;
+        let info = &mut state.info_png;
+        info.chrm_defined = true;
+        info.chrm_red_x = fixed(p.Rx);
+        info.chrm_red_y = fixed(p.Ry);
+        info.chrm_green_x = fixed(p.Gx);
+        info.chrm_green_y = fixed(p.Gy);
+        info.chrm_blue_x = fixed(p.Bx);
+        info.chrm_blue_y = fixed(p.By);
+        info.chrm_white_x = fixed(p.Wx);
+        info.chrm_white_y = fixed(p.Wy);
+    }
+
+    let png = match lodepng::encode(&unpacked_image, width, height, &mut state) {
+        Ok(png) => png,
+        Err(error) => {
+            return Err(report.fatal(
+                ReturnCode::InvalidFile,
+                &format!(
+                    "PNG Encoder error {error}: {}.",
+                    lodepng::lodepng_error_text(error)
+                ),
+            ));
+        }
+    };
+
+    let mut file = OutputStream::new(&filepath, report)?;
+    file.write(&png, report)
+}
+
 /// Port of `saveImageFile`.
+#[allow(clippy::too_many_arguments)]
 fn save_image_file(
     report: &Reporter,
-    _filepath: String,
-    _append_extension: bool,
-    _data: &[u8],
+    filepath: String,
+    append_extension: bool,
+    data: &[u8],
     vk_format: VkFormat,
-    _size: (u32, u32),
+    format: &FormatDescriptor,
+    (width, height): (u32, u32),
     _map_range: (f32, f32),
 ) -> CmdResult {
     let what = match image_save_kind(vk_format) {
-        Some(ImageSave::Png) => "PNG",
+        Some(ImageSave::Png) => {
+            return save_png(
+                report,
+                filepath,
+                append_extension,
+                vk_format,
+                format,
+                width,
+                height,
+                data,
+            );
+        }
         Some(ImageSave::Astc) => "ASTC decoding",
         Some(ImageSave::Unpack422) => "4:2:2 unpacking",
         Some(ImageSave::Exr(_)) => "EXR",
@@ -739,7 +933,7 @@ fn save_image_file(
                 ReturnCode::InvalidFile,
                 &format!(
                     "Requested format conversion from {} is not supported.",
-                    super::formats::to_string_vk_format(vk_format)
+                    to_string_vk_format(vk_format)
                 ),
             ));
         }
