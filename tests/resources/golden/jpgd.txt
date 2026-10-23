@@ -1,0 +1,1012 @@
+tests/resources/imageio/jpg/gray_17x9.jpg	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f0	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 5da0367d509cb869
+tests/resources/imageio/jpg/gray_17x9.jpg#f1	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 b56746499fd19d2b
+tests/resources/imageio/jpg/gray_17x9.jpg#f2	0	C0 17x9x1 B-1,-244
+tests/resources/imageio/jpg/gray_17x9.jpg#f3	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 562ac433d7261992
+tests/resources/imageio/jpg/gray_17x9.jpg#f4	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f5	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 62d1a73dbdb735f8
+tests/resources/imageio/jpg/gray_17x9.jpg#f6	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f7	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 a7a32ef53dc78eb6
+tests/resources/imageio/jpg/gray_17x9.jpg#f8	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 e911d0c742cd4232
+tests/resources/imageio/jpg/gray_17x9.jpg#f9	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 3748f3bfdbb2dd71
+tests/resources/imageio/jpg/gray_17x9.jpg#f10	0	C0 17x9x1 B-1,-240
+tests/resources/imageio/jpg/gray_17x9.jpg#f11	1	C-239 0x0x0
+tests/resources/imageio/jpg/gray_17x9.jpg#f12	0	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#f13	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 23ba165cd60b90e9
+tests/resources/imageio/jpg/gray_17x9.jpg#f14	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 d31210fae3744f69
+tests/resources/imageio/jpg/gray_17x9.jpg#f15	1	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#f16	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f17	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f18	0	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#f19	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f20	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f21	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 6850b974986e95a2
+tests/resources/imageio/jpg/gray_17x9.jpg#f22	0	C0 17x9x1 B0,0 bpp1 L0 S-1 E-230 T255 cbf29ce484222325
+tests/resources/imageio/jpg/gray_17x9.jpg#f23	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 0416212ed4ec03ee
+tests/resources/imageio/jpg/gray_17x9.jpg#f24	0	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#f25	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 6f7c77e2301784b4
+tests/resources/imageio/jpg/gray_17x9.jpg#f26	0	C0 17x9x1 B0,0 bpp1 L0 S-1 E-230 T255 cbf29ce484222325
+tests/resources/imageio/jpg/gray_17x9.jpg#f27	1	C-252 0x0x0
+tests/resources/imageio/jpg/gray_17x9.jpg#f28	0	C0 17x9x1 B-1,-234
+tests/resources/imageio/jpg/gray_17x9.jpg#f29	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f30	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f31	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f32	0	C-249 65041x9x0
+tests/resources/imageio/jpg/gray_17x9.jpg#f33	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 8093c8c593d46871
+tests/resources/imageio/jpg/gray_17x9.jpg#f34	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f35	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 c2d67637bb5d2b87
+tests/resources/imageio/jpg/gray_17x9.jpg#f36	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 4afff1e206a95955
+tests/resources/imageio/jpg/gray_17x9.jpg#f37	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 59bf9af9d1e285af
+tests/resources/imageio/jpg/gray_17x9.jpg#f38	0	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 bd745d578b1c9557
+tests/resources/imageio/jpg/gray_17x9.jpg#f39	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T255 070801e5b16fb720
+tests/resources/imageio/jpg/gray_17x9.jpg#t0	0	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#t1	1	C0 17x9x1 B-1,-256
+tests/resources/imageio/jpg/gray_17x9.jpg#t2	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_17x9.jpg#t3	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T247 91f75b8a74e4d64a
+tests/resources/imageio/jpg/gray_17x9.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_17x9.jpg#t5	1	C0 17x9x1 B0,0 bpp1 L9 S1 E0 T231 f3cb6784792b8376
+tests/resources/imageio/jpg/gray_1x1.jpg	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f0	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f1	1	C-247 1x1x1
+tests/resources/imageio/jpg/gray_1x1.jpg#f2	0	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f3	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f4	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#f5	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f6	0	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f7	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f8	0	C0 1x1x1 B-1,-235
+tests/resources/imageio/jpg/gray_1x1.jpg#f9	1	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f10	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f11	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f12	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f13	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f14	0	C0 1x14849x1 B0,0 bpp1 L14849 S1 E0 T156 0df58684b4a082f8
+tests/resources/imageio/jpg/gray_1x1.jpg#f15	1	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f16	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f17	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f18	0	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f19	1	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#f20	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f21	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f22	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f23	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f24	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f25	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f26	0	C-252 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#f27	1	C0 1x1x1 B0,0 bpp1 L0 S-1 E-230 T156 cbf29ce484222325
+tests/resources/imageio/jpg/gray_1x1.jpg#f28	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f29	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f30	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f31	1	C-251 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#f32	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f33	1	C-247 1x1x1
+tests/resources/imageio/jpg/gray_1x1.jpg#f34	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af64724c8602eb6e
+tests/resources/imageio/jpg/gray_1x1.jpg#f35	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f36	0	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#f37	1	C0 1x1x1 B-1,-240
+tests/resources/imageio/jpg/gray_1x1.jpg#f38	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#f39	1	C0 1x1x1 B0,0 bpp1 L1 S1 E0 T156 af63c04c8601bcf8
+tests/resources/imageio/jpg/gray_1x1.jpg#t0	0	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#t1	1	C-238 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#t2	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#t3	1	C0 1x1x1 B-1,-256
+tests/resources/imageio/jpg/gray_1x1.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_1x1.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/gray_q16.jpg	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f0	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f1	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f2	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f3	1	C0 16x16x1 B-1,-254
+tests/resources/imageio/jpg/gray_q16.jpg#f4	0	C0 16x16x1 B-1,-256
+tests/resources/imageio/jpg/gray_q16.jpg#f5	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 4a896e52d9d4a31d
+tests/resources/imageio/jpg/gray_q16.jpg#f6	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f7	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f8	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f9	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f10	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f11	1	C-249 46352x16x0
+tests/resources/imageio/jpg/gray_q16.jpg#f12	0	C0 16x16x1 B-1,-234
+tests/resources/imageio/jpg/gray_q16.jpg#f13	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 001c9249eed7322e
+tests/resources/imageio/jpg/gray_q16.jpg#f14	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f15	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f16	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f17	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f18	0	C-230 16x16x1
+tests/resources/imageio/jpg/gray_q16.jpg#f19	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 7b69d13d2867d5f9
+tests/resources/imageio/jpg/gray_q16.jpg#f20	0	C-252 0x0x0
+tests/resources/imageio/jpg/gray_q16.jpg#f21	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f22	0	C0 16x16x1 B-1,-244
+tests/resources/imageio/jpg/gray_q16.jpg#f23	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f24	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f25	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f26	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f27	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 f958c1c3c64d0725
+tests/resources/imageio/jpg/gray_q16.jpg#f28	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f29	1	C0 16x16x1 B-1,-234
+tests/resources/imageio/jpg/gray_q16.jpg#f30	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f31	1	C-247 16x16x1
+tests/resources/imageio/jpg/gray_q16.jpg#f32	0	C0 16x16x1 B-1,-256
+tests/resources/imageio/jpg/gray_q16.jpg#f33	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 6b3c153c59206b9e
+tests/resources/imageio/jpg/gray_q16.jpg#f34	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f35	1	C0 16x16x1 B-1,-256
+tests/resources/imageio/jpg/gray_q16.jpg#f36	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 661f54b70bdeca75
+tests/resources/imageio/jpg/gray_q16.jpg#f37	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f38	0	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#f39	1	C0 16x16x1 B0,0 bpp1 L16 S1 E0 T227 47050a391ffbf37b
+tests/resources/imageio/jpg/gray_q16.jpg#t0	0	C0 16x16x1 B-1,-256
+tests/resources/imageio/jpg/gray_q16.jpg#t1	1	C0 16x16x1 B-1,-240
+tests/resources/imageio/jpg/gray_q16.jpg#t2	0	C-238 0x0x0
+tests/resources/imageio/jpg/gray_q16.jpg#t3	1	C-238 0x0x0
+tests/resources/imageio/jpg/gray_q16.jpg#t4	0	C0 16x16x1 B-1,-240
+tests/resources/imageio/jpg/gray_q16.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/h1v1_33x31.jpg	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 baf2915112de93a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 baf2915112de93a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f0	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 ba9bc1b8c5e90287
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f1	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 01f63c1fc597bf8c
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f2	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 baf2915112de93a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 5bddb4d6230fd72f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f4	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 26180dc429ac772a
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f5	1	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1177 48c96563beac18a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f6	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 cf662a31706ffd01
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f7	1	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1177 49e568172079870b
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f8	0	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1177 d8e9d95fa6a8072f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f9	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 fd06a769d1fb597a
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f10	0	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1177 d8e9d95fa6a8072f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f11	1	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1177 97a613523904e1af
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f12	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1177 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f13	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 958dbf0d2214f230
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f14	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f15	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1177 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f16	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 382d5a4e59bda838
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f17	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f18	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 7ba186c7b92e8799
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f19	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 baf2915112de93a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f20	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 325c6130fdfa92e4
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f21	1	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1177 d8e9d95fa6a8072f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f22	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 8a654682979d8e01
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f23	1	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1177 97a613523904e1af
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f24	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 ac61e6bc612bad99
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f25	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 e87827afd59fa2ff
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f26	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 68ef73982ca1137f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f27	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 4084604f02fc1858
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f28	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 4e9e9d23ab17f9d8
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f29	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f30	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1177 48c96563beac18a3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f31	1	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1177 d8e9d95fa6a8072f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f32	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 0560a7c8c81c974e
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f33	1	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1177 b366d058c5a4cc5b
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f34	0	C-247 33x31x3
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f35	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1177 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f36	0	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1177 97a613523904e1af
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f37	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 d145aa480307888b
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f38	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1177 2d1ebb5bd994f5ae
+tests/resources/imageio/jpg/h1v1_33x31.jpg#f39	1	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1177 d8e9d95fa6a8072f
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t0	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T485 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t1	1	C-238 0x0x0
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t2	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T771 be5fd0049471cd9c
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T650 c84eaeb69ce0b240
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t4	0	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T548 97a613523904e1af
+tests/resources/imageio/jpg/h1v1_33x31.jpg#t5	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1052 b0ef1f7bf8d1a4e2
+tests/resources/imageio/jpg/h1v1_restart1.jpg	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 fdb49552fe1e7226
+tests/resources/imageio/jpg/h1v1_restart1.jpg	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 fdb49552fe1e7226
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f0	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 1ab99c09da130d1f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f1	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 e51b3ce69aefb8c4
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f2	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 6d8103ef150e2b6c
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f3	1	C0 24x16x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f4	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 3422d5c83453ccd7
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f5	1	C0 24x16x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f6	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 fdb49552fe1e7226
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f7	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 7dff06d9d1eb6978
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f8	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 ef3f4468f2125500
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f9	1	C0 24x16x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f10	0	C0 24x16x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f11	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 6eeead5a67a9156a
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f12	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 bbfa1445ec667ec6
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f13	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 b615435482868da1
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f14	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 533618e2438c348f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f15	1	C0 24x16x3 B0,0 bpp4 L0 S-1 E-230 T627 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f16	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 169ad22bc02ad9a7
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f17	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 fb3d036500aa1027
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f18	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 2a334637de2b1e30
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f19	1	C0 24x16x3 B0,0 bpp4 L8 S-1 E-230 T627 aebd591050d82a6f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f20	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 90d108bf0a387826
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f21	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 d5101b7e1ca29526
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f22	0	C0 24x16x3 B0,0 bpp4 L8 S-1 E-229 T627 aebd591050d82a6f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f23	1	C-252 0x0x0
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f24	0	C0 24x16x3 B-1,-256
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f25	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 2dc02aec24113e7b
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f26	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 43ac820be66ba7a3
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f27	1	C0 24x16x3 B0,0 bpp4 L8 S-1 E-229 T627 aebd591050d82a6f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f28	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 92c4261d82e35426
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f29	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 0a557b5736865b70
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f30	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 3fec4cca88e5ba77
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f31	1	C0 24x16x3 B0,0 bpp4 L8 S-1 E-230 T627 aebd591050d82a6f
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f32	0	C0 92x16x3 B0,0 bpp4 L0 S-1 E-229 T627 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f33	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 458e6c7b6d7362c3
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f34	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 215d8f602fd6f1d8
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f35	1	C0 24x16x3 B-1,-230
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f36	0	C-247 24x16x3
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f37	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 da0df022152d711c
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f38	0	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 4db041ee6182dbdb
+tests/resources/imageio/jpg/h1v1_restart1.jpg#f39	1	C0 24x16x3 B0,0 bpp4 L16 S1 E0 T627 e2e08ad52c655cee
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t0	0	C0 24x16x3 B0,0 bpp4 L8 S-1 E-229 T388 a53d99a67ad08b53
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t1	1	C0 24x16x3 B0,0 bpp4 L0 S-1 E-230 T425 cbf29ce484222325
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t2	0	C-249 55807x255x0
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t3	1	C-238 0x0x0
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t4	0	C0 24x16x3 B0,0 bpp4 L8 S-1 E-229 T410 f6ed26a544494f7c
+tests/resources/imageio/jpg/h1v1_restart1.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/h1v2_33x31.jpg	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 121a98168334a5e2
+tests/resources/imageio/jpg/h1v2_33x31.jpg	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 755d9908a3bbc1ec
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f0	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 7cfdafaea2771ee9
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f1	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 6e6d73f430da7972
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f2	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 3bf55950218e5de0
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f3	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f4	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 53875495123e9844
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f5	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T949 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f6	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 148d40fdc9db2c2c
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f7	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T949 299907b65156ffdc
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f8	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T949 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f9	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T949 299907b65156ffdc
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f10	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T949 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f11	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 a1a7d31c9180241f
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f12	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 0dba88b3f717f0c5
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f13	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 ae1c216a45e8e981
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f14	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 aac26983c34ff75d
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f15	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 a5a83e6b62e75a68
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f16	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 8788f55c99c10c71
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f17	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 77b1f41ff9101f00
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f18	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 40eb8305d3ded8a1
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f19	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 3537a92b63bdb1e8
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f20	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 121a98168334a5e2
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f21	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f22	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 42b11d56986818b3
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f23	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T949 299907b65156ffdc
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f24	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f25	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 a7e5e7b73ed67439
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f26	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T949 9d7205b8cd7de916
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f27	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 b84e4aa881ce418d
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f28	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T949 9d7205b8cd7de916
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f29	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 8cbb749b3d47cf8e
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f30	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 59795fce080b6a2d
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f31	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 feeb9eaf0dba9a73
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f32	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 9def1818f7e8b78d
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f33	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T949 299907b65156ffdc
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f34	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T949 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f35	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 27ce6664a80d79e1
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f36	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 d84d3abc138cdd0e
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f37	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 ead86897f478ec75
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f38	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T949 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#f39	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T949 5e4fab0e185294e9
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t0	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T582 e81b9ffcbfc8b98e
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t1	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T529 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t2	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T387 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t3	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T692 299907b65156ffdc
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t4	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T569 cb86dcc660752f73
+tests/resources/imageio/jpg/h1v2_33x31.jpg#t5	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T344 ab75662119d7f7b4
+tests/resources/imageio/jpg/h1v2_9x40.jpg	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 4e22f31f7c723448
+tests/resources/imageio/jpg/h1v2_9x40.jpg	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 13d6dca9026a49c9
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f0	0	C0 9x40x3 B0,0 bpp4 L16 S-1 E-230 T598 0170d2d41c026419
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f1	1	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f2	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 4e22f31f7c723448
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f3	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 38a4f86ed6ac1abf
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f4	0	C0 9x40x3 B0,0 bpp4 L16 S-1 E-230 T598 0170d2d41c026419
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f5	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 bfb0dbd0947355d9
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f6	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 4e22f31f7c723448
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f7	1	C0 9x40x3 B0,0 bpp4 L15 S-1 E-230 T598 cc97afffa874f960
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f8	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 2974e6d1d5987037
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f9	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 3aa4ab83d390122d
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f10	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 3f2d3ac1accea015
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f11	1	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f12	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 9d003d48bf83736c
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f13	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 43f2bc3541592bc1
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f14	0	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f15	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 415effe7e44f8521
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f16	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 1c8708133aefde32
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f17	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 e0afae551554b22b
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f18	0	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f19	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 672b79e3fd1c0c7d
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f20	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 04a1f89c94db283a
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f21	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 769741479e7e253f
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f22	0	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f23	1	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f24	0	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f25	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 df8fd868734f6aba
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f26	0	C0 9x40x3 B-1,-234
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f27	1	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f28	0	C0 9x40x3 B0,0 bpp4 L32 S-1 E-230 T598 84c96acb95f24816
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f29	1	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f30	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 4e22f31f7c723448
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f31	1	C-252 0x0x0
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f32	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 5df2faa35daa2eee
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f33	1	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f34	0	C0 9x40x3 B0,0 bpp4 L32 S-1 E-230 T598 84c96acb95f24816
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f35	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 de46ced60217d1fd
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f36	0	C-230 9x40x3
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f37	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T598 a44da7a90504f75d
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f38	0	C0 9x40x3 B0,0 bpp4 L32 S-1 E-230 T598 84c96acb95f24816
+tests/resources/imageio/jpg/h1v2_9x40.jpg#f39	1	C0 9x40x3 B0,0 bpp4 L0 S-1 E-230 T598 cbf29ce484222325
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t0	0	C0 9x40x3 B-1,-256
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t1	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T367 f5f71b4c555777dc
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t2	0	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T407 e72c4e69b53d4fcf
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t3	1	C0 9x40x3 B0,0 bpp4 L40 S1 E0 T377 8804581a7f6b0f9a
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/h1v2_9x40.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_33x31.jpg	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 12a8c44b24f1fd07
+tests/resources/imageio/jpg/h2v1_33x31.jpg	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 26ca32cb84a1c34d
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f0	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1015 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f1	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 358916080f6b07c4
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f2	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1015 435138909b5f7e3c
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 2c028c7f335b275d
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f4	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1015 435138909b5f7e3c
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f5	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 cced8684262f88f1
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f6	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 db5329bb1a7900b3
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f7	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 a75e440d0504aaf0
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f8	0	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1015 d29d34605f2e4bc9
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f9	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1015 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f10	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f11	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 8ebbd9262d0724e9
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f12	0	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1015 cad3f65064477062
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f13	1	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1015 349ddc4a331e0c38
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f14	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 0977a974e7dcb2fe
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f15	1	C0 33x31x3 B-1,-230
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f16	0	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1015 cad3f65064477062
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f17	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 80f3520c9483da71
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f18	0	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1015 9cc20a6bd0531760
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f19	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 eb17687a4dfbc7c8
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f20	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 12a8c44b24f1fd07
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f21	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 488ef5c10ee1d441
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f22	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 a0ae474cda4700dd
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f23	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f24	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1015 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f25	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 6d17de2e5722a7b6
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f26	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 cd5ddb6e3a1915cf
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f27	1	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1015 200ff540df00d92d
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f28	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 cbb84a1a8532e501
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f29	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 e1fdb2adf1f76e46
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f30	0	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1015 9cc20a6bd0531760
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f31	1	C0 33x31x3 B0,0 bpp4 L8 S-1 E-230 T1015 349ddc4a331e0c38
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f32	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T1015 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f33	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f34	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 4ce71b08b97d9645
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f35	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f36	0	C0 33x31x3 B0,0 bpp4 L24 S-1 E-230 T1015 cad3f65064477062
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f37	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T1015 2387c8f0d8530c91
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f38	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T1015 435138909b5f7e3c
+tests/resources/imageio/jpg/h2v1_33x31.jpg#f39	1	C0 33x31x3 B-1,-235
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t0	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t1	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T348 4b8c702466673a7f
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t2	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T703 9cda2b4b83875e31
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_33x31.jpg#t5	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T917 ed4ea55c7fa9117b
+tests/resources/imageio/jpg/h2v1_40x3.jpg	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 da0b8f10e34d54f6
+tests/resources/imageio/jpg/h2v1_40x3.jpg	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 979459e4fb152625
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f0	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 0475bd493c26cbc5
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f1	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 1e753c54ae7dad10
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f2	0	C0 40x3x3 B-1,-230
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f3	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 107a947f232a15ba
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f4	0	C0 40x3x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f5	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 979459e4fb152625
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f6	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 718d1e7f3d68e10f
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f7	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 42605d057354db8e
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f8	0	C0 40x3x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f9	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 ff4066b5aa08c3e1
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f10	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 da0b8f10e34d54f6
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f11	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 c6285b0bb02a9d2b
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f12	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 b340d4857352f8ea
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f13	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 979459e4fb152625
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f14	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 0c6816137178bf23
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f15	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 2558f9ef6eaf5f3f
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f16	0	C0 40x3x3 B0,0 bpp4 L0 S-1 E-230 T480 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f17	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 f5fe831107b18f63
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f18	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 bbe751516ab1cff3
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f19	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 19397ffc89059217
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f20	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f21	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 979459e4fb152625
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f22	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 d4a90a7f5291b2d2
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f23	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 62daefcbe3e15ac0
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f24	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 da0b8f10e34d54f6
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f25	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 33bc429ebec82763
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f26	0	C0 40x3x3 B0,0 bpp4 L0 S-1 E-230 T480 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f27	1	C0 40x3x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f28	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 9f78284f2c885079
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f29	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 5af2d3af56eb6c61
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f30	0	C0 40x3x3 B-1,-234
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f31	1	C0 40x3x3 B0,0 bpp4 L0 S-1 E-230 T480 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f32	0	C0 40x3x3 B-1,-235
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f33	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 979459e4fb152625
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f34	0	C0 40x3x3 B-1,-256
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f35	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 e6de10922873ad5d
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f36	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 da0b8f10e34d54f6
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f37	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 23eda62e44220478
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f38	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T480 4ff78b9d979837e1
+tests/resources/imageio/jpg/h2v1_40x3.jpg#f39	1	C0 40x3x3 B0,0 bpp4 L0 S-1 E-230 T480 cbf29ce484222325
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t0	0	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T426 8c22a78cafa2bcd7
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t1	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T436 e12e64c8d9d23813
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t2	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t3	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T317 04343241ca56f4ea
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v1_40x3.jpg#t5	1	C0 40x3x3 B0,0 bpp4 L3 S1 E0 T342 c1d464372d33395b
+tests/resources/imageio/jpg/h2v2_1x1.jpg	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f0	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f1	1	C0 1x1x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f2	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f3	1	C-239 0x0x0
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f4	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f5	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f6	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f7	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f8	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f9	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f10	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f11	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f12	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f13	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f14	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f15	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f16	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f17	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f18	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f19	1	C0 1x1x3 B0,0 bpp4 L0 S-1 E-230 T274 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f20	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f21	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f22	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f23	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f24	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f25	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f26	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f27	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f28	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f29	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 13ed6d4f8e451ca5
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f30	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f31	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f32	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f33	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f34	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f35	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f36	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 fb18b9b198bd157d
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f37	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T274 13ed6d4f8e451ca5
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f38	0	C0 1x1x3 B-1,-255
+tests/resources/imageio/jpg/h2v2_1x1.jpg#f39	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t0	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t1	1	C-231 1x1x3
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t2	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t3	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_1x1.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_2x2.jpg	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f0	0	C0 2x2x3 B-1,-234
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f1	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f2	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f3	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f4	0	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f5	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f6	0	C0 2x2x3 B-1,-234
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f7	1	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f8	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f9	1	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f10	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f11	1	C-231 2x2x3
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f12	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f13	1	C0 2x2x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f14	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f15	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 7667eb69c0612f55
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f16	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f17	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 d9b72f5eabe6c462
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f18	0	C-231 2x2x3
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f19	1	C-240 0x0x0
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f20	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f21	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f22	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 f3928a8c817354ed
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f23	1	C0 2x2x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f24	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a00ac759954306b4
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f25	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f26	0	C-230 2x2x3
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f27	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f28	0	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f29	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f30	0	C0 2050x2x3 B0,0 bpp4 L2 S1 E0 T286 f8d67ed7de4d2b99
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f31	1	C0 2x2x3 B0,0 bpp4 L2 S1 E0 T286 a61ef5d216ebae8d
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f32	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f33	1	C0 2x2x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f34	0	C0 2x2x3 B-1,-255
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f35	1	C0 2x2x3 B0,0 bpp4 L0 S-1 E-230 T286 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f36	0	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f37	1	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f38	0	C-237 0x0x0
+tests/resources/imageio/jpg/h2v2_2x2.jpg#f39	1	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t0	0	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t1	1	C0 2x2x3 B-1,-240
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t2	0	C-248 2x2x255
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t3	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t4	0	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_2x2.jpg#t5	1	C0 2x2x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 b5a398eee8c3729a
+tests/resources/imageio/jpg/h2v2_33x31.jpg	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 ec9d3a2f231ab3b4
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f0	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T859 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f1	1	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T859 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f2	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 d62796c186c0c857
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f4	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T859 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f5	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T859 53a6c49b5a76e4c5
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f6	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 93d35ad8a2a2a95d
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f7	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T859 53a6c49b5a76e4c5
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f8	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 b7cc31dd1d9c6c6b
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f9	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T859 53a6c49b5a76e4c5
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f10	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f11	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f12	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 9c3fbf625a7d99ad
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f13	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T859 53a6c49b5a76e4c5
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f14	0	C0 33x31x3 B0,0 bpp4 L0 S-1 E-230 T859 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f15	1	C0 33x31x3 B0,0 bpp4 L15 S-1 E-230 T859 53a6c49b5a76e4c5
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f16	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f17	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 f12b851d1a48c0fb
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f18	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 28ae2a18123bd4c3
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f19	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 d253685c3348eda7
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f20	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 5c2b426ec56602d8
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f21	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 cd5d36b18ee5d1cd
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f22	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 22395362568acfaf
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f23	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 2043adc478794efd
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f24	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T859 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f25	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 d77e34264b3995ad
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f26	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f27	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 68de0bed1a0bad94
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f28	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f29	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 c99ca321086043a3
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f30	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 a229f2f15bc6b368
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f31	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 a1bafc134d48daf6
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f32	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T859 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f33	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 c2167d9156348419
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f34	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 c0cc2691c684f7ab
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f35	1	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f36	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T859 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f37	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 320c78e52ed2a94d
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f38	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#f39	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T859 2397c9e5f03b5250
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t0	0	C0 33x31x3 B0,0 bpp4 L16 S-1 E-230 T710 89f15303fe8cfeba
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t1	1	C-251 0x0x0
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t2	0	C0 33x31x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t3	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T611 64852873bb028acb
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t4	0	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T524 3489002d73d9a182
+tests/resources/imageio/jpg/h2v2_33x31.jpg#t5	1	C0 33x31x3 B0,0 bpp4 L31 S1 E0 T571 95a262761873137c
+tests/resources/imageio/jpg/h2v2_47x5.jpg	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 b0d18337888f3f05
+tests/resources/imageio/jpg/h2v2_47x5.jpg	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 e2f3503b3842aa6e
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f0	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 472bbb252ec04e83
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f1	1	C0 47x5x3 B-1,-240
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f2	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 7057c1401c903946
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f3	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 e2f3503b3842aa6e
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f4	0	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f5	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 cedb400fd8e8f5a8
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f6	0	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f7	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 834cf28feb9497d3
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f8	0	C0 47x5x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f9	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 c6da3ef0806247e0
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f10	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 b0340314a84975ac
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f11	1	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f12	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 e2fae37aa355a8ac
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f13	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 e2f3503b3842aa6e
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f14	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 b0d18337888f3f05
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f15	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 fbfd5d8f9310bd39
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f16	0	C0 47x5x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f17	1	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f18	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 3562a8f9a1b5f8d3
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f19	1	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f20	0	C0 47x5x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f21	1	C-230 47x5x3
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f22	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 311c2275cf73091c
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f23	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 de888109ba554a26
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f24	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 bc28162a13bb48c9
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f25	1	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f26	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 f01c125171fddf9e
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f27	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 b6a5b75dae17592b
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f28	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 b0d18337888f3f05
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f29	1	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f30	0	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f31	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 2c0ca805b24b29be
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f32	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 84849db857a5719d
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f33	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 c2953ca7917114d9
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f34	0	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f35	1	C0 47x5x3 B-1,-234
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f36	0	C0 47x5x3 B0,0 bpp4 L0 S-1 E-230 T553 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f37	1	C0 47x5x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f38	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T553 5f05bbe8c5b9aa4b
+tests/resources/imageio/jpg/h2v2_47x5.jpg#f39	1	C0 47x5x3 B-1,-235
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t0	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t1	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t2	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t3	1	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T527 7abed3a4a77c6291
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t4	0	C0 47x5x3 B0,0 bpp4 L5 S1 E0 T414 f0b386d91c885108
+tests/resources/imageio/jpg/h2v2_47x5.jpg#t5	1	C0 47x5x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f0	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 a8c01b5e70ca3746
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f1	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 4efa95f631d12995
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f2	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 2975e88f9a8157db
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f3	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 1d0e6fe893022834
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f4	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f5	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f6	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f7	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f8	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 e6f1857c6ad13448
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f9	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 dd1bf29f676b5036
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f10	0	C0 176x32x3 B0,0 bpp4 L32 S1 E0 T420 675d7fe177fbf7e1
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f11	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 fbff4f917fa18789
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f12	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 d91ea4d2ae9abf28
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f13	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f14	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f15	1	C0 32x32x3 B-1,-243
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f16	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f17	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 e94679dbe4881cd5
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f18	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 2145205dc6b3437b
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f19	1	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f20	0	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f21	1	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f22	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 a80b70d9e7f80e83
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f23	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 2cb329c022bd231c
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f24	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f25	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f26	0	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f27	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 7d0cefe12719ad50
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f28	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 47da22be4ddf85a8
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f29	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f30	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f31	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 b3b9ff197fe88be7
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f32	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 bf78567aaa51d7c7
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f33	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 2031f56a2e1888ce
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f34	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 9d5b930ca765dacd
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f35	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f36	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f37	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 7f998091208fbb28
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f38	0	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 cb02f84bee90e65d
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#f39	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T420 42e5feb3d3a79c72
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t0	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t1	1	C0 32x32x3 B0,0 bpp4 L32 S1 E0 T368 afff29913e2c95ee
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t2	0	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t3	1	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t4	0	C0 32x32x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q10_markers.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 2495c4e2aca76a74
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 1d5c1960a02a82ae
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f0	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 ddc6f90c29f6f0da
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f1	1	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f2	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 42c4ccdc612aaf64
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f3	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 b11bf3d7c25f1aa2
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f4	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 e51cf789565c8ec4
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f5	1	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f6	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 0f9c07f6144a05fc
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f7	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 dedb77b697c9943c
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f8	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 8b9d3f929cf6dac6
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f9	1	C0 40x24x3 B0,0 bpp4 L15 S-1 E-230 T1393 8658fc8c23cb60e7
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f10	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 048a610a0c244459
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f11	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 b3b719dacea591d3
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f12	0	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f13	1	C0 40x24x3 B0,0 bpp4 L15 S-1 E-230 T1393 8658fc8c23cb60e7
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f14	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 29f3373a90032648
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f15	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f16	0	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f17	1	C0 40x24x3 B0,0 bpp4 L15 S-1 E-230 T1393 07eef562fe16e1b6
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f18	0	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f19	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f20	0	C0 40x24x3 B0,0 bpp4 L16 S-1 E-230 T1393 addd773753f6334a
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f21	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f22	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 d9884c29817d2036
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f23	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 2f4ec3cbd62faac3
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f24	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 566340b27b80ba07
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f25	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 465ba31069159954
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f26	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 3cd8b87d830d3a62
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f27	1	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f28	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 ce0e7e7795a495fb
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f29	1	C-252 0x0x0
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f30	0	C0 40x24x3 B0,0 bpp4 L16 S-1 E-230 T1393 addd773753f6334a
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f31	1	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f32	0	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f33	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f34	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 c3c38b72ce34f43f
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f35	1	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 3707c3daf7d9f876
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f36	0	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T1393 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f37	1	C0 40x24x3 B-1,-230
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f38	0	C0 40x24x3 B0,0 bpp4 L24 S1 E0 T1393 699ffa06a4ea28f9
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#f39	1	C0 40x24x3 B0,0 bpp4 L15 S-1 E-230 T1393 621d7105ed5b9264
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t0	0	C0 40x24x3 B0,0 bpp4 L16 S-1 E-230 T1254 addd773753f6334a
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t1	1	C-238 0x0x0
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t2	0	C0 40x24x3 B-1,-256
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t3	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T348 cbf29ce484222325
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t4	0	C0 40x24x3 B0,0 bpp4 L16 S-1 E-230 T1349 addd773753f6334a
+tests/resources/imageio/jpg/h2v2_q95_restart.jpg#t5	1	C0 40x24x3 B0,0 bpp4 L0 S-1 E-230 T770 cbf29ce484222325
+tests/resources/imageio/jpg/prog_gray_19x13.jpg	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f0	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 0f84298a4da37d9f
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f1	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f2	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 c84e82509c9cac0c
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f3	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 5deb5fb7d9d7ebdd
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f4	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f5	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 18a9be5028144580
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f6	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 72e6085e6b3668fb
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f7	1	C0 19x13x1 B-1,-256
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f8	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 e7cda8dd1c6c897d
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f9	1	C0 19x13x1 B-1,-244
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f10	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 06b4459a06f823cf
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f11	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 9125738de09a0d5e
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f12	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 7c7aea037a016293
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f13	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 838b36a724a813f7
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f14	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 384757bf827cd571
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f15	1	C-247 19x13x1
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f16	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 9331237011fba90e
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f17	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 fbf29711fe976843
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f18	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 2753f9287d0632e1
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f19	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 55f55806c70813cf
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f20	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 df7c777f8a74ed15
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f21	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f22	0	C0 19x13x1 B-1,-256
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f23	1	C0 19x13x1 B-1,-256
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f24	0	C0 19x13x1 B-1,-240
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f25	1	C0 19x13x1 B-1,-256
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f26	0	C-247 19x13x1
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f27	1	C0 19x13x1 B-1,-256
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f28	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 9fa998d59b26b1ed
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f29	1	C-248 19x13x254
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f30	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 f15a052f78965279
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f31	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 bafeb1092b017b9a
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f32	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f33	1	C0 19x13x1 B-1,-230
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f34	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 3ad0481b3dc5d7a9
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f35	1	C0 19x13x1 B-1,-243
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f36	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 885ab864a8f9770b
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f37	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 8c0d2bca7bff85fd
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f38	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 62020ad76d36eb35
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#f39	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T372 95fb71bc949120b6
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t0	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T139 1c5b954d19304fd5
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t1	1	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T197 9551ac8ba4ff52d3
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t2	0	C0 19x13x1 B0,0 bpp1 L13 S1 E0 T310 c27cce98c59887fe
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t3	1	C-238 0x0x0
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/prog_gray_19x13.jpg#t5	1	C-252 0x0x0
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 17ccbe2e33f237e4
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 17ccbe2e33f237e4
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f0	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 bdb10ba9d429366f
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f1	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 17ccbe2e33f237e4
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f2	0	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f3	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 73bad275598f734a
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f4	0	C0 21x18x3 B-1,-244
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f5	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 c3b85d140805795b
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f6	0	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f7	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 80cfcc8177a6e397
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f8	0	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f9	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 51d7a7d44d76bab9
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f10	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 9e19cfdf41fd8663
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f11	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 031191f4cf58ff32
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f12	0	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f13	1	C-252 0x0x0
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f14	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 8bb84101a496b0c2
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f15	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 4a3187eaa471c7d5
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f16	0	C0 21x18x3 B-1,-243
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f17	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 80a25234d72da6c6
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f18	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 65d56a6086e33ed1
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f19	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 02795608e6a1b63c
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f20	0	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f21	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 76fa0e89027bb419
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f22	0	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f23	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 9e4e7d619a3b7b2f
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f24	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 572e5e396c16f63b
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f25	1	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f26	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 525e626da504b481
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f27	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 c5560cd8b47ed037
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f28	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 9b9edf234f089481
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f29	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 812a30fed2ef1b83
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f30	0	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f31	1	C0 21x18x3 B-1,-255
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f32	0	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f33	1	C0 21x18x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f34	0	C0 21x18x3 B-1,-228
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f35	1	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f36	0	C0 21x18x3 B-1,-243
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f37	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T907 e16364b41499fd8e
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f38	0	C0 21x18x3 B-1,-234
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#f39	1	C0 21x18x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t0	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T360 57736b5319de4961
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t1	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T756 5bac7a09eccb4d03
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t2	0	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T418 b4e430cfe33e7a6f
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t3	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T526 12b8882dd2f00756
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t4	0	C-238 0x0x0
+tests/resources/imageio/jpg/prog_h1v1_21x18.jpg#t5	1	C0 21x18x3 B0,0 bpp4 L18 S1 E0 T372 a174af86054cb580
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 c050d72d9f0d051b
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 247c171caf5b9180
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f0	0	C0 20x30x3 B-1,-255
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f1	1	C0 20x30x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f2	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 3bec7bf7fedf986c
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f3	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 2a31381cf32c50dc
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f4	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 b3316b1720099bb9
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f5	1	C0 20x30x3 B-1,-244
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f6	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 4937060e940335b5
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f7	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 f8f86a57e769af6c
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f8	0	C0 20x30x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f9	1	C0 20x30x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f10	0	C0 20x30x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f11	1	C0 20x30x3 B-1,-235
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f12	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 4168035ebe445172
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f13	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 4281139be1763d31
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f14	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 73065379ad51ee5c
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f15	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 bf0d4ba2b032d8b3
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f16	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 e2a3731efe8016f1
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f17	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 e972da10e6fb081c
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f18	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 29e35b1272563e02
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f19	1	C0 20x30x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f20	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 a556f22a60e7d648
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f21	1	C0 20x30x3 B-1,-230
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f22	0	C0 20x30x3 B-1,-244
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f23	1	C0 20x30x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f24	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 54c28ee2204838ef
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f25	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 925e00d4105b4414
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f26	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 fbd99e4a272649fd
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f27	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 becb65657f1b4be5
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f28	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 28d62867f0bc8c4c
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f29	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 29d5d6a65c669e66
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f30	0	C-230 20x30x3
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f31	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 fbbff1b9f1b5b059
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f32	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 f01b35c2ec87ece2
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f33	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 b49e8d731ed077cc
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f34	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 4c0bd851c6a971d2
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f35	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 247c171caf5b9180
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f36	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 c050d72d9f0d051b
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f37	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 83277d1287caa798
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f38	0	C-247 20x30x3
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#f39	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T902 45f3f63ca67c7ce1
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t0	0	C-238 0x0x0
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t1	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T574 552b1c92ad39830b
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t2	0	C0 20x30x3 B-1,-256
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t3	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T629 33c34300342a6c50
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t4	0	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T882 f56fe0c7ce5f0e07
+tests/resources/imageio/jpg/prog_h1v2_20x30.jpg#t5	1	C0 20x30x3 B0,0 bpp4 L30 S1 E0 T427 2ec1f22e746506ba
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 ab9ba8f39e98d79f
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 279aa6e9f9e0decc
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f0	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 9fd7bac761d3c687
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f1	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f2	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 ad5417110e3007aa
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f3	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 b54058a8b38e8cb7
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f4	0	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f5	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 d63ee5f63b8319c5
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f6	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 3ebab6a2411748a0
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f7	1	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f8	0	C0 30x20x3 B-1,-243
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f9	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f10	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 d2982a61c8eee3da
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f11	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 9df70e4df3ebdbb1
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f12	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 1168b5a41ab70750
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f13	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f14	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 4d5d355f23fa0448
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f15	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 bfafcd3891265cd9
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f16	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 8f81f72a10bf6ea8
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f17	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f18	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 79413cdd5cb10869
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f19	1	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f20	0	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f21	1	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f22	0	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f23	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 08cd6dc00540e5ab
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f24	0	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f25	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f26	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 be1f5447572b0d4e
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f27	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f28	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 e9fe94116b56f9d2
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f29	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 3ac669c3eef11ea8
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f30	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 2d4f9e43dfc1e959
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f31	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 8c5f03aa75dc9980
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f32	0	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f33	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 fa2e83d21990044a
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f34	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 af7c2ce4dafc7dad
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f35	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 4994aeb43ada0db2
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f36	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 a0748c5cde72b806
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f37	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T897 aed20b524141589a
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f38	0	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#f39	1	C0 30x20x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t0	0	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T565 e3e9e465b7927436
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t1	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T315 4e7ccefa37e8b5f5
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t2	0	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t3	1	C0 30x20x3 B-1,-244
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t4	0	C0 30x20x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v1_30x20.jpg#t5	1	C0 30x20x3 B0,0 bpp4 L20 S1 E0 T854 b931a282343ff1f0
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f0	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f1	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f2	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f3	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f4	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f5	1	C0 1x1x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f6	0	C0 1x1x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f7	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f8	0	C-238 0x0x0
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f9	1	C0 1x1x3 B-1,-243
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f10	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f11	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f12	0	C0 1x1x3 B-1,-243
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f13	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f14	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f15	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f16	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f17	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f18	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f19	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f20	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f21	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f22	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 9d868bad2b3b13d8
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f23	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f24	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f25	1	C0 1x1x3 B-1,-228
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f26	0	C-237 0x0x0
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f27	1	C0 1x1x3 B-1,-228
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f28	0	C-239 0x0x0
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f29	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f30	0	C0 1x1x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f31	1	C0 1x1x3 B-1,-228
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f32	0	C0 1x1x3 B-1,-243
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f33	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f34	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f35	1	C-247 1x1x3
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f36	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f37	1	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f38	0	C0 1x1x3 B0,0 bpp4 L1 S1 E0 T450 7e22f8dc10f1df45
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#f39	1	C-238 0x0x0
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t0	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t1	1	C0 1x1x3 B-1,-228
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t2	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t3	1	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t4	0	C0 1x1x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_1x1.jpg#t5	1	C-238 0x0x0
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 97eed6ec8b406474
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 638dcac2ab249e16
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f0	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 2cb10c99b014a585
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f1	1	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f2	0	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f3	1	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f4	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 d609a4b007ae7167
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f5	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 1730f79fc1386e79
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f6	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 757c7cbc10b57c30
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f7	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 8c80650713cc6428
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f8	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 6eefbc5507fd1d90
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f9	1	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f10	0	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f11	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 28c22003f51c6f4f
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f12	0	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f13	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 3245c46b3e803155
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f14	0	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f15	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 91c11d6bd377184d
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f16	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 3fdd2b20ded05b24
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f17	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 63d34e4655d32f1a
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f18	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 3bd8067318f98a90
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f19	1	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f20	0	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f21	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 fb4bed6f1d38d147
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f22	0	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f23	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 522b6af621031330
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f24	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 fcee3353980adda5
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f25	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 6c75f579c0cb6499
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f26	0	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f27	1	C0 35x33x3 B-1,-228
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f28	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 b4c0f05c201a703f
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f29	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 3ae69193bda3c937
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f30	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 ef082ce68b652f0e
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f31	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 20161836e05f4b3e
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f32	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 5d83272b22ab1d32
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f33	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 638dcac2ab249e16
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f34	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 862e97753cd5b78e
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f35	1	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f36	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 e49a09a56687f12e
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f37	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T1468 545cfa84a652a7ce
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f38	0	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#f39	1	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t0	0	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T409 2d45ddf6ece09725
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t1	1	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t2	0	C0 35x33x3 B-1,-256
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t3	1	C0 35x33x3 B-1,-230
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t4	0	C0 35x33x3 B-1,-244
+tests/resources/imageio/jpg/prog_h2v2_35x33.jpg#t5	1	C0 35x33x3 B0,0 bpp4 L33 S1 E0 T549 e42c329d1e6b47f7
+tests/resources/input/jpg/Iron_Bars_001_basecolor.jpg	0	C0 1024x1024x3 B0,0 bpp4 L1024 S1 E0 T108801 f70b69015ec16a48
+tests/resources/input/jpg/Iron_Bars_001_basecolor.jpg	1	C0 1024x1024x3 B0,0 bpp4 L1024 S1 E0 T108801 cea31f1cb5d985c9
+tests/resources/input/jpg/Iron_Bars_001_roughness.jpg	0	C0 1024x1024x3 B0,0 bpp4 L1024 S1 E0 T118946 2da798ad0d1e91be
+tests/resources/input/jpg/Iron_Bars_001_roughness.jpg	1	C0 1024x1024x3 B0,0 bpp4 L1024 S1 E0 T118946 2da798ad0d1e91be
