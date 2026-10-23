@@ -57,6 +57,7 @@ Legend: [x] done, [~] partial, [ ] todo.
   NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [ ] astcenc compressor; libktx `astc_codec.cpp` (ktxTexture2_DecodeAstc / CompressAstc)
+- [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 
 ## GPU upload
@@ -73,8 +74,8 @@ Legend: [x] done, [~] partial, [ ] todo.
   unpack (all vendored CTS extract cases pass)
 - [x] compare (header, level index, DFD, KVD, SGD, raw / per texel block image content;
   `ImageCodec` port; all CTS compare cases pass)
-- [x] imageio subset for create: FormatDescriptor, ImageSpec, ImageInput, PNG + EXR readers
-  (netpbm / JPEG readers and output plugins intentionally not ported)
+- [x] imageio subset for create: FormatDescriptor, ImageSpec, ImageInput, PNG + EXR + JPEG
+  readers (netpbm reader and output plugins intentionally not ported)
 - [ ] create, encode, convert
 
 ## Tests ported

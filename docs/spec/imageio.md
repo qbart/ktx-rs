@@ -1,7 +1,7 @@
 # imageio (tools/imageio, subset)
 
-Scope: only what `ktx create` needs for the common input formats, PNG and EXR, behind an
-imageio-like API (`ktx::cli::imageio`). Not ported: netpbm and JPEG readers, output plugins,
+Scope: only what `ktx create` needs for the common input formats, PNG, EXR and JPEG, behind an
+imageio-like API (`ktx::cli::imageio`). Not ported: the netpbm reader, output plugins,
 `image.hpp` / `imagecodec.hpp` image classes (separate), the stream overloads of `open`.
 
 - `formatdesc.h` -> `cli::format_descriptor::FormatDescriptor` (flat basic block fields +
@@ -31,9 +31,14 @@ imageio-like API (`ktx::cli::imageio`). Not ported: netpbm and JPEG readers, out
   envmap / multi-level / size checks. A null tinyexr error string gives fmt's "string pointer
   is null" like `fmt::format`.
 
-Tests: `tests/imageio.rs`, 3458 cases vs `scripts/golden/gen_imageio_golden.sh` (KTX-Software
-imageio built with PNG + EXR only, ASan child per case): every vendored CTS PNG / EXR input,
-Desk.exr and 44 tinyexr-written EXR files (scanline / tiled / multi-level, all compressions,
+- `jpginput.cc` (`jpg.rs`): `myjpgdstream` over the input stream, header via the jpgd port
+  (`JPGD_NOT_JPEG` -> different format, other codes by name), sRGB / BT.709 8-bit spec;
+  `readImage` begins decoding and reads scan lines sequentially: [GREY, RGB] -> [GREY, RGB,
+  RGBA] (luma with the jpgd weights, alpha 255), 2 channels and non-8-bit requests rejected.
+
+Tests: `tests/imageio.rs`, 3895 cases vs `scripts/golden/gen_imageio_golden.sh` (KTX-Software
+imageio built with PNG, EXR and JPEG, ASan child per case): every vendored CTS PNG / EXR input,
+Desk.exr, 44 tinyexr-written EXR files, the 23 JPEG test files (scanline / tiled / multi-level, all compressions,
 envmap and chromaticities attributes) x 19 target formats; spec, format descriptor, warnings,
 errors and pixel hashes match; the 40 C crash cases (tiled EXR into an incompatible type) only
 need to not panic.

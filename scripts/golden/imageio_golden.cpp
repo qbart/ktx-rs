@@ -5,7 +5,7 @@
 // runs ImageInput::open + readImage in a forked AddressSanitizer child and
 // prints "<file>\t<target>\t<result>": the spec / format descriptor of the
 // opened image, warnings, and the readImage error or a hash of the buffer.
-// Only the PNG and EXR readers are built (DISABLE_JPEG, DISABLE_NPBM). Build/run via gen_imageio_golden.sh.
+// The PNG, EXR and JPEG readers are built (DISABLE_NPBM). Build/run via gen_imageio_golden.sh.
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

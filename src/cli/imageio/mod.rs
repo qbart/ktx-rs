@@ -1,11 +1,12 @@
 //! Port of the parts of tools/imageio that `ktx create` needs for its common
 //! input formats: `ImageSpec`, the `ImageInput` base class (`imageio.h`,
-//! `imageinput.cc`, `imageio.cc`) and the PNG and EXR readers. Other
-//! readers (netpbm, JPEG) and the output plugins are not ported. C++
+//! `imageinput.cc`, `imageio.cc`) and the PNG, EXR and JPEG readers. The
+//! netpbm reader and the output plugins are not ported. C++
 //! exceptions are `ImageError` values; streams are the whole input in memory
 //! (`IStream` emulates the `std::istream` calls the readers make).
 
 mod exr;
+mod jpg;
 mod png;
 
 use super::format_descriptor::{FormatDescriptor, Sample};
@@ -16,6 +17,7 @@ use std::io::Read;
 use std::rc::Rc;
 
 pub use exr::ExrInput;
+pub use jpg::JpegInput;
 pub use png::PngInput;
 
 /// Exception thrown by an image reader.
@@ -800,6 +802,7 @@ pub fn read_scanline_default<T: ImageInput + ?Sized>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Plugin {
     Exr,
+    Jpeg,
     Png,
 }
 
@@ -807,6 +810,7 @@ impl Plugin {
     fn create(self) -> Box<dyn ImageInput> {
         match self {
             Plugin::Exr => Box::new(ExrInput::new()),
+            Plugin::Jpeg => Box::new(JpegInput::new()),
             Plugin::Png => Box::new(PngInput::new()),
         }
     }
@@ -823,6 +827,7 @@ fn input_formats() -> BTreeMap<String, Plugin> {
         m.entry(name.to_string()).or_insert(plugin);
     };
     declare("exr", Plugin::Exr, exr::EXR_INPUT_EXTENSIONS);
+    declare("jpeg", Plugin::Jpeg, jpg::JPEG_INPUT_EXTENSIONS);
     declare("png", Plugin::Png, png::PNG_INPUT_EXTENSIONS);
     m
 }
