@@ -113,7 +113,7 @@ pub fn parse_command_line(
     desc: &str,
     args: &[String],
     groups: &mut [&mut dyn OptionGroup],
-) -> CmdResult {
+) -> CmdResult<ParseResult> {
     report.command_name = name.to_string();
     report.command_description = desc.to_string();
     let mut opts = Options::new(name);
@@ -127,7 +127,7 @@ pub fn parse_command_line(
     for g in groups.iter_mut().rev() {
         g.process(&opts, &parsed, report)?;
     }
-    Ok(())
+    Ok(parsed)
 }
 
 /// Port of `OptionsGeneric`.
@@ -358,6 +358,128 @@ impl<const OUTPUT_FILE_OPTIONAL: bool> OptionGroup
             self.output_filepath = "-".to_string();
         } else if args.count("output-file") > 0 {
             self.output_filepath = args.get("output-file").unwrap_or_default().to_string();
+        }
+        Ok(())
+    }
+}
+
+/// Port of `OptionsMultiInSingleOut`.
+#[derive(Debug, Clone, Default)]
+pub struct OptionsMultiInSingleOut {
+    pub input_filepaths: Vec<String>,
+    pub output_filepath: String,
+}
+
+impl OptionsMultiInSingleOut {
+    /// `loadFileList`: one name per line, leading spaces and trailing
+    /// spaces / newlines stripped. `@@list` names are relative to the list.
+    fn load_file_list(
+        f: &str,
+        mut relativize: bool,
+        files: &mut Vec<String>,
+        report: &Reporter,
+    ) -> CmdResult {
+        let list_name = f.get(if relativize { 2 } else { 1 }..).unwrap_or_default();
+        let text = match std::fs::read(list_name) {
+            Ok(t) => t,
+            Err(e) => {
+                return Err(report.fatal(
+                    ReturnCode::RuntimeError,
+                    &format!(
+                        "Opening filename list: \"{list_name}\" failed: {}\n",
+                        super::utility::io_error_message(&e)
+                    ),
+                ));
+            }
+        };
+        let mut dirname = String::new();
+        if relativize {
+            match list_name.rfind('/') {
+                None => relativize = false,
+                Some(end) => dirname = list_name.get(..end + 1).unwrap_or_default().to_string(),
+            }
+        }
+        // fgets with a 4096 byte buffer: longer lines are split.
+        for line in text.split_inclusive(|&c| c == b'\n') {
+            for chunk in line.chunks(4095) {
+                let mut s: &[u8] = chunk;
+                while let [b' ', rest @ ..] = s {
+                    s = rest;
+                }
+                while let [rest @ .., b' ' | b'\n' | b'\r'] = s {
+                    s = rest;
+                }
+                if !s.is_empty() {
+                    let name = String::from_utf8_lossy(s);
+                    if relativize {
+                        files.push(format!("{dirname}{name}"));
+                    } else {
+                        files.push(name.into_owned());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl OptionGroup for OptionsMultiInSingleOut {
+    fn init(&mut self, opts: &mut Options) {
+        opts.add(OptionSpec::flag(
+            "stdin",
+            "Use stdin as the first input file. (Using a single dash '-' as the first input file has the same effect)",
+        ));
+        opts.add(OptionSpec::flag(
+            "stdout",
+            "Use stdout as the output file. (Using a single dash '-' as the output file has the same effect)",
+        ));
+        opts.add(
+            OptionSpec::value(
+                "files",
+                "Input/output files. Last file specified will be used as output. Using a single dash '-' as an input or output file will use stdin/stdout. A filepath prefixed with @ is read as a file name listing file. Listing text files specify which actual files to process, one file name per line. Names can be absolute paths or relative to the current directory when the application is run. If the file is prefixed with @b @@ the names must be relative to the listing file.",
+                "<filepath>",
+            )
+            .container(),
+        );
+        opts.parse_positional(&["files"]);
+        opts.positional_help("<input-file...> <output-file>");
+    }
+
+    fn process(&mut self, _opts: &Options, args: &ParseResult, report: &Reporter) -> CmdResult {
+        let mut files: Vec<String> = Vec::new();
+        if args.count("stdin") > 0 {
+            files.push("-".into());
+        }
+        files.extend(args.get_all("files").iter().cloned());
+        if args.count("stdout") > 0 {
+            files.push("-".into());
+        }
+        if files.is_empty() {
+            return Err(report.fatal_usage("Input and output files must be specified."));
+        }
+        if files.len() < 2 {
+            return Err(report.fatal_usage(&format!(
+                "{} file must be specified.",
+                if args.count("stdout") == 0 {
+                    "Output"
+                } else {
+                    "Input"
+                }
+            )));
+        }
+        self.output_filepath = files.pop().unwrap_or_default();
+        for f in files {
+            if f.starts_with('@') {
+                let rel = f.as_bytes().get(1) == Some(&b'@');
+                Self::load_file_list(&f, rel, &mut self.input_filepaths, report)?;
+            } else {
+                self.input_filepaths.push(f);
+            }
+        }
+        if self.input_filepaths.iter().filter(|f| *f == "-").count() > 1 {
+            return Err(
+                report.fatal_usage("'-' or --stdin as input file was specified more than once.")
+            );
         }
         Ok(())
     }

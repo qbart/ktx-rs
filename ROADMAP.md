@@ -79,7 +79,9 @@ Legend: [x] done, [~] partial, [ ] todo.
   readers (netpbm reader and output plugins intentionally not ported)
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
-- [ ] create, encode, convert
+- [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
+  generation, all convertible formats (4255 CTS create subcases pass); pending Basis / ASTC encoders
+- [ ] encode, convert
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat

@@ -2,6 +2,7 @@
 
 use super::command::*;
 use super::command_compare::CommandCompare;
+use super::command_create::CommandCreate;
 use super::command_deflate::CommandDeflate;
 use super::command_extract::CommandExtract;
 use super::command_help::CommandHelp;
@@ -98,6 +99,7 @@ fn tools_main(args: &[String]) -> i32 {
 pub fn ktx_main(args: &[String]) -> i32 {
     let rc = match args.get(1).map(String::as_str) {
         Some("help") => CommandHelp::main(args.get(1..).unwrap_or_default()),
+        Some("create") => CommandCreate::main(args.get(1..).unwrap_or_default()),
         Some("compare") => CommandCompare::main(args.get(1..).unwrap_or_default()),
         Some("extract") => CommandExtract::main(args.get(1..).unwrap_or_default()),
         Some("deflate") => CommandDeflate::main(args.get(1..).unwrap_or_default()),
