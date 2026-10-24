@@ -57,10 +57,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] tinyexr EXR reader: version / header parsing, scanline + tiled (one level, mipmap, ripmap),
   NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
-- [~] astcenc compressor: SIMD emulation, config presets, compressor block size descriptor and
-  partition tables, block loading, averages / directions, ideal endpoints and weights, weight
-  quantization, partitioning search, angular endpoints, endpoint formats, color packing (bit exact
-  vs C++); block search (`compress_symbolic`) and libktx `astc_codec.cpp` pending
+- [x] astcenc compressor: `astcenc_compress_image` bit exact vs the AVX2 C++ build (all block
+  sizes, profiles, presets, flags); alpha scale RDO (`a_scale_radius`) not ported (unused by KTX)
+- [ ] libktx `astc_codec.cpp` (`ktxTexture2_CompressAstcEx`) and `ktx create/encode` ASTC wiring
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 

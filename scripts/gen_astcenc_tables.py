@@ -60,6 +60,9 @@ ise = read("astcenc_integer_sequence.cpp")
 quints = ints(body(ise, "quints_of_integer[128][3]"))
 trits = ints(body(ise, "trits_of_integer[256][5]"))
 assert len(quints) == 384 and len(trits) == 1280
+int_of_quints = ints(body(ise, "integer_of_quints[5][5][5]"))
+int_of_trits = ints(body(ise, "integer_of_trits[3][3][3][3][3]"))
+assert len(int_of_quints) == 125 and len(int_of_trits) == 243
 
 xfer = read("astcenc_weight_quant_xfer_tables.cpp")
 weight_maps = []
@@ -93,6 +96,14 @@ out.append("];")
 out.append("/// `trits_of_integer[256][5]`.")
 out.append("pub const TRITS_OF_INTEGER: [[u8; 5]; 256] = [")
 out += [f"    [{', '.join(map(str, trits[i:i + 5]))}]," for i in range(0, 1280, 5)]
+out.append("];")
+out.append("/// `integer_of_quints[5][5][5]` (flattened, index `(i2 * 5 + i1) * 5 + i0`).")
+out.append("pub static INTEGER_OF_QUINTS: [u8; 125] = [")
+out.append(fmt(int_of_quints))
+out.append("];")
+out.append("/// `integer_of_trits[3][3][3][3][3]` (flattened, index `i4 * 81 + i3 * 27 + i2 * 9 + i1 * 3 + i0`).")
+out.append("pub static INTEGER_OF_TRITS: [u8; 243] = [")
+out.append(fmt(int_of_trits))
 out.append("];")
 out.append("/// `quant_and_xfer_tables[q].unscramble_and_unquant_map`.")
 out.append("pub const WEIGHT_UNSCRAMBLE_AND_UNQUANT: [[u8; 32]; 12] = [")

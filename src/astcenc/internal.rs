@@ -510,3 +510,56 @@ impl Default for CompressionWorkingBuffers {
         }
     }
 }
+
+/// The block is invalid / could not be encoded.
+pub const SYM_BTYPE_ERROR: u8 = 0;
+/// A constant color block using FP16 colors.
+pub const SYM_BTYPE_CONST_F16: u8 = 1;
+/// A constant color block using UNORM16 colors.
+pub const SYM_BTYPE_CONST_U16: u8 = 2;
+/// A normal non-constant block.
+pub const SYM_BTYPE_NONCONST: u8 = 3;
+
+/// Port of `symbolic_compressed_block`. The C++ union of `constant_color` and
+/// `color_values` is kept as two fields; only the one matching `block_type` is used.
+#[derive(Debug, Clone, Copy)]
+pub struct SymbolicCompressedBlock {
+    pub block_type: u8,
+    pub partition_count: u8,
+    pub color_formats_matched: u8,
+    pub plane2_component: i8,
+    pub block_mode: u16,
+    pub partition_index: u16,
+    pub color_formats: [u8; BLOCK_MAX_PARTITIONS],
+    pub quant_mode: u32,
+    pub errorval: f32,
+    pub constant_color: [i32; BLOCK_MAX_COMPONENTS],
+    pub color_values: [[u8; 8]; BLOCK_MAX_PARTITIONS],
+    pub weights: [u8; BLOCK_MAX_WEIGHTS],
+}
+
+impl Default for SymbolicCompressedBlock {
+    fn default() -> Self {
+        SymbolicCompressedBlock {
+            block_type: SYM_BTYPE_ERROR,
+            partition_count: 0,
+            color_formats_matched: 0,
+            plane2_component: 0,
+            block_mode: 0,
+            partition_index: 0,
+            color_formats: [0; BLOCK_MAX_PARTITIONS],
+            quant_mode: 0,
+            errorval: 0.0,
+            constant_color: [0; BLOCK_MAX_COMPONENTS],
+            color_values: [[0; 8]; BLOCK_MAX_PARTITIONS],
+            weights: [0; BLOCK_MAX_WEIGHTS],
+        }
+    }
+}
+
+impl SymbolicCompressedBlock {
+    /// `get_color_quant_mode`.
+    pub fn get_color_quant_mode(&self) -> u32 {
+        self.quant_mode
+    }
+}

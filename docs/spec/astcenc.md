@@ -19,9 +19,9 @@ Source: `astcenc_entry.cpp` (`astcenc_config_init`, `astcenc_context_alloc`,
 - `astcenc_config_init` keeps only profile, flags and block size (validated like C: block size,
   quality range, flags, UNORM8 + HDR decode mode); compressor tuning presets are not ported.
 - Image API: `AstcencImage` with `AstcencImageData::{U8, F16, F32}` planes (one per z slice).
-- Not ported yet: the compression kernels (in progress, see below), threads (single threaded).
+- Not ported yet: alpha scale RDO, threads (single threaded).
 
-## Compressor (in progress)
+## Compressor
 
 Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4 lanes).
 - `vecmath.rs`: lane-exact `vfloat4/vint4/vmask4` (SSE 4.1) and `vfloat8/vint8/vmask8` (AVX2):
@@ -56,7 +56,22 @@ Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4
 - `pick_best_endpoint_format.rs`: encoding choice errors, per partition error estimates per quant
   level / integer count, 1-4 partition combination search and SIMD-order candidate selection.
 
-Tests: `tests/astcenc_formats.rs` (432 block cases + 96 packing cases vs
+- `compress_symbolic.rs`: `compress_block` (constant blocks, 1 partition / 1 plane mode0 and
+  full passes, 2 plane trials, 2-4 partition trials with the early-out heuristics), candidate
+  refinement with weight realignment (decimated / undecimated) and the block statistics.
+- `decompress_symbolic.rs`: compressor `unpack_weights` (8 texel groups) and the symbolic block
+  error metrics (1 plane 1 partition 8 lanes wide, RGBM perceptual variant).
+- `symbolic_physical.rs`: `symbolic_to_physical` and `encode_ise` (trit / quint packing tables
+  generated from `integer_of_trits` / `integer_of_quints`).
+- `astcenc_compress_image` / `_reset` / `_cancel`: per thread working buffers in the context;
+  the calling thread takes all blocks (single threaded task manager). Alpha scale RDO
+  (`a_scale_radius`, `compute_variance.cpp`) is not ported: returns `NotImplemented` (KTX never
+  sets it).
+
+Tests: `tests/astcenc_compress.rs` (336 whole images through `astcenc_compress_image`: 8 block
+sizes x 4 profiles x 3 presets x flag sets incl. swizzle, normal map, alpha weight, perceptual,
+RGBM, decode unorm8, over U8 / F16 / F32 data vs `scripts/golden/gen_astcenc_compress_golden.sh`),
+`tests/astcenc_formats.rs` (432 block cases + 96 packing cases vs
 `scripts/golden/gen_astcenc_formats_golden.sh`, fed like `compress_symbolic.cpp`),
 `tests/astcenc_weights.rs` (432 block cases vs `scripts/golden/gen_astcenc_weights_golden.sh`),
 `tests/astcenc_kernels.rs` (4608 cases vs `scripts/golden/gen_astcenc_kernels_golden.sh`,
