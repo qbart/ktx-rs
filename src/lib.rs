@@ -9,6 +9,7 @@ pub mod basisu;
 pub mod cli;
 pub mod defs;
 pub mod dfd;
+pub mod encode_params;
 pub mod error;
 pub mod formatsize;
 pub mod gl_format;

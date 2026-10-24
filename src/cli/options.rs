@@ -23,6 +23,8 @@ pub struct OptionSpec {
     pub group: String,
     /// `cxxopts::value<uint32_t>()`: values must parse as `u32`.
     pub is_u32: bool,
+    /// `cxxopts::value<float>()`: values must parse as `float` (`istream >> float`).
+    pub is_f32: bool,
 }
 
 impl OptionSpec {
@@ -40,6 +42,7 @@ impl OptionSpec {
             is_container: false,
             group: String::new(),
             is_u32: false,
+            is_f32: false,
         }
     }
 
@@ -57,6 +60,7 @@ impl OptionSpec {
             is_container: false,
             group: String::new(),
             is_u32: false,
+            is_f32: false,
         }
     }
 
@@ -81,6 +85,12 @@ impl OptionSpec {
     /// `cxxopts::value<uint32_t>()`.
     pub fn u32(mut self) -> OptionSpec {
         self.is_u32 = true;
+        self
+    }
+
+    /// `cxxopts::value<float>()`.
+    pub fn f32(mut self) -> OptionSpec {
+        self.is_f32 = true;
         self
     }
 
@@ -155,6 +165,11 @@ impl ParseResult {
         self.get(name).and_then(parse_u32).unwrap_or(0)
     }
 
+    /// `as<float>()` (values were checked while parsing).
+    pub fn as_f32(&self, name: &str) -> f32 {
+        self.get(name).and_then(parse_f32).unwrap_or(0.0)
+    }
+
     /// `unmatched()`.
     pub fn unmatched(&self) -> &[String] {
         &self.unmatched
@@ -192,6 +207,46 @@ pub fn parse_u32(text: &str) -> Option<u32> {
         result = next;
     }
     if negative { None } else { Some(result) }
+}
+
+/// Port of cxxopts' `stringstream_parser<float>` (`std::istringstream >> float`
+/// with libstdc++ `num_get`): skips leading whitespace, accepts the longest
+/// `[+-]?digits[.digits][e[+-]digits]` prefix (trailing text is ignored) and
+/// fails on no digits, a dangling exponent or overflow to infinity.
+pub fn parse_f32(text: &str) -> Option<f32> {
+    let b = text
+        .trim_start_matches([' ', '\t', '\n', '\r', '\x0b', '\x0c'])
+        .as_bytes();
+    let mut i = 0;
+    if matches!(b.first(), Some(b'+' | b'-')) {
+        i += 1;
+    }
+    let digits = |i: &mut usize| {
+        let start = *i;
+        while b.get(*i).is_some_and(u8::is_ascii_digit) {
+            *i += 1;
+        }
+        *i - start
+    };
+    let mut n = digits(&mut i);
+    if b.get(i) == Some(&b'.') {
+        i += 1;
+        n += digits(&mut i);
+    }
+    if n == 0 {
+        return None;
+    }
+    if matches!(b.get(i), Some(b'e' | b'E')) {
+        i += 1;
+        if matches!(b.get(i), Some(b'+' | b'-')) {
+            i += 1;
+        }
+        if digits(&mut i) == 0 {
+            return None;
+        }
+    }
+    let v: f32 = std::str::from_utf8(b.get(..i)?).ok()?.parse().ok()?;
+    if v.is_infinite() { None } else { Some(v) }
 }
 
 /// `truthy_pattern`: `(t|T)(rue)?|1`.
@@ -314,6 +369,9 @@ impl Options {
             return Err(ParseError(format!("Argument '{arg}' failed to parse")));
         }
         if spec.is_u32 && parse_u32(arg).is_none() {
+            return Err(ParseError(format!("Argument '{arg}' failed to parse")));
+        }
+        if spec.is_f32 && parse_f32(arg).is_none() {
             return Err(ParseError(format!("Argument '{arg}' failed to parse")));
         }
         result
@@ -645,6 +703,17 @@ mod tests {
         assert_eq!(parse_u32("4294967296"), None);
         for bad in ["", "-1", "-0", "0x", "1a", "abc", " 1", "1.5", "0xg"] {
             assert_eq!(parse_u32(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn float_parser() {
+        assert_eq!(parse_f32("1.5"), Some(1.5));
+        assert_eq!(parse_f32(" -2e3x"), Some(-2000.0));
+        assert_eq!(parse_f32(".5"), Some(0.5));
+        assert_eq!(parse_f32("5."), Some(5.0));
+        for bad in ["", "abc", ".", "1e", "1e+", "inf", "nan", "1e60", "-"] {
+            assert_eq!(parse_f32(bad), None, "{bad:?}");
         }
     }
 
