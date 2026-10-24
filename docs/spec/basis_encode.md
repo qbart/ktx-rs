@@ -8,7 +8,8 @@ link `scripts/golden/build_basisu_encoder.sh` (`$WORK/libbasisu_enc.a`) with tha
 
 Port order (each stage bit exact vs. the C++ build before the next one starts):
 1. [x] `basisu_etc.cpp` ETC1 block encoder (`src/basisu/etc_enc.rs`)
-2. [ ] UASTC LDR 4x4 block encoder (`basisu_uastc_enc.cpp`, needs `basisu_bc7enc.cpp`) + RDO
+2. [~] UASTC LDR 4x4: [x] `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), [ ] block encoder
+   (`basisu_uastc_enc.cpp`) + RDO
 3. [ ] ETC1S frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
    endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
 4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
@@ -40,3 +41,18 @@ Tests: `tests/basisu_etc.rs` vs `scripts/golden/gen_basisu_etc_golden.sh` (3000 
 optimizer configs: quality, perceptual, cluster fit, color4, 8/16 pixels, scan deltas, base
 color constraint, forced selectors, refinement; block helpers on results and random blocks;
 solid color; EAC A8).
+
+## bc7enc (`basisu::bc7enc`)
+
+`color_cell_compression` (PCA endpoints, least squares refinement, uber levels 1..4, single
+color fallbacks for BC7 mode 1 and ASTC 4-bit 3-bit, 4-bit 2-bit RGBA, range 7/13 2-bit, range
+11 5-bit), `color_cell_compression_est_astc`, the `g_*_weights*x` least squares tables and
+`bc7enc_compress_block_init` tables (`bc7enc_tables()`, built once via `OnceLock`).
+- `color_cell_compressor_results::m_pSelectors/_temp` become owned `[u8; 16]` arrays; the
+  single color packers return their selector index and the caller fills the arrays.
+- Float semantics follow the SSE build (no FMA contraction): f32 math, f64 normal equations
+  with f32 products accumulated, `(int)` truncation; u32 wrapping in weighted distances.
+- `check_best_overall_error` is `_DEBUG` only in C++ and not ported.
+Tests: `tests/basisu_bc7enc.rs` vs `scripts/golden/gen_basisu_bc7enc_golden.sh` (1400 blocks x
+16 range/mode configs x 12 variants: perceptual, uber level, least squares passes, pixel count,
+forced selectors; `est_astc` over 6 weight tables, 3/4 comps, weights, early out).
