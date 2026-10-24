@@ -37,6 +37,7 @@ pub mod uastc_hdr_6x6i;
 pub mod uastc_ldr;
 pub mod uastc_pvrtc;
 pub mod uastc_tables;
+pub mod vq;
 
 /// Port of `transcoder_texture_format`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

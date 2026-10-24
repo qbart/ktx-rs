@@ -10,7 +10,8 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
 1. [x] `basisu_etc.cpp` ETC1 block encoder (`src/basisu/etc_enc.rs`)
 2. [x] UASTC LDR 4x4: `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), block encoder
    (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), RDO (`uastc_rdo`)
-3. [ ] ETC1S frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
+3. [~] ETC1S: [x] vector quantizer (`basisu_enc.h` `tree_vector_quant`, `src/basisu/vq.rs`),
+   [ ] frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
    endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
 4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
 5. [ ] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
@@ -85,3 +86,20 @@ Tests: `tests/basisu_uastc_rdo.rs` vs `scripts/golden/gen_basisu_uastc_rdo_golde
 generated 96x64 images incl. alpha, high noise and tiled ones x 16 configs: lambda, dict size,
 literal cost, RMS ratio / skip threshold, smooth block params, refinement, levels and hint flags
 for the recompute, 1 / 4 / 7 jobs).
+
+## Vector quantizer (`basisu::vq`)
+
+`priority_queue`, `tree_vector_quant<vec<N, float>>` (`generate`, the three `retrieve`
+overloads as `retrieve` / `retrieve_origins` / `retrieve_max`, PCA split axis, k-means refine,
+unsplittable node fallbacks), `compute_pca_from_covar`, `generate_hierarchical_codebook_threaded`
+(+ `_internal`).
+- `std::map<vec, weighted_block_group>` becomes a `BTreeMap` keyed by `vec::operator<`
+  (lexicographic, `-0.0 == 0.0`), so unique vector order matches.
+- The SSE 4.1 `update_covar_matrix_16x16` kernel evaluates the same per element products as the
+  scalar loop; only the scalar loop is ported. The job pool clusterizers (>= 262144 unique
+  vectors) run on `std::thread::scope`.
+- C++ quirk kept: the `prep_split` fallback sorts along the largest axis but splits in unsorted
+  order (sorted indices unused).
+Tests: `tests/basisu_vq.rs` vs `scripts/golden/gen_basisu_vq_golden.sh` (6 vector kinds incl.
+duplicates, signed zeros and 1e-7 perturbations x 7 sizes x 5 codebook sizes, weights, parent
+codebooks, even/odd pairs, N = 6 and 16; threaded path on 270000 unique vectors).
