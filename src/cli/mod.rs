@@ -21,6 +21,7 @@ pub mod fragment_uri;
 pub mod image_codec;
 pub mod imageio;
 pub mod ktx_main;
+pub mod metrics_utils;
 pub mod options;
 pub mod transcode_utils;
 pub mod utility;

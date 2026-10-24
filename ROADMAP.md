@@ -46,6 +46,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] UASTC HDR 6x6 intermediate transcoder: ASTC HDR 6x6, BC6H (incl. HQ 2-subset), RGB/RGBA half,
   RGB9E5 byte exact vs C++
 - [x] `ktxTexture2_TranscodeBasis`: ETC1S, UASTC LDR 4x4, UASTC HDR 4x4, UASTC HDR 6x6i
+- [x] basisu SSIM (`basisu_ssim.cpp`) and 8-bit `image_metrics::calc` (CTS exact output)
 - [x] basisu resampler + 16 filters (`encoder/basisu_resampler`, bit exact vs C++, used by image scaling)
 - [ ] ETC1S encoder (`ktxTexture2_CompressBasis`)
 - [ ] UASTC encoder + RDO
@@ -82,10 +83,10 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
-  generation, all convertible formats, ASTC encoding (4482 CTS create subcases pass); pending
-  Basis encoders and `--compare-ssim/psnr` metrics
+  generation, all convertible formats, ASTC encoding, `--compare-ssim/psnr` metrics (4482 CTS
+  create subcases pass); pending Basis encoders
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
-- [~] encode: ASTC (776 CTS encode subcases pass); pending Basis encoders and metrics
+- [~] encode: ASTC + SSIM / PSNR metrics (800 CTS encode subcases pass); pending Basis encoders
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat

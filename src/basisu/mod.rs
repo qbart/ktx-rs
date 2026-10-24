@@ -20,6 +20,7 @@ pub mod pvrtc;
 pub mod pvrtc2;
 pub mod resample_filters;
 pub mod resampler;
+pub mod ssim;
 pub mod tables;
 pub mod uastc;
 pub mod uastc_bc1;

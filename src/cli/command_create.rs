@@ -16,6 +16,7 @@ use super::imageio::{
     self, ImageError, ImageInput, ImageInputFormatType, ImageSpec, Origin, bit_ceil,
     format_type_to_string, origin_to_string,
 };
+use super::metrics_utils::MetricsCalculator;
 use super::options::{OptionSpec, Options, ParseResult};
 use super::utility::{ceil_div, fmt_in_file, log2};
 use crate::basisu::resampler::BoundaryOp;
@@ -2405,6 +2406,9 @@ impl CommandCreate {
         }
 
         // Encode and apply compression
+        let mut metrics = MetricsCalculator::default();
+        metrics.save_reference_images(&texture, &self.metrics);
+
         if self.basis.selected_codec != BasisCodec::None {
             return Err(self.fatal(ReturnCode::NotImplemented, format!(
                 "Failed to encode KTX2 file with codec \"{}\". The Basis Universal encoder is not implemented.",
@@ -2414,14 +2418,6 @@ impl CommandCreate {
         if self.astc.encode_astc {
             self.encode_astc(&mut texture)?;
         }
-        // MetricsCalculator (decodeAndCalculateMetrics) is not ported yet
-        if self.metrics.compare_ssim || self.metrics.compare_psnr {
-            return Err(self.fatal(
-                ReturnCode::NotImplemented,
-                "Image comparison metrics (--compare-ssim, --compare-psnr) are not implemented."
-                    .into(),
-            ));
-        }
 
         let output_path = std::path::Path::new(&self.in_out.output_filepath);
         if let Some(parent) = output_path.parent()
@@ -2430,6 +2426,15 @@ impl CommandCreate {
             let _ = std::fs::create_dir_all(parent);
         }
         let mut output = OutputStream::new(&self.in_out.output_filepath, &report)?;
+
+        // If output is stdout, we write metrics to stderr (this is done to avoid polluting the
+        // KTX file binary in stdout)
+        metrics.decode_and_calculate_metrics(
+            &mut texture,
+            &self.metrics,
+            &report,
+            output.is_stdout(),
+        )?;
 
         if let Some(level) = self.deflate.zstd
             && let Err(e) = texture.deflate_zstd(level)

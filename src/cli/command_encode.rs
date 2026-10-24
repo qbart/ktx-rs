@@ -5,6 +5,7 @@ use super::deflate_utils::OptionsDeflate;
 use super::encode_utils::*;
 use super::formats::{parse_vk_format, to_string_transfer, to_string_vk_format};
 use super::formats_gen::is_format_astc;
+use super::metrics_utils::MetricsCalculator;
 use super::options::{OptionSpec, Options, ParseResult};
 use crate::defs::{KTX_WRITER_KEY, KTX_WRITER_SCPARAMS_KEY, SupercmpScheme};
 use crate::dfd::khr_df::{KHR_DF_MODEL_ASTC, KHR_DF_TRANSFER_LINEAR};
@@ -279,6 +280,9 @@ impl CommandEncode {
             ));
         }
 
+        let mut metrics = MetricsCalculator::default();
+        metrics.save_reference_images(&texture, &self.metrics);
+
         if self.options.vk_format != VkFormat::UNDEFINED {
             // The C++ never sets the block dimension (TODO: fix me for HDR textures)
             self.astc.params.mode = KTX_PACK_ASTC_ENCODER_MODE_LDR;
@@ -301,14 +305,6 @@ impl CommandEncode {
             ));
         }
 
-        // MetricsCalculator (decodeAndCalculateMetrics) is not ported yet
-        if self.metrics.compare_ssim || self.metrics.compare_psnr {
-            return Err(report.fatal(
-                ReturnCode::NotImplemented,
-                "Image comparison metrics (--compare-ssim, --compare-psnr) are not implemented.",
-            ));
-        }
-
         let output_path = std::path::Path::new(&self.in_out.output_filepath);
         if let Some(parent) = output_path.parent()
             && !parent.as_os_str().is_empty()
@@ -316,6 +312,15 @@ impl CommandEncode {
             let _ = std::fs::create_dir_all(parent);
         }
         let mut output = OutputStream::new(&self.in_out.output_filepath, report)?;
+
+        // If output is stdout, we write metrics to stderr (this is done to avoid polluting the
+        // KTX file binary in stdout)
+        metrics.decode_and_calculate_metrics(
+            &mut texture,
+            &self.metrics,
+            report,
+            output.is_stdout(),
+        )?;
 
         if let Some(level) = self.deflate.zstd
             && let Err(e) = texture.deflate_zstd(level)

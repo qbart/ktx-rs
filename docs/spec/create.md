@@ -16,8 +16,9 @@ Source: `tools/ktx/command_create.cpp`, `encode_utils_{common,astc,basis}.h`, `m
   primaries / transfer / premultiplied flag / linear alpha qualifier; Zstd / ZLIB.
 - C++ quirk kept: `--*-texcoord-origin ...-front` maps to back (`compare()` inverted).
 - ASTC (`--format ASTC_*`) encoding through `ktxTexture2_CompressAstcEx`.
-- Not yet: Basis Universal (`--encode`) encoding and `--compare-ssim/psnr` metrics: parsed and
-  validated, then fail with NOT_IMPLEMENTED ("... not implemented").
+- `--compare-ssim/psnr` metrics (see encode.md).
+- Not yet: Basis Universal (`--encode`) encoding: parsed and validated, then fails with
+  NOT_IMPLEMENTED ("... not implemented").
 
 Tests: CTS `tests/create` (4482 subcases pass; the rest skip non-vendored inputs or are
 pending on the Basis encoders). `outputTolerance` cases use `tests/common/ktxdiff.rs` (port of

@@ -21,7 +21,12 @@ Ports `tools/ktx/command_encode.cpp` (`src/cli/command_encode.rs`) and `lib/src/
   groups; validation order and messages as in C++.
 - C++ quirk kept: `--format` only selects ASTC encoding, `blockDimension` is never set, so every
   ASTC output is 4x4 UNORM / sRGB (the CTS goldens are 4x4).
-- Not yet: Basis Universal codecs and `--compare-ssim/psnr` (NOT_IMPLEMENTED).
+- `--compare-ssim/psnr`: `MetricsCalculator` (`src/cli/metrics_utils.rs`) saves the 8-bit input
+  images, decodes the encoded copy (`decode_astc` or `transcode_basis` RGBA32 + transcode swizzle)
+  and prints per image and overall SSIM (`basisu::compute_ssim`, 11x11 Gaussian, sigma 1.5) and
+  PSNR (`image_metrics::calc`, default args: BT.709 luma) to stdout, or stderr when the KTX file
+  goes to stdout. Shared with `ktx create`.
+- Not yet: Basis Universal codecs (NOT_IMPLEMENTED).
 
-Tests: CTS `tests/encode` (776 subcases pass; Basis and metrics subcases pending),
+Tests: CTS `tests/encode` (800 subcases pass incl. 24 metrics cases; Basis subcases pending),
 texturetests ASTC LDR encode/decode and decode (9 tests).
