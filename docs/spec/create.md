@@ -15,11 +15,11 @@ Source: `tools/ktx/command_create.cpp`, `encode_utils_{common,astc,basis}.h`, `m
 - Metadata: KTXwriter, KTXswizzle, KTXmapRange, KTXorientation, KTXwriterScParams; DFD
   primaries / transfer / premultiplied flag / linear alpha qualifier; Zstd / ZLIB.
 - C++ quirk kept: `--*-texcoord-origin ...-front` maps to back (`compare()` inverted).
-- Not yet: Basis Universal (`--encode`) and ASTC (`--format ASTC_*`) encoding and
-  `--compare-ssim/psnr` metrics: parsed and validated, then fail with NOT_IMPLEMENTED
-  ("... encoder is not implemented").
+- ASTC (`--format ASTC_*`) encoding through `ktxTexture2_CompressAstcEx`.
+- Not yet: Basis Universal (`--encode`) encoding and `--compare-ssim/psnr` metrics: parsed and
+  validated, then fail with NOT_IMPLEMENTED ("... not implemented").
 
-Tests: CTS `tests/create` (4255 subcases pass; 38 skip non-vendored inputs, 491 pending on
-the encoders). `outputTolerance` cases use `tests/common/ktxdiff.rs` (port of
+Tests: CTS `tests/create` (4482 subcases pass; the rest skip non-vendored inputs or are
+pending on the Basis encoders). `outputTolerance` cases use `tests/common/ktxdiff.rs` (port of
 `tests/ktxdiff`) like clitest.py on non-primary platforms: the ZLIB level 1 goldens come from
 arm64 miniz, which has no x86-64 `tdefl_compress_fast` path.

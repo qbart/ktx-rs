@@ -3,6 +3,7 @@
 //! Fallible functions return [`KtxResult`]; `KTX_SUCCESS` maps to `Ok`.
 //! The library never panics on malformed input.
 
+pub mod astc_codec;
 pub mod astcenc;
 pub mod basis_transcode;
 pub mod basisu;

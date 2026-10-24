@@ -2412,9 +2412,13 @@ impl CommandCreate {
             )));
         }
         if self.astc.encode_astc {
+            self.encode_astc(&mut texture)?;
+        }
+        // MetricsCalculator (decodeAndCalculateMetrics) is not ported yet
+        if self.metrics.compare_ssim || self.metrics.compare_psnr {
             return Err(self.fatal(
                 ReturnCode::NotImplemented,
-                "Failed to encode KTX2 file with codec ASTC. The ASTC encoder is not implemented."
+                "Image comparison metrics (--compare-ssim, --compare-psnr) are not implemented."
                     .into(),
             ));
         }
@@ -2465,6 +2469,20 @@ impl CommandCreate {
 
         // Save output file
         output.write_ktx2(&mut texture, &report)
+    }
+
+    /// `encodeASTC`.
+    fn encode_astc(&self, texture: &mut Texture2) -> CmdResult {
+        if let Err(e) = texture.compress_astc_ex(&self.astc.params) {
+            return Err(self.fatal(
+                ReturnCode::RuntimeError,
+                format!(
+                    "Failed to encode KTX2 file with codec ASTC. KTX Error: {}",
+                    ktx_error_string(e)
+                ),
+            ));
+        }
+        Ok(())
     }
 
     /// `selectASTCMode`.

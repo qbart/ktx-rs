@@ -2092,3 +2092,240 @@ fn ktx_texture2_metadata_test_lib_version_updated_correctly() {
     assert!(texture.p_data.is_some(), "Image data not loaded");
     assert_eq!(cur_writer, writer_value(&texture));
 }
+
+////////////////////////////////////////////
+// ASTC encode & decode tests
+///////////////////////////////////////////
+// The ASTC encoder and decoder are heavily tested elsewhere hence the focus of these tests
+// is the mechanics of encoding and decoding a ktxTexture2 and the resulting changes to the
+// ktxTexture2 object.
+
+use ktx::dfd::khr_df::{
+    KHR_DF_MODEL_ASTC, KHR_DF_MODEL_RGBSDA, KHR_DF_SAMPLE_DATATYPE_FLOAT, KHR_DF_TRANSFER_SRGB,
+};
+use ktx::dfd::{MODEL, QUALIFIERS, TRANSFER, bdb, dfdsval, dfdval};
+use ktx::encode_params::*;
+use ktx::gl_format::GL_SRGB8_ALPHA8;
+
+/// `blockDimensionToUnormFormat` / `blockDimensionToSrgbFormat` for the tested dimensions.
+fn block_dimension_to_format(block_dimension: u32, srgb: bool) -> VkFormat {
+    match (block_dimension, srgb) {
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_4X4, false) => VkFormat::ASTC_4x4_UNORM_BLOCK,
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_4X4, true) => VkFormat::ASTC_4x4_SRGB_BLOCK,
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_8X5, false) => VkFormat::ASTC_8x5_UNORM_BLOCK,
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_8X5, true) => VkFormat::ASTC_8x5_SRGB_BLOCK,
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_12X12, false) => VkFormat::ASTC_12x12_UNORM_BLOCK,
+        (KTX_PACK_ASTC_BLOCK_DIMENSION_12X12, true) => VkFormat::ASTC_12x12_SRGB_BLOCK,
+        _ => VkFormat::UNDEFINED,
+    }
+}
+
+/// Port of `ktxTexture2AstcLdrEncodeDecodeTestBase::runTest`.
+fn astc_ldr_encode_decode<const IF: u32>(block_dimension: u32, testname: &str) {
+    let f = TextureTestBase::<u8, 4, IF>::new(FormatVersion::Two);
+    let is_srgb = IF == GL_SRGB8_ALPHA8 || IF == GL_SRGB8;
+    let tmp_dir = std::env::temp_dir();
+    let original = tmp_dir.join(format!("{testname}_original.ktx2"));
+    let decoded = tmp_dir.join(format!("{testname}_decoded.ktx2"));
+
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "ktxTexture_CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    ok(
+        texture.write_to_named_file(&original),
+        "ktxTexture2_WriteToNamedFile",
+    );
+
+    let depth = texture.base_depth;
+    let height = texture.base_height;
+    let width = texture.base_width;
+    let data_size = texture.data_size;
+    assert_eq!(depth, 1);
+
+    let params = AstcParams {
+        struct_size: KTX_ASTC_PARAMS_SIZE,
+        thread_count: 1,
+        block_dimension,
+        mode: KTX_PACK_ASTC_ENCODER_MODE_DEFAULT,
+        quality_level: KTX_PACK_ASTC_QUALITY_LEVEL_FAST,
+        normal_map: false,
+        perceptual: false,
+        input_swizzle: *b"RGBA",
+        ..AstcParams::default()
+    };
+    assert_eq!(texture.compress_astc_ex(&params), Ok(()));
+    assert_eq!(
+        texture.vk_format,
+        block_dimension_to_format(block_dimension, is_srgb)
+    );
+
+    if is_srgb {
+        assert_eq!(dfdval(bdb(&texture.p_dfd), TRANSFER), KHR_DF_TRANSFER_SRGB);
+    }
+    assert_eq!(dfdval(bdb(&texture.p_dfd), MODEL), KHR_DF_MODEL_ASTC);
+    assert_eq!(texture.supercompression_scheme, SupercmpScheme::NONE);
+    assert!(texture.supercompression_global_data().is_empty());
+    assert_eq!(texture.num_levels, f.helper.num_levels);
+    assert_eq!(texture.base_depth, depth);
+    assert_eq!(texture.base_height, height);
+    assert_eq!(texture.base_width, width);
+    assert!(texture.data_size < data_size);
+
+    assert_eq!(texture.decode_astc(), Ok(()));
+    if is_srgb {
+        assert_eq!(texture.vk_format, VkFormat::R8G8B8A8_SRGB);
+    } else {
+        assert_eq!(texture.vk_format, VkFormat::R8G8B8A8_UNORM);
+    }
+    assert_eq!(dfdval(bdb(&texture.p_dfd), MODEL), KHR_DF_MODEL_RGBSDA);
+    assert_eq!(depth, texture.base_depth);
+    ok(
+        texture.write_to_named_file(&decoded),
+        "ktxTexture2_WriteToNamedFile",
+    );
+    let status = if IF != GL_RGB8 && IF != GL_SRGB8 {
+        common::ktxdiff::ktxdiff(&original, &decoded, 0.01)
+    } else {
+        // ASTC formats always decode to a 4-component format as there is no way to tell prior
+        // to decode if any blocks have an alpha channel, so the data can't be compared.
+        Ok(())
+    };
+    let _ = std::fs::remove_file(&original);
+    let _ = std::fs::remove_file(&decoded);
+    assert_eq!(status, Ok(()));
+    assert_eq!(texture.base_height, height);
+    assert_eq!(texture.base_width, width);
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_unorm_compress_to_astc4x4_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_RGBA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_4X4,
+        "Compress_RGBA8_UNORM_ToAstc4x4LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_srgb_compress_to_astc4x4_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_SRGB8_ALPHA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_4X4,
+        "Compress_RGBA8_SRGB_ToAstc4x4LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgb8_unorm_compress_to_astc4x4_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_RGB8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_4X4,
+        "Compress_RGB8_UNORM_ToAstc4x4LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgb8_srgb_compress_to_astc4x4_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_SRGB8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_4X4,
+        "Compress_RGB8_SRGB_ToAstc4x4LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_unorm_compress_to_astc8x5_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_RGBA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_8X5,
+        "Compress_RGBA8_UNORM_ToAstc8x5LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_srgb_compress_to_astc8x5_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_SRGB8_ALPHA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_8X5,
+        "Compress_RGBA8_SRGB_ToAstc8x5LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_unorm_compress_to_astc12x12_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_RGBA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_12X12,
+        "Compress_RGBA8_UNORM_ToAstc12x12LdrThenDecode",
+    );
+}
+
+#[test]
+fn ktx_texture2_astc_ldr_encode_decode_rgba8_srgb_compress_to_astc12x12_ldr_then_decode() {
+    astc_ldr_encode_decode::<GL_SRGB8_ALPHA8>(
+        KTX_PACK_ASTC_BLOCK_DIMENSION_12X12,
+        "Compress_RGBA8_SRGB_ToAstc12x12LdrThenDecode",
+    );
+}
+
+/// Port of `ktxTexture2AstcDecodeTestBase::runTest`.
+fn astc_decode(astc_file_name: &str) {
+    let astc_path = common::ktx2_path().join(astc_file_name);
+    let mut texture = match Texture2::create_from_named_file(
+        &astc_path,
+        KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
+    ) {
+        Ok(t) => t,
+        Err(e) => panic!(
+            "ktxTexture2_CreateFromNamedFile \"{}\" failed: {}",
+            astc_path.display(),
+            ktx_error_string(e)
+        ),
+    };
+
+    // Check the input file is valid ASTC
+    assert_eq!(texture.get_color_model_e(), KHR_DF_MODEL_ASTC);
+    assert!(texture.is_compressed);
+    assert!(!texture.needs_transcoding());
+    assert!(!texture.p_dfd.is_empty());
+
+    let height = texture.base_height;
+    let width = texture.base_width;
+    let depth = texture.base_depth;
+    assert_eq!(depth, 1);
+    let num_layers = texture.num_layers;
+    let is_array = texture.is_array;
+    let is_hdr = texture.is_hdr();
+    let is_premultiplied_alpha = texture.get_premultiplied_alpha();
+    let b = bdb(&texture.p_dfd);
+    let is_float = dfdsval(b, 0, QUALIFIERS) & KHR_DF_SAMPLE_DATATYPE_FLOAT != 0;
+    let is_srgb = dfdval(b, TRANSFER) == KHR_DF_TRANSFER_SRGB;
+
+    assert!(!(is_srgb && is_float));
+
+    if let Err(e) = texture.decode_astc() {
+        panic!("ktxTexture2_DecodeAstc failed: {}", ktx_error_string(e));
+    }
+    assert!(!texture.needs_transcoding());
+    assert!(!texture.is_compressed);
+    assert!(!texture.p_dfd.is_empty());
+    let b = bdb(&texture.p_dfd);
+    if is_float {
+        assert_eq!(texture.vk_format, VkFormat::R16G16B16A16_SFLOAT);
+        assert_ne!(dfdsval(b, 1, QUALIFIERS) & KHR_DF_SAMPLE_DATATYPE_FLOAT, 0);
+        assert_ne!(dfdval(b, TRANSFER), KHR_DF_TRANSFER_SRGB);
+    } else if is_srgb {
+        assert_eq!(texture.vk_format, VkFormat::R8G8B8A8_SRGB);
+    } else {
+        assert_eq!(texture.vk_format, VkFormat::R8G8B8A8_UNORM);
+    }
+
+    assert_eq!(dfdval(b, MODEL), KHR_DF_MODEL_RGBSDA);
+    assert_eq!(height, texture.base_height);
+    assert_eq!(width, texture.base_width);
+    assert_eq!(depth, texture.base_depth);
+    assert_eq!(num_layers, texture.num_layers);
+    assert_eq!(is_array, texture.is_array);
+    assert_eq!(is_hdr, texture.is_hdr());
+    assert_eq!(is_premultiplied_alpha, texture.get_premultiplied_alpha());
+}
+
+#[test]
+fn ktx_texture2_astc_decode_test_base_decode_astc_8x8_unorm_array_7() {
+    astc_decode("astc_8x8_unorm_array_7.ktx2");
+}
