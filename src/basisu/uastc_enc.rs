@@ -1871,3 +1871,583 @@ pub fn encode_uastc(rgba_pixels: &[u8; 64], output_block: &mut [u8; 16], flags: 
         bc1_hint1,
     );
 }
+
+/// `uastc_recompute_hints`: repacks `blk` from `unpacked` (or its own unpacked form) with
+/// freshly computed BC1, ETC1 and ETC2 EAC A8 hints.
+fn uastc_recompute_hints(
+    blk: &mut [u8; 16],
+    pixels: &Block,
+    flags: u32,
+    unpacked: Option<&UnpackedUastcBlock>,
+) -> bool {
+    let mut unpacked_blk = UnpackedUastcBlock::default();
+    match unpacked {
+        Some(u) => unpacked_blk = *u,
+        None => {
+            if !unpack_uastc(blk, &mut unpacked_blk, false, true) {
+                return false;
+            }
+        }
+    }
+    let results = UastcEncodeResults {
+        uastc_mode: unpacked_blk.mode,
+        common_pattern: unpacked_blk.common_pattern,
+        astc: unpacked_blk.astc,
+        solid_color: unpacked_blk.solid_color.c,
+        astc_err: 0,
+    };
+    let mut decoded: Block = [[0u8; 4]; 16];
+    if !unpack_results(&results, &mut decoded) {
+        return false;
+    }
+    let mut bc1_hints = true;
+    let mut eac_a8_mul_search_rad = 3u32;
+    let mut eac_a8_table_mask = u32::MAX;
+    let level = flags & C_PACK_UASTC_LEVEL_MASK;
+    match level {
+        C_PACK_UASTC_LEVEL_FASTEST => {
+            eac_a8_mul_search_rad = 0;
+            eac_a8_table_mask = (1 << 2) | (1 << 8) | (1 << 11) | (1 << 13);
+            bc1_hints = false;
+        }
+        C_PACK_UASTC_LEVEL_FASTER => {
+            eac_a8_mul_search_rad = 0;
+            eac_a8_table_mask = (1 << 2) | (1 << 8) | (1 << 11) | (1 << 13);
+        }
+        C_PACK_UASTC_LEVEL_DEFAULT => {
+            eac_a8_mul_search_rad = 1;
+            eac_a8_table_mask = (1 << 0)
+                | (1 << 2)
+                | (1 << 6)
+                | (1 << 7)
+                | (1 << 8)
+                | (1 << 10)
+                | (1 << 11)
+                | (1 << 13);
+        }
+        C_PACK_UASTC_LEVEL_SLOWER => eac_a8_mul_search_rad = 2,
+        _ => {}
+    }
+    let (bc1_hint0, bc1_hint1) = if bc1_hints {
+        compute_bc1_hints(&results, pixels, &decoded)
+    } else {
+        (false, false)
+    };
+    let best_mode = unpacked_blk.mode;
+    let mut eac_a8_blk = EacA8Block::default();
+    if mt(&UASTC_MODE_HAS_ALPHA, best_mode) != 0 && best_mode != UASTC_MODE_INDEX_SOLID_COLOR {
+        let mut alpha = [0u8; 16];
+        for i in 0..16 {
+            alpha[i] = decoded[i][3];
+        }
+        let (_, table, multiplier) =
+            uastc_pack_eac_a8(&alpha, 0, eac_a8_mul_search_rad, eac_a8_table_mask);
+        eac_a8_blk.table = table as u8;
+        eac_a8_blk.multiplier = multiplier as u8;
+    }
+    let mut etc1_blk = EtcBlock::default();
+    let etc1_bias = compute_etc1_hints(&mut etc1_blk, &results, pixels, &decoded, level, flags);
+    pack_uastc(
+        blk,
+        &results,
+        &etc1_blk,
+        etc1_bias,
+        &eac_a8_blk,
+        bc1_hint0,
+        bc1_hint1,
+    );
+    true
+}
+
+pub const UASCT_RDO_DEFAULT_LZ_DICT_SIZE: u32 = 4096;
+pub const UASTC_RDO_DEFAULT_MAX_ALLOWED_RMS_INCREASE_RATIO: f32 = 10.0;
+pub const UASTC_RDO_DEFAULT_SKIP_BLOCK_RMS_THRESH: f32 = 8.0;
+pub const UASTC_RDO_DEFAULT_MAX_SMOOTH_BLOCK_STD_DEV: f32 = 18.0;
+pub const UASTC_RDO_DEFAULT_SMOOTH_BLOCK_MAX_ERROR_SCALE: f32 = 10.0;
+
+/// `uastc_rdo_params`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UastcRdoParams {
+    /// Size of LZ dictionary to simulate in bytes.
+    pub lz_dict_size: u32,
+    /// The post-processor minimizes distortion + rate * lambda.
+    pub lambda: f32,
+    /// How much the RMS error of a block may increase before a trial is rejected.
+    pub max_allowed_rms_increase_ratio: f32,
+    /// Blocks with this much RMS error or more are skipped.
+    pub skip_block_rms_thresh: f32,
+    /// Refine the endpoints of mode 0 blocks with modified selectors.
+    pub endpoint_refinement: bool,
+    pub max_smooth_block_std_dev: f32,
+    pub smooth_block_max_error_scale: f32,
+    pub lz_literal_cost: u32,
+}
+
+impl Default for UastcRdoParams {
+    /// `uastc_rdo_params::clear`.
+    fn default() -> Self {
+        UastcRdoParams {
+            lz_dict_size: UASCT_RDO_DEFAULT_LZ_DICT_SIZE,
+            lambda: 0.5,
+            max_allowed_rms_increase_ratio: UASTC_RDO_DEFAULT_MAX_ALLOWED_RMS_INCREASE_RATIO,
+            skip_block_rms_thresh: UASTC_RDO_DEFAULT_SKIP_BLOCK_RMS_THRESH,
+            endpoint_refinement: true,
+            max_smooth_block_std_dev: UASTC_RDO_DEFAULT_MAX_SMOOTH_BLOCK_STD_DEV,
+            smooth_block_max_error_scale: UASTC_RDO_DEFAULT_SMOOTH_BLOCK_MAX_ERROR_SCALE,
+            lz_literal_cost: 100,
+        }
+    }
+}
+
+const UASTC_MODE_SELECTOR_BITS: [[u8; 2]; 19] = [
+    [65, 63],
+    [69, 31],
+    [73, 46],
+    [89, 29],
+    [89, 30],
+    [68, 47],
+    [66, 62],
+    [89, 30],
+    [0, 0],
+    [97, 30],
+    [65, 63],
+    [66, 62],
+    [81, 47],
+    [94, 30],
+    [92, 31],
+    [62, 63],
+    [98, 30],
+    [61, 62],
+    [49, 79],
+];
+
+/// `basisu::read_bits` (LSB first, at most 64 bits).
+fn read_bits(buf: &[u8; 16], bit_offset: &mut u32, codesize: u32) -> u64 {
+    let mut bits = 0u64;
+    let mut total_bits = 0u32;
+    while total_bits < codesize {
+        let byte_bit_offset = *bit_offset & 7;
+        let bits_to_read = (codesize - total_bits).min(8 - byte_bit_offset);
+        let mut byte_bits = (buf[(*bit_offset >> 3) as usize] as u32) >> byte_bit_offset;
+        byte_bits &= (1 << bits_to_read) - 1;
+        bits |= (byte_bits as u64) << total_bits;
+        total_bits += bits_to_read;
+        *bit_offset += bits_to_read;
+    }
+    bits
+}
+
+fn set_block_bits(bytes: &mut [u8; 16], mut val: u64, mut num_bits: u32, mut cur_ofs: u32) -> u32 {
+    let mut mask = if num_bits == 64 {
+        u64::MAX
+    } else {
+        (1u64 << num_bits) - 1
+    };
+    while num_bits != 0 {
+        let n = (8 - (cur_ofs & 7)).min(num_bits);
+        let b = &mut bytes[(cur_ofs >> 3) as usize];
+        *b &= !((mask << (cur_ofs & 7)) as u8);
+        *b |= (val << (cur_ofs & 7)) as u8;
+        val >>= n;
+        mask >>= n;
+        num_bits -= n;
+        cur_ofs += n;
+    }
+    cur_ofs
+}
+
+const TDEFL_SMALL_DIST_EXTRA: [u8; 512] = {
+    let mut t = [0u8; 512];
+    let mut i = 0;
+    while i < 512 {
+        // floor(log2(i)) - 1 for i >= 4, 0 below (the tdefl distance extra bits).
+        t[i] = if i < 4 {
+            0
+        } else {
+            (31 - (i as u32).leading_zeros()) as u8 - 1
+        };
+        i += 1;
+    }
+    t
+};
+
+const TDEFL_LARGE_DIST_EXTRA: [u8; 128] = {
+    let mut t = [0u8; 128];
+    let mut i = 2;
+    while i < 128 {
+        t[i] = (31 - (i as u32).leading_zeros()) as u8 + 7;
+        i += 1;
+    }
+    t
+};
+
+fn compute_match_cost_estimate(mut dist: u32) -> u32 {
+    let len_cost = 7;
+    let mut dist_cost = 5;
+    if dist < 512 {
+        dist_cost += TDEFL_SMALL_DIST_EXTRA[(dist & 511) as usize] as u32;
+    } else {
+        dist_cost += TDEFL_LARGE_DIST_EXTRA[(dist.min(32767) >> 8) as usize] as u32;
+        while dist >= 32768 {
+            dist_cost += 1;
+            dist >>= 1;
+        }
+    }
+    len_cost + dist_cost
+}
+
+/// `tracked_stat::get_std_dev` over one channel of 16 pixels.
+fn std_dev(px: &Block, c: usize) -> f32 {
+    let (mut total, mut total2) = (0i64, 0i64);
+    for p in px {
+        let v = p[c] as i32;
+        total += v as i64;
+        total2 += (v * v) as i64;
+    }
+    ((16 * total2 - total * total) as f32).sqrt() / 16.0
+}
+
+/// UASTC error averaged with the error of its BC7 transcoding (`(uastc_err + bc7_err) / 2`).
+fn rdo_block_error(pixels: &Block, unpacked: &UnpackedUastcBlock) -> Option<u64> {
+    let mut px = [Color32::default(); 16];
+    if !unpack_uastc_pixels_desc(
+        unpacked.mode,
+        unpacked.common_pattern,
+        &unpacked.solid_color,
+        &unpacked.astc,
+        &mut px,
+        false,
+    ) {
+        return None;
+    }
+    let decoded = from_c32(&px);
+    let mut uastc_err = 0u64;
+    for i in 0..16 {
+        uastc_err += color_distance(false, &pixels[i], &decoded[i], true) as u64;
+    }
+    // Transcode to BC7
+    let mut b7_results = Bc7OptimizationResults::default();
+    if !transcode_uastc_to_bc7_unpacked(unpacked, &mut b7_results) {
+        return None;
+    }
+    let mut b7_block = [0u8; 16];
+    encode_bc7_block(&mut b7_block, &b7_results);
+    let mut decoded_b7: Block = [[0u8; 4]; 16];
+    unpack_bc7(&b7_block, &mut decoded_b7);
+    let mut bc7_err = 0u64;
+    for i in 0..16 {
+        bc7_err += color_distance(false, &pixels[i], &decoded_b7[i], true) as u64;
+    }
+    Some((uastc_err + bc7_err) / 2)
+}
+
+/// Decode failures of the trial blocks are a `continue` in C++, everything else aborts.
+enum Trial {
+    Skip,
+    Fail,
+    Err(u64),
+}
+
+fn rdo_trial_error(pixels: &Block, trial_blk: &[u8; 16]) -> Trial {
+    let mut u = UnpackedUastcBlock::default();
+    if !unpack_uastc(trial_blk, &mut u, false, true) {
+        return Trial::Skip;
+    }
+    let mut px = [Color32::default(); 16];
+    if !unpack_uastc_pixels_desc(
+        u.mode,
+        u.common_pattern,
+        &u.solid_color,
+        &u.astc,
+        &mut px,
+        false,
+    ) {
+        return Trial::Skip;
+    }
+    match rdo_block_error(pixels, &u) {
+        Some(e) => Trial::Err(e),
+        None => Trial::Fail,
+    }
+}
+
+/// `uastc_rdo_blocks` statistics: (skipped, refined, modified, smooth).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct UastcRdoStats {
+    pub total_skipped: u32,
+    pub total_refined: u32,
+    pub total_modified: u32,
+    pub total_smooth: u32,
+}
+
+/// `uastc_rdo_blocks` over `blocks` (one job range); `pixels` holds 16 pixels per block.
+fn uastc_rdo_blocks(
+    blocks: &mut [[u8; 16]],
+    pixels: &[ColorRgba],
+    params: &UastcRdoParams,
+    flags: u32,
+    stats: &mut UastcRdoStats,
+) -> bool {
+    let total_blocks_to_check = (params.lz_dict_size / 16).max(1) as i64;
+    let perceptual = false;
+    let mut selector_history: std::collections::HashMap<(u32, u64), u32> =
+        std::collections::HashMap::new();
+
+    for block_index in 0..blocks.len() {
+        let blk = blocks[block_index];
+        let mut px: Block = [[0u8; 4]; 16];
+        match pixels.get(block_index * 16..block_index * 16 + 16) {
+            Some(s) => px.copy_from_slice(s),
+            None => return false,
+        }
+
+        let mut unpacked_blk = UnpackedUastcBlock::default();
+        if !unpack_uastc(&blk, &mut unpacked_blk, false, true) {
+            return false;
+        }
+        let block_mode = unpacked_blk.mode;
+        if block_mode == UASTC_MODE_INDEX_SOLID_COLOR {
+            continue;
+        }
+
+        let max_std_dev = std_dev(&px, 0)
+            .max(std_dev(&px, 1))
+            .max(std_dev(&px, 2))
+            .max(std_dev(&px, 3));
+        let mut yl = (max_std_dev / params.max_smooth_block_std_dev).clamp(0.0, 1.0);
+        yl *= yl;
+        let smooth_block_error_scale =
+            params.smooth_block_max_error_scale + (1.0 - params.smooth_block_max_error_scale) * yl;
+        if smooth_block_error_scale > 1.0 {
+            stats.total_smooth += 1;
+        }
+
+        let Some(cur_err) = rdo_block_error(&px, &unpacked_blk) else {
+            return false;
+        };
+        // Divide by 16*4 to compute RMS error
+        let cur_ms_err = cur_err as f32 * (1.0 / 64.0);
+        let cur_rms_err = cur_ms_err.sqrt();
+
+        let first_sel_bit = UASTC_MODE_SELECTOR_BITS[block_mode as usize][0] as u32;
+        let total_sel_bits = UASTC_MODE_SELECTOR_BITS[block_mode as usize][1] as u32;
+
+        let mut cur_bit_offset = first_sel_bit;
+        let cur_sel_bits = read_bits(&blk, &mut cur_bit_offset, total_sel_bits.min(64));
+
+        if cur_rms_err >= params.skip_block_rms_thresh {
+            // Block already has too much error, so don't mess with it.
+            selector_history.insert((first_sel_bit, cur_sel_bits), block_index as u32);
+            stats.total_skipped += 1;
+            continue;
+        }
+
+        let cur_bits: i32 = match selector_history.get(&(first_sel_bit, cur_sel_bits)) {
+            // Wasn't found - wildly estimate literal cost
+            None => ((total_sel_bits * params.lz_literal_cost) / 100) as i32,
+            // Was found - wildly estimate match cost
+            Some(&m) => {
+                let block_dist_in_bytes = (block_index as u32).wrapping_sub(m).wrapping_mul(16);
+                compute_match_cost_estimate(block_dist_in_bytes) as i32
+            }
+        };
+
+        let first_block_to_check = (block_index as i64 - total_blocks_to_check).max(0);
+        let last_block_to_check = block_index as i64 - 1;
+
+        let mut best_block = blk;
+        let mut best_block_index = block_index;
+        let mut best_t = cur_ms_err * smooth_block_error_scale + cur_bits as f32 * params.lambda;
+
+        // Now scan through previous blocks, insert their selector bit patterns into the current
+        // block, and find selector bit patterns which don't increase the overall block error too
+        // much.
+        let mut prev_block_index = last_block_to_check;
+        while prev_block_index >= first_block_to_check {
+            let pbi = prev_block_index as usize;
+            prev_block_index -= 1;
+            let prev_blk = blocks[pbi];
+
+            let mut bit_offset = first_sel_bit;
+            let mut sel_bits = read_bits(&prev_blk, &mut bit_offset, total_sel_bits.min(64));
+
+            let match_block_index = match selector_history.get(&(first_sel_bit, sel_bits)) {
+                Some(&m) => m as usize,
+                None => pbi,
+            };
+            // Have we already checked this bit pattern? If so then skip this block.
+            if match_block_index > pbi {
+                continue;
+            }
+
+            let mut unpacked_prev_blk = UnpackedUastcBlock::default();
+            if !unpack_uastc(&prev_blk, &mut unpacked_prev_blk, false, true) {
+                return false;
+            }
+
+            let mut trial_blk = blk;
+            set_block_bits(
+                &mut trial_blk,
+                sel_bits,
+                total_sel_bits.min(64),
+                first_sel_bit,
+            );
+            if total_sel_bits > 64 {
+                sel_bits = read_bits(&prev_blk, &mut bit_offset, total_sel_bits - 64);
+                set_block_bits(
+                    &mut trial_blk,
+                    sel_bits,
+                    total_sel_bits - 64,
+                    first_sel_bit + total_sel_bits.min(64),
+                );
+            }
+
+            let trial_err = match rdo_trial_error(&px, &trial_blk) {
+                Trial::Skip => continue,
+                Trial::Fail => return false,
+                Trial::Err(e) => e,
+            };
+            let trial_ms_err = trial_err as f32 * (1.0 / 64.0);
+            let trial_rms_err = trial_ms_err.sqrt();
+            if trial_rms_err > cur_rms_err * params.max_allowed_rms_increase_ratio {
+                continue;
+            }
+
+            let block_dist_in_bytes = ((block_index - match_block_index) * 16) as u32;
+            let match_bits = compute_match_cost_estimate(block_dist_in_bytes) as i32;
+            let t = trial_ms_err * smooth_block_error_scale + match_bits as f32 * params.lambda;
+            if t < best_t {
+                best_t = t;
+                best_block_index = pbi;
+                best_block = trial_blk;
+            }
+        }
+
+        if best_block_index != block_index {
+            stats.total_modified += 1;
+
+            let mut unpacked_best_blk = UnpackedUastcBlock::default();
+            if !unpack_uastc(&best_block, &mut unpacked_best_blk, false, false) {
+                return false;
+            }
+
+            if params.endpoint_refinement && block_mode == 0 {
+                // Attempt to refine mode 0 block's endpoints, using the new selectors.
+                let mut best_px = [Color32::default(); 16];
+                if !unpack_uastc_pixels_desc(
+                    unpacked_best_blk.mode,
+                    unpacked_best_blk.common_pattern,
+                    &unpacked_best_blk.solid_color,
+                    &unpacked_best_blk.astc,
+                    &mut best_px,
+                    false,
+                ) {
+                    return false;
+                }
+                let decoded_best = from_c32(&best_px);
+                // Compute the block's current error (with the modified selectors).
+                let mut best_uastc_err = 0u64;
+                for i in 0..16 {
+                    best_uastc_err +=
+                        color_distance(perceptual, &px[i], &decoded_best[i], true) as u64;
+                }
+
+                let comp_params = Bc7encCompressBlockParams {
+                    max_partitions_mode1: 64,
+                    weights: [1, 1, 1, 1],
+                    uber_level: 0,
+                    perceptual: false,
+                    least_squares_passes: 1,
+                };
+                let mut results = Vec::with_capacity(1);
+                let force = unpacked_best_blk.astc.weights;
+                astc_mode_1subset(0, &px, &mut results, &comp_params, Some(&force[..16]));
+                let Some(res) = results.first() else {
+                    return false;
+                };
+
+                // See if the overall error has actually gone done.
+                let mut decoded_trial: Block = [[0u8; 4]; 16];
+                unpack_results(res, &mut decoded_trial);
+                let mut trial_uastc_err = 0u64;
+                for i in 0..16 {
+                    trial_uastc_err +=
+                        color_distance(perceptual, &px[i], &decoded_trial[i], true) as u64;
+                }
+                if trial_uastc_err < best_uastc_err {
+                    // The error went down, so accept the new endpoints.
+                    unpacked_best_blk.astc = res.astc;
+                    stats.total_refined += 1;
+                }
+            }
+
+            // The selectors have changed, so go recompute the block hints.
+            if !uastc_recompute_hints(&mut best_block, &px, flags, Some(&unpacked_best_blk)) {
+                return false;
+            }
+            // Write the modified block
+            blocks[block_index] = best_block;
+        }
+
+        let mut bit_offset = first_sel_bit;
+        let sel_bits = read_bits(&best_block, &mut bit_offset, total_sel_bits.min(64));
+        selector_history.insert((first_sel_bit, sel_bits), block_index as u32);
+    }
+    true
+}
+
+/// `uastc_rdo`: a basic rate distortion optimization post-pass for UASTC. It only changes
+/// selectors (copying selector bit patterns of previous blocks) and then updates the hints.
+///
+/// `pixels` holds 16 source pixels per block. With `total_jobs > 1` the blocks are split
+/// into `total_jobs` independent ranges (as the C++ job pool does) processed on scoped threads;
+/// the output depends only on the split, not on scheduling.
+pub fn uastc_rdo(
+    num_blocks: u32,
+    blocks: &mut [[u8; 16]],
+    pixels: &[ColorRgba],
+    params: &UastcRdoParams,
+    flags: u32,
+    total_jobs: u32,
+) -> (bool, UastcRdoStats) {
+    let mut stats = UastcRdoStats::default();
+    let n = num_blocks as usize;
+    if blocks.len() < n || pixels.len() < n * 16 {
+        return (false, stats);
+    }
+    let blocks = &mut blocks[..n];
+    let blocks_per_job = num_blocks.checked_div(total_jobs).unwrap_or(0);
+    if total_jobs <= 1 || blocks_per_job <= 8 {
+        let ok = uastc_rdo_blocks(blocks, pixels, params, flags, &mut stats);
+        return (ok, stats);
+    }
+    let per = blocks_per_job as usize;
+    let all = std::thread::scope(|s| {
+        let handles: Vec<_> = blocks
+            .chunks_mut(per)
+            .enumerate()
+            .map(|(j, chunk)| {
+                let px = &pixels[j * per * 16..];
+                s.spawn(move || {
+                    let mut st = UastcRdoStats::default();
+                    let ok = uastc_rdo_blocks(chunk, px, params, flags, &mut st);
+                    (ok, st)
+                })
+            })
+            .collect();
+        let mut all = true;
+        for h in handles {
+            match h.join() {
+                Ok((ok, st)) => {
+                    all &= ok;
+                    stats.total_skipped += st.total_skipped;
+                    stats.total_refined += st.total_refined;
+                    stats.total_modified += st.total_modified;
+                    stats.total_smooth += st.total_smooth;
+                }
+                Err(_) => all = false,
+            }
+        }
+        all
+    });
+    (all, stats)
+}

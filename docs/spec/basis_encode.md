@@ -8,8 +8,8 @@ link `scripts/golden/build_basisu_encoder.sh` (`$WORK/libbasisu_enc.a`) with tha
 
 Port order (each stage bit exact vs. the C++ build before the next one starts):
 1. [x] `basisu_etc.cpp` ETC1 block encoder (`src/basisu/etc_enc.rs`)
-2. [~] UASTC LDR 4x4: [x] `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), [x] block encoder
-   (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), [ ] RDO (`uastc_rdo`)
+2. [x] UASTC LDR 4x4: `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), block encoder
+   (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), RDO (`uastc_rdo`)
 3. [ ] ETC1S frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
    endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
 4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
@@ -70,3 +70,18 @@ Decoders needed for the error checks: `unpack_bc1` and `bc7u::unpack_bc7` (`basi
   checks are not ported.
 Tests: `tests/basisu_uastc_enc.rs` vs `scripts/golden/gen_basisu_uastc_enc_golden.sh` (3000
 blocks incl. LA and near opaque kinds x levels 0..4 + 6 flag variants; random BC1 / BC7 decode).
+
+## UASTC RDO (`basisu::uastc_enc::uastc_rdo`)
+
+`uastc_rdo` / `uastc_rdo_blocks` (selector bit pattern copying from the previous
+`lz_dict_size / 16` blocks, smooth block error scale, skip threshold, literal / tdefl match cost
+estimate, mode 0 endpoint refinement with forced selectors), `uastc_recompute_hints`.
+- `selector_history` (`std::unordered_map`, never iterated) becomes a `HashMap<(ofs, sel), u32>`.
+- The job pool split (`num_blocks / total_jobs` independent ranges, each with its own history)
+  runs on `std::thread::scope`; output depends only on `total_jobs`. Returns `(ok, stats)`; the
+  stats are the C++ `debug_printf` counters.
+- `tdefl` distance extra bit tables are computed in `const` instead of listed.
+Tests: `tests/basisu_uastc_rdo.rs` vs `scripts/golden/gen_basisu_uastc_rdo_golden.sh` (11
+generated 96x64 images incl. alpha, high noise and tiled ones x 16 configs: lambda, dict size,
+literal cost, RMS ratio / skip threshold, smooth block params, refinement, levels and hint flags
+for the recompute, 1 / 4 / 7 jobs).

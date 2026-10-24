@@ -50,8 +50,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] basisu resampler + 16 filters (`encoder/basisu_resampler`, bit exact vs C++, used by image scaling)
 - [x] ETC1 block encoder `basisu_etc.cpp` (etc_block, etc1_optimizer, solid color, EAC A8; bit exact vs SSE build)
 - [ ] ETC1S encoder (`ktxTexture2_CompressBasis`): frontend, backend, `basis_compressor` (plan: docs/spec/basis_encode.md)
-- [~] UASTC encoder + RDO: bc7enc color cell compressor and `encode_uastc` block encoder (all
-  levels / flags, BC1/ETC1/EAC hints) bit exact; todo `uastc_rdo`
+- [x] UASTC encoder + RDO: bc7enc color cell compressor, `encode_uastc` block encoder (all
+  levels / flags, BC1/ETC1/EAC hints) and `uastc_rdo` post-pass (incl. job split) bit exact
 
 ## Other codecs
 - [x] lodepng PNG encoder + its zlib encoder (byte exact vs C, `src/lodepng`)
