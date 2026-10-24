@@ -38,3 +38,10 @@ input/ktx2_sample/skybox_zstd.ktx2
 input/ktx2_sample/texturearray_bc3_unorm.ktx2
 input/ktx2_sample/texturearray_etc2_unorm.ktx2
 input/ktx2_sample/uastc_Iron_Bars_001_normal.ktx2
+input/exr/basic_RGBA_FLOAT_HDR_1000x50.exr
+input/exr/basic_RGBA_FLOAT_HDR_50x1000.exr
+input/exr/basic_RGBA_HALF_HDR_1000x50.exr
+input/exr/basic_RGBA_HALF_HDR_50x1000.exr
+input/exr/basic_RGBA_UINT_1000x50.exr
+input/exr/basic_RGBA_UINT_50x1000.exr
+input/png_sample/color_grid.png
