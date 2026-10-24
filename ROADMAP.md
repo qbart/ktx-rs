@@ -61,6 +61,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] astcenc compressor: `astcenc_compress_image` bit exact vs the AVX2 C++ build (all block
   sizes, profiles, presets, flags); alpha scale RDO (`a_scale_radius`) not ported (unused by KTX)
 - [x] libktx `astc_codec.cpp`: `ktxTexture2_CompressAstcEx`, `ktxTexture2_CompressAstc`, `ktxTexture2_DecodeAstc`
+- [ ] DEFERRED: ASTC HDR encoding. Upstream is broken (`astcProfile(sRGB, mode)` always yields an LDR
+  profile, 8-bit input only, `ktx encode` forces LDR); kept as-is for CTS parity, fix later
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 

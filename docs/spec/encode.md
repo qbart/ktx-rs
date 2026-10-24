@@ -11,7 +11,7 @@ Ports `tools/ktx/command_encode.cpp` (`src/cli/command_encode.rs`) and `lib/src/
   level index and data. Single threaded: the astcenc context is created for `threadCount` and the
   calling thread compresses every block (same output).
 - C++ quirks kept: `astcProfile(sRGB, mode)` receives the mode enum as its `ldr` flag, so HDR
-  mode still uses an LDR profile; invalid block dimensions fall back to 6x6 (sRGB format).
+  mode still uses an LDR profile (ASTC HDR encoding deferred, see ROADMAP); invalid block dimensions fall back to 6x6 (sRGB format).
 - `compress_astc` (`ktxTexture2_CompressAstc`): default options, quality snapped down to a preset.
 - `decode_astc` (`ktxTexture2_DecodeAstc`): ASTC to RGBA8 / SRGBA8 / RGBA16F per image.
 
