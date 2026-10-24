@@ -48,7 +48,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] `ktxTexture2_TranscodeBasis`: ETC1S, UASTC LDR 4x4, UASTC HDR 4x4, UASTC HDR 6x6i
 - [x] basisu SSIM (`basisu_ssim.cpp`) and 8-bit `image_metrics::calc` (CTS exact output)
 - [x] basisu resampler + 16 filters (`encoder/basisu_resampler`, bit exact vs C++, used by image scaling)
-- [ ] ETC1S encoder (`ktxTexture2_CompressBasis`)
+- [x] ETC1 block encoder `basisu_etc.cpp` (etc_block, etc1_optimizer, solid color, EAC A8; bit exact vs SSE build)
+- [ ] ETC1S encoder (`ktxTexture2_CompressBasis`): frontend, backend, `basis_compressor` (plan: docs/spec/basis_encode.md)
 - [ ] UASTC encoder + RDO
 
 ## Other codecs
