@@ -374,3 +374,8 @@ fn cts_tools() {
 fn cts_create() {
     run_command_dir("create");
 }
+
+#[test]
+fn cts_convert() {
+    run_command_dir("convert");
+}
