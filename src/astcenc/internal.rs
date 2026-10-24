@@ -423,3 +423,31 @@ pub struct PartitionLines3 {
     pub samec_pline: ProcessedLine,
     pub line_length: f32,
 }
+
+/// Port of `endpoints`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Endpoints {
+    pub partition_count: u32,
+    pub endpt0: [Vfloat4; BLOCK_MAX_PARTITIONS],
+    pub endpt1: [Vfloat4; BLOCK_MAX_PARTITIONS],
+}
+
+/// Port of `endpoints_and_weights`.
+#[derive(Clone)]
+pub struct EndpointsAndWeights {
+    pub is_constant_weight_error_scale: bool,
+    pub ep: Endpoints,
+    pub weights: [f32; BLOCK_MAX_TEXELS],
+    pub weight_error_scale: [f32; BLOCK_MAX_TEXELS],
+}
+
+impl Default for EndpointsAndWeights {
+    fn default() -> Self {
+        EndpointsAndWeights {
+            is_constant_weight_error_scale: false,
+            ep: Endpoints::default(),
+            weights: [0.0; BLOCK_MAX_TEXELS],
+            weight_error_scale: [0.0; BLOCK_MAX_TEXELS],
+        }
+    }
+}

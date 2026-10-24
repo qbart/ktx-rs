@@ -11,12 +11,13 @@
 
 pub mod averages_and_directions;
 pub mod block_sizes;
+pub mod ideal_endpoints_and_weights;
 pub mod image;
 pub mod internal;
 pub mod mathlib;
 pub mod partition_tables;
 pub mod percentile_tables;
-mod tables;
+pub mod tables;
 pub mod vecmath;
 
 use tables::*;

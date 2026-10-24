@@ -40,7 +40,14 @@ Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4
 - `averages_and_directions.rs`: partition averages, `compute_avgs_and_dirs_{2,3,3_rgb,4}_comp`,
   `compute_error_squared_{rgb,rgba}` with 8-lane loops / 4-lane accumulators.
 
-Tests: `tests/astcenc_kernels.rs` (4608 cases vs `scripts/golden/gen_astcenc_kernels_golden.sh`,
+- `ideal_endpoints_and_weights.rs`: ideal endpoints / weights for 1-4 components, 1 and 2
+  planes; decimated ideal weights with one refinement step; weight quantization through
+  `quant_and_xfer_tables` (generated); weight set errors; least squares endpoint, RGBS and
+  RGBO recomputation. C++ quirks kept: the 4 component path leaves `ep.partition_count`
+  untouched, omitting component 0 weights components 0..2.
+
+Tests: `tests/astcenc_weights.rs` (432 block cases vs `scripts/golden/gen_astcenc_weights_golden.sh`),
+`tests/astcenc_kernels.rs` (4608 cases vs `scripts/golden/gen_astcenc_kernels_golden.sh`,
 calling the C++ internals directly; NaN payloads canonicalized), `tests/astcenc_bsd.rs` (5280 cases vs `scripts/golden/gen_astcenc_bsd_golden.sh`: 24 block
 sizes × 11 qualities × 10 flag sets × 2 profiles; config hashes and full descriptor hashes).
 

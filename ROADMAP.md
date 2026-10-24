@@ -58,7 +58,8 @@ Legend: [x] done, [~] partial, [ ] todo.
   NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [~] astcenc compressor: SIMD emulation, config presets, compressor block size descriptor and
-  partition tables (bit exact vs C++); compression kernels pending; libktx `astc_codec.cpp` pending
+  partition tables, block loading, averages / directions, ideal endpoints and weights, weight
+  quantization (bit exact vs C++); partitioning search, endpoint encoding, block search pending; libktx `astc_codec.cpp` pending
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 

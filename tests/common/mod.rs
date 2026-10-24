@@ -1,6 +1,7 @@
 //! Shared helpers for ported tests.
 #![allow(dead_code)]
 
+pub mod astcenc_gen;
 pub mod ktxdiff;
 pub mod synthetic;
 pub mod vkformat_list;
