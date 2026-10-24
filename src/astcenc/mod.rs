@@ -9,7 +9,9 @@
 //! wins), round-to-nearest-even float16 conversion. The compressor is not
 //! ported; `config_init` keeps only the fields the decompressor needs.
 
+pub mod averages_and_directions;
 pub mod block_sizes;
+pub mod image;
 pub mod internal;
 pub mod mathlib;
 pub mod partition_tables;

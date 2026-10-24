@@ -1041,3 +1041,19 @@ pub fn lns_to_sf16(p: Vint4) -> Vint4 {
     let res = ec.lsl(10) | mt.lsr(3);
     res.min(Vint4::splat(0x7BFF))
 }
+
+/// Vector `float16_to_float` (`_mm_packs_epi32` signed saturation, then F16C):
+/// lanes >= 0x8000 become 0x7FFF (NaN).
+pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
+    Vfloat4 {
+        m: a.m
+            .map(|x| super::float16_to_float(x.clamp(-32768, 32767) as i16 as u16)),
+    }
+}
+
+/// Vector `float_to_float16` (F16C, round to nearest even).
+pub fn float_to_float16_v(a: Vfloat4) -> Vint4 {
+    Vint4 {
+        m: a.m.map(|f| super::float_to_float16(f) as i32),
+    }
+}

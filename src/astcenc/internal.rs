@@ -293,3 +293,133 @@ impl BlockSizeDescriptor {
         &self.partitionings[i.min(self.partitionings.len() - 1)]
     }
 }
+
+/// Texel array length of `image_block` (`BLOCK_MAX_TEXELS + ASTCENC_SIMD_WIDTH - 1`).
+pub const BLOCK_DATA_LEN: usize = BLOCK_MAX_TEXELS + super::vecmath::SIMD_WIDTH - 1;
+
+/// Port of `image_block`.
+#[derive(Clone)]
+pub struct ImageBlock {
+    pub data_r: [f32; BLOCK_DATA_LEN],
+    pub data_g: [f32; BLOCK_DATA_LEN],
+    pub data_b: [f32; BLOCK_DATA_LEN],
+    pub data_a: [f32; BLOCK_DATA_LEN],
+    pub texel_count: u8,
+    pub origin_texel: Vfloat4,
+    pub data_min: Vfloat4,
+    pub data_mean: Vfloat4,
+    pub data_max: Vfloat4,
+    pub channel_weight: Vfloat4,
+    pub grayscale: bool,
+    pub decode_unorm8: bool,
+    pub rgb_lns: [u8; BLOCK_MAX_TEXELS],
+    pub alpha_lns: [u8; BLOCK_MAX_TEXELS],
+    pub pos_x: usize,
+    pub pos_y: usize,
+    pub pos_z: usize,
+}
+
+impl Default for ImageBlock {
+    fn default() -> Self {
+        ImageBlock {
+            data_r: [0.0; BLOCK_DATA_LEN],
+            data_g: [0.0; BLOCK_DATA_LEN],
+            data_b: [0.0; BLOCK_DATA_LEN],
+            data_a: [0.0; BLOCK_DATA_LEN],
+            texel_count: 0,
+            origin_texel: Vfloat4::zero(),
+            data_min: Vfloat4::zero(),
+            data_mean: Vfloat4::zero(),
+            data_max: Vfloat4::zero(),
+            channel_weight: Vfloat4::zero(),
+            grayscale: false,
+            decode_unorm8: false,
+            rgb_lns: [0; BLOCK_MAX_TEXELS],
+            alpha_lns: [0; BLOCK_MAX_TEXELS],
+            pos_x: 0,
+            pos_y: 0,
+            pos_z: 0,
+        }
+    }
+}
+
+impl ImageBlock {
+    /// `texel(index)`.
+    #[inline]
+    pub fn texel(&self, i: usize) -> Vfloat4 {
+        Vfloat4::new(
+            self.data_r[i],
+            self.data_g[i],
+            self.data_b[i],
+            self.data_a[i],
+        )
+    }
+    /// `texel3(index)`.
+    #[inline]
+    pub fn texel3(&self, i: usize) -> Vfloat4 {
+        Vfloat4::new3(self.data_r[i], self.data_g[i], self.data_b[i])
+    }
+    /// The component plane `c` (0..4).
+    #[inline]
+    pub fn data(&self, c: usize) -> &[f32; BLOCK_DATA_LEN] {
+        match c {
+            0 => &self.data_r,
+            1 => &self.data_g,
+            2 => &self.data_b,
+            _ => &self.data_a,
+        }
+    }
+    /// `get_default_alpha`.
+    pub fn get_default_alpha(&self) -> f32 {
+        if self.alpha_lns[0] != 0 {
+            0x7800 as f32
+        } else {
+            0xFFFF as f32
+        }
+    }
+    /// `is_constant_channel`.
+    pub fn is_constant_channel(&self, channel: usize) -> bool {
+        let lane_mask =
+            super::vecmath::Vint4::lane_id().eq(super::vecmath::Vint4::splat(channel as i32));
+        let color_mask = self.data_min.eq(self.data_max);
+        (lane_mask & color_mask).any()
+    }
+    /// `is_luminance`.
+    pub fn is_luminance(&self) -> bool {
+        let default_alpha = self.get_default_alpha();
+        let alpha1 =
+            self.data_min.lane(3) == default_alpha && self.data_max.lane(3) == default_alpha;
+        self.grayscale && alpha1
+    }
+    /// `is_luminancealpha`.
+    pub fn is_luminancealpha(&self) -> bool {
+        let default_alpha = self.get_default_alpha();
+        let alpha1 =
+            self.data_min.lane(3) == default_alpha && self.data_max.lane(3) == default_alpha;
+        self.grayscale && !alpha1
+    }
+}
+
+/// `line2` / `line3` / `line4`: parametric line `a + t * b`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Line {
+    pub a: Vfloat4,
+    pub b: Vfloat4,
+}
+
+/// `processed_line2/3/4`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ProcessedLine {
+    pub amod: Vfloat4,
+    pub bs: Vfloat4,
+}
+
+/// Port of `partition_lines3`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PartitionLines3 {
+    pub uncor_line: Line,
+    pub samec_line: Line,
+    pub uncor_pline: ProcessedLine,
+    pub samec_pline: ProcessedLine,
+    pub line_length: f32,
+}

@@ -34,7 +34,14 @@ Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4
   based block mode selection, decimation tables incl. SIMD tail padding, partitionings with
   duplicate removal, k-means texel selection (xoroshiro128+) and coverage bitmaps.
 
-Tests: `tests/astcenc_bsd.rs` (5280 cases vs `scripts/golden/gen_astcenc_bsd_golden.sh`: 24 block
+- `image.rs`: `load_image_block` (U8 / F16 / F32, swizzle, UNORM16 / LNS encoding, edge
+  clamping; F16 texels go through `_mm_packs_epi32`, so negative halves load as NaN) and
+  `load_image_block_fast_ldr`. `compute_variance` (alpha scale radius) is not needed by KTX.
+- `averages_and_directions.rs`: partition averages, `compute_avgs_and_dirs_{2,3,3_rgb,4}_comp`,
+  `compute_error_squared_{rgb,rgba}` with 8-lane loops / 4-lane accumulators.
+
+Tests: `tests/astcenc_kernels.rs` (4608 cases vs `scripts/golden/gen_astcenc_kernels_golden.sh`,
+calling the C++ internals directly; NaN payloads canonicalized), `tests/astcenc_bsd.rs` (5280 cases vs `scripts/golden/gen_astcenc_bsd_golden.sh`: 24 block
 sizes × 11 qualities × 10 flag sets × 2 profiles; config hashes and full descriptor hashes).
 
 Tests: `tests/astcenc.rs`, 576 cases vs `scripts/golden/gen_astcenc_golden.sh` (pseudo random
