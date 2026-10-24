@@ -57,7 +57,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] tinyexr EXR reader: version / header parsing, scanline + tiled (one level, mipmap, ripmap),
   NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
-- [ ] astcenc compressor; libktx `astc_codec.cpp` (ktxTexture2_DecodeAstc / CompressAstc)
+- [~] astcenc compressor: SIMD emulation, config presets, compressor block size descriptor and
+  partition tables (bit exact vs C++); compression kernels pending; libktx `astc_codec.cpp` pending
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 

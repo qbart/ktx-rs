@@ -9,7 +9,13 @@
 //! wins), round-to-nearest-even float16 conversion. The compressor is not
 //! ported; `config_init` keeps only the fields the decompressor needs.
 
+pub mod block_sizes;
+pub mod internal;
+pub mod mathlib;
+pub mod partition_tables;
+pub mod percentile_tables;
 mod tables;
+pub mod vecmath;
 
 use tables::*;
 
@@ -109,7 +115,7 @@ impl AstcencSwizzle {
     };
 }
 
-/// `astcenc_config` (decompression relevant fields).
+/// Port of `astcenc_config`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AstcencConfig {
     pub profile: AstcencProfile,
@@ -117,7 +123,145 @@ pub struct AstcencConfig {
     pub block_x: u32,
     pub block_y: u32,
     pub block_z: u32,
+    pub cw_r_weight: f32,
+    pub cw_g_weight: f32,
+    pub cw_b_weight: f32,
+    pub cw_a_weight: f32,
+    pub a_scale_radius: u32,
+    pub rgbm_m_scale: f32,
+    pub tune_partition_count_limit: u32,
+    pub tune_2partition_index_limit: u32,
+    pub tune_3partition_index_limit: u32,
+    pub tune_4partition_index_limit: u32,
+    pub tune_block_mode_limit: u32,
+    pub tune_refinement_limit: u32,
+    pub tune_candidate_limit: u32,
+    pub tune_2partitioning_candidate_limit: u32,
+    pub tune_3partitioning_candidate_limit: u32,
+    pub tune_4partitioning_candidate_limit: u32,
+    pub tune_db_limit: f32,
+    pub tune_mse_overshoot: f32,
+    pub tune_2partition_early_out_limit_factor: f32,
+    pub tune_3partition_early_out_limit_factor: f32,
+    pub tune_2plane_early_out_limit_correlation: f32,
+    pub tune_search_mode0_enable: f32,
 }
+
+impl AstcencConfig {
+    /// The `memset(0)` config.
+    fn zeroed(profile: AstcencProfile) -> AstcencConfig {
+        AstcencConfig {
+            profile,
+            flags: 0,
+            block_x: 0,
+            block_y: 0,
+            block_z: 0,
+            cw_r_weight: 0.0,
+            cw_g_weight: 0.0,
+            cw_b_weight: 0.0,
+            cw_a_weight: 0.0,
+            a_scale_radius: 0,
+            rgbm_m_scale: 0.0,
+            tune_partition_count_limit: 0,
+            tune_2partition_index_limit: 0,
+            tune_3partition_index_limit: 0,
+            tune_4partition_index_limit: 0,
+            tune_block_mode_limit: 0,
+            tune_refinement_limit: 0,
+            tune_candidate_limit: 0,
+            tune_2partitioning_candidate_limit: 0,
+            tune_3partitioning_candidate_limit: 0,
+            tune_4partitioning_candidate_limit: 0,
+            tune_db_limit: 0.0,
+            tune_mse_overshoot: 0.0,
+            tune_2partition_early_out_limit_factor: 0.0,
+            tune_3partition_early_out_limit_factor: 0.0,
+            tune_2plane_early_out_limit_correlation: 0.0,
+            tune_search_mode0_enable: 0.0,
+        }
+    }
+}
+
+/// `astcenc_preset_config`.
+struct PresetConfig {
+    quality: f32,
+    tune_partition_count_limit: u32,
+    tune_2partition_index_limit: u32,
+    tune_3partition_index_limit: u32,
+    tune_4partition_index_limit: u32,
+    tune_block_mode_limit: u32,
+    tune_refinement_limit: u32,
+    tune_candidate_limit: u32,
+    tune_2partitioning_candidate_limit: u32,
+    tune_3partitioning_candidate_limit: u32,
+    tune_4partitioning_candidate_limit: u32,
+    tune_db_limit_a_base: f32,
+    tune_db_limit_b_base: f32,
+    tune_mse_overshoot: f32,
+    tune_2partition_early_out_limit_factor: f32,
+    tune_3partition_early_out_limit_factor: f32,
+    tune_2plane_early_out_limit_correlation: f32,
+    tune_search_mode0_enable: f32,
+}
+
+macro_rules! preset {
+    ($q:expr, $a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr,
+     $k:expr, $l:expr, $m:expr, $n:expr, $o:expr, $p:expr, $r:expr) => {
+        PresetConfig {
+            quality: $q,
+            tune_partition_count_limit: $a,
+            tune_2partition_index_limit: $b,
+            tune_3partition_index_limit: $c,
+            tune_4partition_index_limit: $d,
+            tune_block_mode_limit: $e,
+            tune_refinement_limit: $f,
+            tune_candidate_limit: $g,
+            tune_2partitioning_candidate_limit: $h,
+            tune_3partitioning_candidate_limit: $i,
+            tune_4partitioning_candidate_limit: $j,
+            tune_db_limit_a_base: $k,
+            tune_db_limit_b_base: $l,
+            tune_mse_overshoot: $m,
+            tune_2partition_early_out_limit_factor: $n,
+            tune_3partition_early_out_limit_factor: $o,
+            tune_2plane_early_out_limit_correlation: $p,
+            tune_search_mode0_enable: $r,
+        }
+    };
+}
+
+/// The static presets for high bandwidth encodings (x < 25 texels per block).
+#[rustfmt::skip]
+static PRESET_CONFIGS_HIGH: [PresetConfig; 6] = [
+    preset!(ASTCENC_PRE_FASTEST, 2, 10, 6, 4, 43, 2, 2, 2, 2, 2, 85.2, 63.2, 3.5, 1.00, 1.00, 0.85, 0.0),
+    preset!(ASTCENC_PRE_FAST, 3, 18, 10, 8, 55, 3, 3, 2, 2, 2, 85.2, 63.2, 3.5, 1.00, 1.00, 0.90, 0.0),
+    preset!(ASTCENC_PRE_MEDIUM, 4, 34, 28, 16, 77, 3, 3, 2, 2, 2, 95.0, 70.0, 2.5, 1.10, 1.05, 0.95, 0.0),
+    preset!(ASTCENC_PRE_THOROUGH, 4, 82, 60, 30, 94, 4, 4, 3, 2, 2, 105.0, 77.0, 10.0, 1.35, 1.15, 0.97, 0.0),
+    preset!(ASTCENC_PRE_VERYTHOROUGH, 4, 256, 128, 64, 98, 4, 6, 8, 6, 4, 200.0, 200.0, 10.0, 1.60, 1.40, 0.98, 0.0),
+    preset!(ASTCENC_PRE_EXHAUSTIVE, 4, 512, 512, 512, 100, 4, 8, 8, 8, 8, 200.0, 200.0, 10.0, 2.00, 2.00, 0.99, 0.0),
+];
+
+/// The static presets for medium bandwidth encodings (25 <= x < 64 texels per block).
+#[rustfmt::skip]
+static PRESET_CONFIGS_MID: [PresetConfig; 6] = [
+    preset!(ASTCENC_PRE_FASTEST, 2, 10, 6, 4, 43, 2, 2, 2, 2, 2, 85.2, 63.2, 3.5, 1.00, 1.00, 0.80, 1.0),
+    preset!(ASTCENC_PRE_FAST, 3, 18, 12, 10, 55, 3, 3, 2, 2, 2, 85.2, 63.2, 3.5, 1.00, 1.00, 0.85, 1.0),
+    preset!(ASTCENC_PRE_MEDIUM, 3, 34, 28, 16, 77, 3, 3, 2, 2, 2, 95.0, 70.0, 3.0, 1.10, 1.05, 0.90, 1.0),
+    preset!(ASTCENC_PRE_THOROUGH, 4, 82, 60, 30, 94, 4, 4, 3, 2, 2, 105.0, 77.0, 10.0, 1.40, 1.20, 0.95, 0.0),
+    preset!(ASTCENC_PRE_VERYTHOROUGH, 4, 256, 128, 64, 98, 4, 6, 8, 6, 3, 200.0, 200.0, 10.0, 1.60, 1.40, 0.98, 0.0),
+    preset!(ASTCENC_PRE_EXHAUSTIVE, 4, 256, 256, 256, 100, 4, 8, 8, 8, 8, 200.0, 200.0, 10.0, 2.00, 2.00, 0.99, 0.0),
+];
+
+/// The static presets for low bandwidth encodings (64 <= x texels per block).
+#[rustfmt::skip]
+static PRESET_CONFIGS_LOW: [PresetConfig; 6] = [
+    preset!(ASTCENC_PRE_FASTEST, 2, 10, 6, 4, 40, 2, 2, 2, 2, 2, 85.0, 63.0, 3.5, 1.00, 1.00, 0.80, 1.0),
+    preset!(ASTCENC_PRE_FAST, 2, 18, 12, 10, 55, 3, 3, 2, 2, 2, 85.0, 63.0, 3.5, 1.00, 1.00, 0.85, 1.0),
+    preset!(ASTCENC_PRE_MEDIUM, 3, 34, 28, 16, 77, 3, 3, 2, 2, 2, 95.0, 70.0, 3.5, 1.10, 1.05, 0.90, 1.0),
+    preset!(ASTCENC_PRE_THOROUGH, 4, 82, 60, 30, 93, 4, 4, 3, 2, 2, 105.0, 77.0, 10.0, 1.30, 1.20, 0.97, 1.0),
+    preset!(ASTCENC_PRE_VERYTHOROUGH, 4, 256, 128, 64, 98, 4, 6, 8, 5, 2, 200.0, 200.0, 10.0, 1.60, 1.40, 0.98, 1.0),
+    preset!(ASTCENC_PRE_EXHAUSTIVE, 4, 256, 256, 256, 100, 4, 8, 8, 8, 8, 200.0, 200.0, 10.0, 2.00, 2.00, 0.99, 1.0),
+];
 
 const BLOCK_MAX_TEXELS: usize = 216;
 const BLOCK_MAX_WEIGHTS: u32 = 64;
@@ -166,8 +310,112 @@ fn is_legal_3d_block_size(x: u32, y: u32, z: u32) -> bool {
     )
 }
 
-/// Port of `astcenc_config_init`. Only the decompression relevant fields are
-/// kept; the encoder tuning presets are not ported.
+/// `validate_block_size`.
+fn validate_block_size(block_x: u32, block_y: u32, block_z: u32) -> Result<(), AstcencError> {
+    // Test if this is a legal block size at all
+    let is_legal = (block_z <= 1 && is_legal_2d_block_size(block_x, block_y))
+        || (block_z >= 2 && is_legal_3d_block_size(block_x, block_y, block_z));
+    if !is_legal {
+        return Err(AstcencError::BadBlockSize);
+    }
+    // Test if this build has sufficient capacity for this block size
+    if (block_x * block_y * block_z) as usize > BLOCK_MAX_TEXELS {
+        return Err(AstcencError::NotImplemented);
+    }
+    Ok(())
+}
+
+/// `validate_flags`.
+fn validate_flags(profile: AstcencProfile, flags: u32) -> Result<(), AstcencError> {
+    // Flags field must not contain any unknown flag bits
+    if flags & !ASTCENC_ALL_FLAGS != 0 {
+        return Err(AstcencError::BadFlags);
+    }
+    // Flags field must only contain at most a single map type
+    if (flags & (ASTCENC_FLG_MAP_NORMAL | ASTCENC_FLG_MAP_RGBM)).count_ones() > 1 {
+        return Err(AstcencError::BadFlags);
+    }
+    // Decode_unorm8 must only be used with an LDR profile
+    let is_hdr = matches!(profile, AstcencProfile::Hdr | AstcencProfile::HdrRgbLdrA);
+    if flags & ASTCENC_FLG_USE_DECODE_UNORM8 != 0 && is_hdr {
+        return Err(AstcencError::BadDecodeMode);
+    }
+    Ok(())
+}
+
+/// `validate_config`: clamps the tuning parameters to their valid ranges.
+fn validate_config(config: &mut AstcencConfig) -> Result<(), AstcencError> {
+    validate_flags(config.profile, config.flags)?;
+    validate_block_size(config.block_x, config.block_y, config.block_z)?;
+    use mathlib::max as fmax;
+    let cl = |v: u32, lo: u32, hi: u32| {
+        if v > hi {
+            hi
+        } else if v > lo {
+            v
+        } else {
+            lo
+        }
+    };
+    config.rgbm_m_scale = fmax(config.rgbm_m_scale, 1.0);
+    config.tune_partition_count_limit = cl(config.tune_partition_count_limit, 1, 4);
+    config.tune_2partition_index_limit = cl(
+        config.tune_2partition_index_limit,
+        1,
+        BLOCK_MAX_PARTITIONINGS as u32,
+    );
+    config.tune_3partition_index_limit = cl(
+        config.tune_3partition_index_limit,
+        1,
+        BLOCK_MAX_PARTITIONINGS as u32,
+    );
+    config.tune_4partition_index_limit = cl(
+        config.tune_4partition_index_limit,
+        1,
+        BLOCK_MAX_PARTITIONINGS as u32,
+    );
+    config.tune_block_mode_limit = cl(config.tune_block_mode_limit, 1, 100);
+    config.tune_refinement_limit = config.tune_refinement_limit.max(1);
+    config.tune_candidate_limit = cl(
+        config.tune_candidate_limit,
+        1,
+        internal::TUNE_MAX_TRIAL_CANDIDATES as u32,
+    );
+    let pc = internal::TUNE_MAX_PARTITIONING_CANDIDATES as u32;
+    config.tune_2partitioning_candidate_limit =
+        cl(config.tune_2partitioning_candidate_limit, 1, pc);
+    config.tune_3partitioning_candidate_limit =
+        cl(config.tune_3partitioning_candidate_limit, 1, pc);
+    config.tune_4partitioning_candidate_limit =
+        cl(config.tune_4partitioning_candidate_limit, 1, pc);
+    config.tune_db_limit = fmax(config.tune_db_limit, 0.0);
+    config.tune_mse_overshoot = fmax(config.tune_mse_overshoot, 1.0);
+    config.tune_2partition_early_out_limit_factor =
+        fmax(config.tune_2partition_early_out_limit_factor, 0.0);
+    config.tune_3partition_early_out_limit_factor =
+        fmax(config.tune_3partition_early_out_limit_factor, 0.0);
+    config.tune_2plane_early_out_limit_correlation =
+        fmax(config.tune_2plane_early_out_limit_correlation, 0.0);
+
+    // Specifying a zero weight color component is not allowed; force to small value
+    let max_weight = fmax(
+        fmax(config.cw_r_weight, config.cw_g_weight),
+        fmax(config.cw_b_weight, config.cw_a_weight),
+    );
+    if max_weight > 0.0 {
+        let max_weight = max_weight / 1000.0;
+        config.cw_r_weight = fmax(config.cw_r_weight, max_weight);
+        config.cw_g_weight = fmax(config.cw_g_weight, max_weight);
+        config.cw_b_weight = fmax(config.cw_b_weight, max_weight);
+        config.cw_a_weight = fmax(config.cw_a_weight, max_weight);
+        Ok(())
+    } else {
+        // If all color components error weights are zero then return an error
+        Err(AstcencError::BadParam)
+    }
+}
+
+/// Port of `astcenc_config_init`.
 pub fn astcenc_config_init(
     profile: AstcencProfile,
     block_x: u32,
@@ -177,34 +425,191 @@ pub fn astcenc_config_init(
     flags: u32,
 ) -> Result<AstcencConfig, AstcencError> {
     // Zero init all config fields; although most of will be over written
-    let block_z = block_z.max(1);
-    // validate_block_size
-    let is_legal = (block_z <= 1 && is_legal_2d_block_size(block_x, block_y))
-        || (block_z >= 2 && is_legal_3d_block_size(block_x, block_y, block_z));
-    if !is_legal {
-        return Err(AstcencError::BadBlockSize);
-    }
+    let mut config = AstcencConfig::zeroed(AstcencProfile::LdrSrgb);
+
+    // Process the block size
+    let block_z = block_z.max(1); // For 2D blocks Z==0 is accepted, but convert to 1
+    validate_block_size(block_x, block_y, block_z)?;
+    config.block_x = block_x;
+    config.block_y = block_y;
+    config.block_z = block_z;
+
+    let texels = (block_x * block_y * block_z) as f32;
+    let ltexels = texels.ln() / 10.0f32.ln();
+
+    // Process the performance quality level or preset; note that this must be done before we
+    // process any additional settings, such as color profile and flags, which may replace some of
+    // these settings with more use case tuned values
     if !(ASTCENC_PRE_FASTEST..=ASTCENC_PRE_EXHAUSTIVE).contains(&quality) {
         return Err(AstcencError::BadQuality);
     }
-    // validate_flags
-    if flags & !ASTCENC_ALL_FLAGS != 0 {
-        return Err(AstcencError::BadFlags);
+
+    let texels_int = (block_x * block_y * block_z) as usize;
+    let preset_configs: &[PresetConfig; 6] = if texels_int < 25 {
+        &PRESET_CONFIGS_HIGH
+    } else if texels_int < 64 {
+        &PRESET_CONFIGS_MID
+    } else {
+        &PRESET_CONFIGS_LOW
+    };
+
+    // Determine which preset to use, or which pair to interpolate
+    let mut end = 0usize;
+    while end < preset_configs.len() {
+        if preset_configs[end].quality >= quality {
+            break;
+        }
+        end += 1;
     }
-    if (flags & (ASTCENC_FLG_MAP_NORMAL | ASTCENC_FLG_MAP_RGBM)).count_ones() > 1 {
-        return Err(AstcencError::BadFlags);
+    let start = if end == 0 { 0 } else { end - 1 };
+
+    // Start and end node are the same - so just transfer the values.
+    if start == end {
+        let p = &preset_configs[start];
+        config.tune_partition_count_limit = p.tune_partition_count_limit;
+        config.tune_2partition_index_limit = p.tune_2partition_index_limit;
+        config.tune_3partition_index_limit = p.tune_3partition_index_limit;
+        config.tune_4partition_index_limit = p.tune_4partition_index_limit;
+        config.tune_block_mode_limit = p.tune_block_mode_limit;
+        config.tune_refinement_limit = p.tune_refinement_limit;
+        config.tune_candidate_limit = p.tune_candidate_limit;
+        config.tune_2partitioning_candidate_limit = p.tune_2partitioning_candidate_limit;
+        config.tune_3partitioning_candidate_limit = p.tune_3partitioning_candidate_limit;
+        config.tune_4partitioning_candidate_limit = p.tune_4partitioning_candidate_limit;
+        config.tune_db_limit = mathlib::max(
+            p.tune_db_limit_a_base - 35.0 * ltexels,
+            p.tune_db_limit_b_base - 19.0 * ltexels,
+        );
+        config.tune_mse_overshoot = p.tune_mse_overshoot;
+        config.tune_2partition_early_out_limit_factor = p.tune_2partition_early_out_limit_factor;
+        config.tune_3partition_early_out_limit_factor = p.tune_3partition_early_out_limit_factor;
+        config.tune_2plane_early_out_limit_correlation = p.tune_2plane_early_out_limit_correlation;
+        config.tune_search_mode0_enable = p.tune_search_mode0_enable;
+    } else {
+        // Start and end node are not the same - so interpolate between them
+        let node_a = &preset_configs[start];
+        let node_b = &preset_configs[end];
+        let wt_range = node_b.quality - node_a.quality;
+        // Compute interpolation factors
+        let wt_node_a = (node_b.quality - quality) / wt_range;
+        let wt_node_b = (quality - node_a.quality) / wt_range;
+        let lerp = |a: f32, b: f32| (a * wt_node_a) + (b * wt_node_b);
+        let lerpi = |a: u32, b: u32| {
+            mathlib::flt2int_rtn((a as f32 * wt_node_a) + (b as f32 * wt_node_b)) as u32
+        };
+        config.tune_partition_count_limit = lerpi(
+            node_a.tune_partition_count_limit,
+            node_b.tune_partition_count_limit,
+        );
+        config.tune_2partition_index_limit = lerpi(
+            node_a.tune_2partition_index_limit,
+            node_b.tune_2partition_index_limit,
+        );
+        config.tune_3partition_index_limit = lerpi(
+            node_a.tune_3partition_index_limit,
+            node_b.tune_3partition_index_limit,
+        );
+        config.tune_4partition_index_limit = lerpi(
+            node_a.tune_4partition_index_limit,
+            node_b.tune_4partition_index_limit,
+        );
+        config.tune_block_mode_limit =
+            lerpi(node_a.tune_block_mode_limit, node_b.tune_block_mode_limit);
+        config.tune_refinement_limit =
+            lerpi(node_a.tune_refinement_limit, node_b.tune_refinement_limit);
+        config.tune_candidate_limit =
+            lerpi(node_a.tune_candidate_limit, node_b.tune_candidate_limit);
+        config.tune_2partitioning_candidate_limit = lerpi(
+            node_a.tune_2partitioning_candidate_limit,
+            node_b.tune_2partitioning_candidate_limit,
+        );
+        config.tune_3partitioning_candidate_limit = lerpi(
+            node_a.tune_3partitioning_candidate_limit,
+            node_b.tune_3partitioning_candidate_limit,
+        );
+        config.tune_4partitioning_candidate_limit = lerpi(
+            node_a.tune_4partitioning_candidate_limit,
+            node_b.tune_4partitioning_candidate_limit,
+        );
+        config.tune_db_limit = mathlib::max(
+            lerp(node_a.tune_db_limit_a_base, node_b.tune_db_limit_a_base) - 35.0 * ltexels,
+            lerp(node_a.tune_db_limit_b_base, node_b.tune_db_limit_b_base) - 19.0 * ltexels,
+        );
+        config.tune_mse_overshoot = lerp(node_a.tune_mse_overshoot, node_b.tune_mse_overshoot);
+        config.tune_2partition_early_out_limit_factor = lerp(
+            node_a.tune_2partition_early_out_limit_factor,
+            node_b.tune_2partition_early_out_limit_factor,
+        );
+        config.tune_3partition_early_out_limit_factor = lerp(
+            node_a.tune_3partition_early_out_limit_factor,
+            node_b.tune_3partition_early_out_limit_factor,
+        );
+        config.tune_2plane_early_out_limit_correlation = lerp(
+            node_a.tune_2plane_early_out_limit_correlation,
+            node_b.tune_2plane_early_out_limit_correlation,
+        );
+        config.tune_search_mode0_enable = lerp(
+            node_a.tune_search_mode0_enable,
+            node_b.tune_search_mode0_enable,
+        );
     }
-    let is_hdr = matches!(profile, AstcencProfile::Hdr | AstcencProfile::HdrRgbLdrA);
-    if flags & ASTCENC_FLG_USE_DECODE_UNORM8 != 0 && is_hdr {
-        return Err(AstcencError::BadDecodeMode);
+
+    // Set heuristics to the defaults for each color profile
+    config.cw_r_weight = 1.0;
+    config.cw_g_weight = 1.0;
+    config.cw_b_weight = 1.0;
+    config.cw_a_weight = 1.0;
+    config.a_scale_radius = 0;
+    config.rgbm_m_scale = 0.0;
+    config.profile = profile;
+
+    // Values in this enum are from an external user, so not guaranteed to be
+    // bounded to the enum values
+    match profile {
+        AstcencProfile::Ldr | AstcencProfile::LdrSrgb => {}
+        AstcencProfile::HdrRgbLdrA | AstcencProfile::Hdr => {
+            config.tune_db_limit = 999.0;
+            config.tune_search_mode0_enable = 0.0;
+        }
     }
-    Ok(AstcencConfig {
-        profile,
-        flags,
-        block_x,
-        block_y,
-        block_z,
-    })
+
+    // Flags field must not contain any unknown flag bits
+    validate_flags(profile, flags)?;
+
+    if flags & ASTCENC_FLG_MAP_NORMAL != 0 {
+        // Normal map encoding uses L+A blocks, so allow one more partitioning
+        // than normal. We need need fewer bits for endpoints, so more likely
+        // to be able to use more partitions than an RGB/RGBA block
+        config.tune_partition_count_limit = (config.tune_partition_count_limit + 1).min(4);
+        config.cw_g_weight = 0.0;
+        config.cw_b_weight = 0.0;
+        config.tune_2partition_early_out_limit_factor *= 1.5;
+        config.tune_3partition_early_out_limit_factor *= 1.5;
+        config.tune_2plane_early_out_limit_correlation = 0.99;
+        // Normals are prone to blocking artifacts on smooth curves
+        // so force compressor to try harder here ...
+        config.tune_db_limit *= 1.03;
+    } else if flags & ASTCENC_FLG_MAP_RGBM != 0 {
+        config.rgbm_m_scale = 5.0;
+        config.cw_a_weight = 2.0 * config.rgbm_m_scale;
+    } else if flags & ASTCENC_FLG_USE_PERCEPTUAL != 0 {
+        // (This is color data)
+        // This is a very basic perceptual metric for RGB color data, which weights error
+        // significance by the perceptual luminance contribution of each color channel. For
+        // luminance the usual weights to compute luminance from a linear RGB value are as
+        // follows:
+        //
+        //     l = r * 0.3 + g * 0.59 + b * 0.11
+        //
+        // ... but we scale these up to keep a better balance between color and alpha. Note
+        // that if the content is using alpha we'd recommend using the -a option to weight
+        // the color contribution by the alpha transparency.
+        config.cw_r_weight = 0.30 * 2.25;
+        config.cw_g_weight = 0.59 * 2.25;
+        config.cw_b_weight = 0.11 * 2.25;
+    }
+    config.flags = flags;
+    Ok(config)
 }
 
 /// A decoded block mode (`block_mode` + its `decimation_info` index).
@@ -241,7 +646,7 @@ struct BlockSizeDescriptor {
 }
 
 /// Port of `get_ise_sequence_bitcount`.
-fn get_ise_sequence_bitcount(character_count: u32, quant_level: usize) -> u32 {
+pub(crate) fn get_ise_sequence_bitcount(character_count: u32, quant_level: usize) -> u32 {
     // (scale, divisor parameter) per quant level
     const ISE_SIZES: [(u32, u32); 21] = [
         (1, 0),
@@ -444,7 +849,7 @@ fn hash52(mut inp: u32) -> u32 {
 }
 
 /// `select_partition`: the partition of texel (x, y, z).
-fn select_partition(
+pub(crate) fn select_partition(
     mut seed: u32,
     mut x: u32,
     mut y: u32,
@@ -612,15 +1017,32 @@ impl BlockSizeDescriptor {
     }
 }
 
-/// Port of `astcenc_context` (decompression state).
-#[derive(Debug, Clone)]
+/// Port of `astcenc_context`.
 pub struct AstcencContext {
     pub config: AstcencConfig,
     pub thread_count: u32,
+    /// Decoding view of the block size descriptor.
     bsd: BlockSizeDescriptor,
+    /// The compressor's block size descriptor (absent for DECOMPRESS_ONLY contexts).
+    pub(crate) cbsd: Option<Box<internal::BlockSizeDescriptor>>,
 }
 
-/// Port of `astcenc_context_alloc`.
+impl std::fmt::Debug for AstcencContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AstcencContext")
+            .field("config", &self.config)
+            .finish()
+    }
+}
+
+impl AstcencContext {
+    /// The compressor block size descriptor, if this is a compression context.
+    pub fn compress_bsd(&self) -> Option<&internal::BlockSizeDescriptor> {
+        self.cbsd.as_deref()
+    }
+}
+
+/// Port of `astcenc_context_alloc` (no parent context).
 pub fn astcenc_context_alloc(
     config: &AstcencConfig,
     thread_count: u32,
@@ -628,10 +1050,36 @@ pub fn astcenc_context_alloc(
     if thread_count == 0 {
         return Err(AstcencError::BadParam);
     }
+    let mut cfg = *config;
+    validate_config(&mut cfg)?;
+
+    let mut cbsd = None;
+    if cfg.flags & ASTCENC_FLG_DECOMPRESS_ONLY == 0 {
+        let mut bsd = internal::BlockSizeDescriptor::empty();
+        let can_omit_modes = cfg.flags & ASTCENC_FLG_SELF_DECOMPRESS_ONLY != 0;
+        block_sizes::init_block_size_descriptor(
+            cfg.block_x,
+            cfg.block_y,
+            cfg.block_z,
+            can_omit_modes,
+            cfg.tune_partition_count_limit,
+            cfg.tune_block_mode_limit as f32 / 100.0,
+            &mut bsd,
+        );
+        cbsd = Some(bsd);
+        // Turn a dB limit into a per-texel error for faster use later
+        if matches!(cfg.profile, AstcencProfile::Ldr | AstcencProfile::LdrSrgb) {
+            cfg.tune_db_limit = vecmath::pow_s(0.1, cfg.tune_db_limit * 0.1) * 65535.0 * 65535.0;
+        } else {
+            cfg.tune_db_limit = 0.0;
+        }
+    }
+
     Ok(Box::new(AstcencContext {
-        config: *config,
+        config: cfg,
         thread_count,
-        bsd: BlockSizeDescriptor::new(config.block_x, config.block_y, config.block_z),
+        bsd: BlockSizeDescriptor::new(cfg.block_x, cfg.block_y, cfg.block_z),
+        cbsd,
     }))
 }
 
