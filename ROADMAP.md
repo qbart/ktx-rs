@@ -59,7 +59,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [x] astcenc compressor: `astcenc_compress_image` bit exact vs the AVX2 C++ build (all block
   sizes, profiles, presets, flags); alpha scale RDO (`a_scale_radius`) not ported (unused by KTX)
-- [ ] libktx `astc_codec.cpp` (`ktxTexture2_CompressAstcEx`) and `ktx create/encode` ASTC wiring
+- [x] libktx `astc_codec.cpp`: `ktxTexture2_CompressAstcEx`, `ktxTexture2_CompressAstc`, `ktxTexture2_DecodeAstc`
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 
@@ -82,18 +82,20 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
-  generation, all convertible formats (4255 CTS create subcases pass); pending Basis / ASTC encoders
+  generation, all convertible formats, ASTC encoding (4482 CTS create subcases pass); pending
+  Basis encoders and `--compare-ssim/psnr` metrics
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
-- [ ] encode
+- [~] encode: ASTC (776 CTS encode subcases pass); pending Basis encoders and metrics
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
 - [x] unittests: WriterTestHelper
 - [ ] unittests: Swizzle (needs basis_encode), BadVulkanAlloc (needs Vulkan loader)
-- [~] texturetests: 96 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
+- [~] texturetests: 105 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
-  unicode, supercompressed iterate). Todo: BasisCompress/Transcode, ASTC encode/decode.
+  unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode). Todo:
+  BasisCompress/Transcode.
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,

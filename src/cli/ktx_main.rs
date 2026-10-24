@@ -5,6 +5,7 @@ use super::command_compare::CommandCompare;
 use super::command_convert::CommandConvert;
 use super::command_create::CommandCreate;
 use super::command_deflate::CommandDeflate;
+use super::command_encode::CommandEncode;
 use super::command_extract::CommandExtract;
 use super::command_help::CommandHelp;
 use super::command_info::CommandInfo;
@@ -105,6 +106,7 @@ pub fn ktx_main(args: &[String]) -> i32 {
         Some("compare") => CommandCompare::main(args.get(1..).unwrap_or_default()),
         Some("extract") => CommandExtract::main(args.get(1..).unwrap_or_default()),
         Some("deflate") => CommandDeflate::main(args.get(1..).unwrap_or_default()),
+        Some("encode") => CommandEncode::main(args.get(1..).unwrap_or_default()),
         Some("transcode") => CommandTranscode::main(args.get(1..).unwrap_or_default()),
         Some("info") => CommandInfo::main(args.get(1..).unwrap_or_default()),
         Some("validate") => CommandValidate::main(args.get(1..).unwrap_or_default()),

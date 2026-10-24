@@ -171,11 +171,9 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             Err(e) => panic!("{command}: {e}"),
         };
         let status = out.status.code().unwrap_or(-1);
-        // Encoders that are not ported yet (Basis Universal / ASTC compressors) fail
-        // with NOT_IMPLEMENTED; such subcases are pending, not failed.
-        if status == 6
-            && String::from_utf8_lossy(&out.stderr).contains("encoder is not implemented")
-        {
+        // Features that are not ported yet (Basis Universal encoder, image comparison
+        // metrics) fail with NOT_IMPLEMENTED; such subcases are pending, not failed.
+        if status == 6 && String::from_utf8_lossy(&out.stderr).contains("not implemented") {
             skipped += 1;
             continue;
         }
@@ -378,4 +376,9 @@ fn cts_create() {
 #[test]
 fn cts_convert() {
     run_command_dir("convert");
+}
+
+#[test]
+fn cts_encode() {
+    run_command_dir("encode");
 }

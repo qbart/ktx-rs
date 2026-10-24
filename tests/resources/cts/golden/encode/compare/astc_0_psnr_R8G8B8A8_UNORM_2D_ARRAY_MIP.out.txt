@@ -1,0 +1,35 @@
+Level 0 Layer 0:
+    PSNR: 47.741623
+Level 0 Layer 1:
+    PSNR: 47.680019
+Level 0 Layer 2:
+    PSNR: 47.680019
+Level 0 Layer 3:
+    PSNR: 47.741623
+Level 1 Layer 0:
+    PSNR: 53.182304
+Level 1 Layer 1:
+    PSNR: 53.182304
+Level 1 Layer 2:
+    PSNR: 51.141102
+Level 1 Layer 3:
+    PSNR: 50.629578
+Level 2 Layer 0:
+    PSNR: 100.000000
+Level 2 Layer 1:
+    PSNR: 54.151405
+Level 2 Layer 2:
+    PSNR: 51.141102
+Level 2 Layer 3:
+    PSNR: 54.151405
+Level 3 Layer 0:
+    PSNR: 100.000000
+Level 3 Layer 1:
+    PSNR: 100.000000
+Level 3 Layer 2:
+    PSNR: 100.000000
+Level 3 Layer 3:
+    PSNR: 100.000000
+
+Overall:
+    PSNR Max: 100.000000

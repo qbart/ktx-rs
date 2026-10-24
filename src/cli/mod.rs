@@ -5,6 +5,7 @@ pub mod command_compare;
 pub mod command_convert;
 pub mod command_create;
 pub mod command_deflate;
+pub mod command_encode;
 pub mod command_extract;
 pub mod command_help;
 pub mod command_info;
