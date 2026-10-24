@@ -11,14 +11,18 @@
 
 pub mod averages_and_directions;
 pub mod block_sizes;
+pub mod color_quantize;
+pub mod find_best_partitioning;
 pub mod ideal_endpoints_and_weights;
 pub mod image;
 pub mod internal;
 pub mod mathlib;
 pub mod partition_tables;
 pub mod percentile_tables;
+pub mod pick_best_endpoint_format;
 pub mod tables;
 pub mod vecmath;
+pub mod weight_align;
 
 use tables::*;
 
@@ -1463,7 +1467,7 @@ fn uncontract_color(input: Vint4) -> Vint4 {
 }
 
 /// `rgba_delta_unpack`.
-fn rgba_delta_unpack(mut input0: Vint4, mut input1: Vint4) -> (Vint4, Vint4) {
+pub(crate) fn rgba_delta_unpack(mut input0: Vint4, mut input1: Vint4) -> (Vint4, Vint4) {
     // Apply bit transfer: bit_transfer_signed(input1, input0)
     for i in 0..4 {
         let (c0, c1) = (input0[i], input1[i]);
@@ -1492,7 +1496,7 @@ fn rgba_delta_unpack(mut input0: Vint4, mut input1: Vint4) -> (Vint4, Vint4) {
 }
 
 /// `rgba_unpack`.
-fn rgba_unpack(mut input0: Vint4, mut input1: Vint4) -> (Vint4, Vint4) {
+pub(crate) fn rgba_unpack(mut input0: Vint4, mut input1: Vint4) -> (Vint4, Vint4) {
     // Apply blue-uncontraction if needed
     if input0[0] + input0[1] + input0[2] > input1[0] + input1[1] + input1[2] {
         input0 = uncontract_color(input0);

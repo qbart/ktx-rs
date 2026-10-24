@@ -46,7 +46,19 @@ Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4
   RGBO recomputation. C++ quirks kept: the 4 component path leaves `ep.partition_count`
   untouched, omitting component 0 weights components 0..2.
 
-Tests: `tests/astcenc_weights.rs` (432 block cases vs `scripts/golden/gen_astcenc_weights_golden.sh`),
+- `weight_align.rs`: angular endpoints (sin/cos tables, lowest / highest weights per step
+  count, per quant level selection); entry points take `compression_working_buffers` and read
+  the ideal weights from `tmpbuf.dec_weights_ideal` (what every C++ caller passes).
+- `color_quantize.rs`: `pack_color_endpoints` for all 16 formats incl. blue contraction, delta /
+  offset encodings, the LDR quant nudge loops and the HDR submode searches.
+- `find_best_partitioning.rs`: k-means seeded partition ordering, mismatch bit counting and the
+  uncorrelated / same chroma candidate interleave.
+- `pick_best_endpoint_format.rs`: encoding choice errors, per partition error estimates per quant
+  level / integer count, 1-4 partition combination search and SIMD-order candidate selection.
+
+Tests: `tests/astcenc_formats.rs` (432 block cases + 96 packing cases vs
+`scripts/golden/gen_astcenc_formats_golden.sh`, fed like `compress_symbolic.cpp`),
+`tests/astcenc_weights.rs` (432 block cases vs `scripts/golden/gen_astcenc_weights_golden.sh`),
 `tests/astcenc_kernels.rs` (4608 cases vs `scripts/golden/gen_astcenc_kernels_golden.sh`,
 calling the C++ internals directly; NaN payloads canonicalized), `tests/astcenc_bsd.rs` (5280 cases vs `scripts/golden/gen_astcenc_bsd_golden.sh`: 24 block
 sizes × 11 qualities × 10 flag sets × 2 profiles; config hashes and full descriptor hashes).

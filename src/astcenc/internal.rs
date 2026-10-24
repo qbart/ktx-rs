@@ -451,3 +451,62 @@ impl Default for EndpointsAndWeights {
         }
     }
 }
+
+/// Port of `compression_working_buffers`.
+pub struct CompressionWorkingBuffers {
+    pub ei1: EndpointsAndWeights,
+    pub ei2: EndpointsAndWeights,
+    pub dec_weights_ideal: Vec<f32>,
+    pub dec_weights_uquant: Vec<u8>,
+    pub errors_of_best_combination: Vec<f32>,
+    pub best_quant_levels: Vec<u8>,
+    pub best_quant_levels_mod: Vec<u8>,
+    pub best_ep_formats: Vec<[u8; BLOCK_MAX_PARTITIONS]>,
+    pub qwt_bitcounts: Vec<i8>,
+    pub qwt_errors: Vec<f32>,
+    pub weight_low_value1: Vec<f32>,
+    pub weight_high_value1: Vec<f32>,
+    pub weight_low_values1: Vec<[f32; TUNE_MAX_ANGULAR_QUANT + 1]>,
+    pub weight_high_values1: Vec<[f32; TUNE_MAX_ANGULAR_QUANT + 1]>,
+    pub weight_low_value2: Vec<f32>,
+    pub weight_high_value2: Vec<f32>,
+    pub weight_low_values2: Vec<[f32; TUNE_MAX_ANGULAR_QUANT + 1]>,
+    pub weight_high_values2: Vec<[f32; TUNE_MAX_ANGULAR_QUANT + 1]>,
+}
+
+impl Default for CompressionWorkingBuffers {
+    fn default() -> Self {
+        CompressionWorkingBuffers {
+            ei1: EndpointsAndWeights::default(),
+            ei2: EndpointsAndWeights::default(),
+            dec_weights_ideal: vec![0.0; WEIGHTS_MAX_DECIMATION_MODES * BLOCK_MAX_WEIGHTS],
+            dec_weights_uquant: vec![0; WEIGHTS_MAX_BLOCK_MODES * BLOCK_MAX_WEIGHTS],
+            errors_of_best_combination: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            best_quant_levels: vec![0; WEIGHTS_MAX_BLOCK_MODES],
+            best_quant_levels_mod: vec![0; WEIGHTS_MAX_BLOCK_MODES],
+            best_ep_formats: vec![[0; BLOCK_MAX_PARTITIONS]; WEIGHTS_MAX_BLOCK_MODES],
+            qwt_bitcounts: vec![0; WEIGHTS_MAX_BLOCK_MODES],
+            qwt_errors: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            weight_low_value1: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            weight_high_value1: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            weight_low_values1: vec![
+                [0.0; TUNE_MAX_ANGULAR_QUANT + 1];
+                WEIGHTS_MAX_DECIMATION_MODES
+            ],
+            weight_high_values1: vec![
+                [0.0; TUNE_MAX_ANGULAR_QUANT + 1];
+                WEIGHTS_MAX_DECIMATION_MODES
+            ],
+            weight_low_value2: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            weight_high_value2: vec![0.0; WEIGHTS_MAX_BLOCK_MODES],
+            weight_low_values2: vec![
+                [0.0; TUNE_MAX_ANGULAR_QUANT + 1];
+                WEIGHTS_MAX_DECIMATION_MODES
+            ],
+            weight_high_values2: vec![
+                [0.0; TUNE_MAX_ANGULAR_QUANT + 1];
+                WEIGHTS_MAX_DECIMATION_MODES
+            ],
+        }
+    }
+}

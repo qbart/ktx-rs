@@ -59,7 +59,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [~] astcenc compressor: SIMD emulation, config presets, compressor block size descriptor and
   partition tables, block loading, averages / directions, ideal endpoints and weights, weight
-  quantization (bit exact vs C++); partitioning search, endpoint encoding, block search pending; libktx `astc_codec.cpp` pending
+  quantization, partitioning search, angular endpoints, endpoint formats, color packing (bit exact
+  vs C++); block search (`compress_symbolic`) and libktx `astc_codec.cpp` pending
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
 - [ ] ETC unpack (etcunpack.cxx)
 
