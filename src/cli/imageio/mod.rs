@@ -6,6 +6,7 @@
 //! (`IStream` emulates the `std::istream` calls the readers make).
 
 mod exr;
+pub mod image;
 mod jpg;
 mod png;
 

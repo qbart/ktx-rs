@@ -11,6 +11,7 @@ name = "ktx"
 path = "src/lib.rs"
 
 [dependencies]
+bytemuck = "1.25.2"
 miniz_oxide = "0.9.1"
 ruzstd = "0.9.1"
 zstd-pure-rs = "0.2.0"

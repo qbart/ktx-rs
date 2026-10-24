@@ -77,6 +77,8 @@ Legend: [x] done, [~] partial, [ ] todo.
   `ImageCodec` port; all CTS compare cases pass)
 - [x] imageio subset for create: FormatDescriptor, ImageSpec, ImageInput, PNG + EXR + JPEG
   readers (netpbm reader and output plugins intentionally not ported)
+- [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
+  transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [ ] create, encode, convert
 
 ## Tests ported
