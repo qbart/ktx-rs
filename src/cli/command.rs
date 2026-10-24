@@ -86,6 +86,12 @@ impl Reporter {
         rc.into()
     }
 
+    /// `fatal(ReturnCode(code), ...)` with a computed exit code.
+    pub fn fatal_rc(&self, code: i32, msg: &str) -> FatalError {
+        print_err(format!("{} fatal: {msg}\n", self.command_name).as_bytes());
+        FatalError(code)
+    }
+
     /// `fatal_usage`.
     pub fn fatal_usage(&self, msg: &str) -> FatalError {
         print_err(
