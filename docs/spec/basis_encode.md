@@ -8,8 +8,8 @@ link `scripts/golden/build_basisu_encoder.sh` (`$WORK/libbasisu_enc.a`) with tha
 
 Port order (each stage bit exact vs. the C++ build before the next one starts):
 1. [x] `basisu_etc.cpp` ETC1 block encoder (`src/basisu/etc_enc.rs`)
-2. [~] UASTC LDR 4x4: [x] `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), [ ] block encoder
-   (`basisu_uastc_enc.cpp`) + RDO
+2. [~] UASTC LDR 4x4: [x] `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), [x] block encoder
+   (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), [ ] RDO (`uastc_rdo`)
 3. [ ] ETC1S frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
    endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
 4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
@@ -56,3 +56,17 @@ color fallbacks for BC7 mode 1 and ASTC 4-bit 3-bit, 4-bit 2-bit RGBA, range 7/1
 Tests: `tests/basisu_bc7enc.rs` vs `scripts/golden/gen_basisu_bc7enc_golden.sh` (1400 blocks x
 16 range/mode configs x 12 variants: perceptual, uber level, least squares passes, pixel count,
 forced selectors; `est_astc` over 6 weight tables, 3/4 comps, weights, early out).
+
+## UASTC LDR 4x4 encoder (`basisu::uastc_enc`)
+
+`encode_uastc` (levels fastest..very slow, favor UASTC/BC7 error, ETC1 hint flags, favor simpler
+modes), all 19 mode encoders, `pack_uastc` (Huffman mode, hints, BISE endpoints, anchor weight
+inversion), BC1 hint selection (`encode_bc1` + `transcode_uastc_to_bc1_hint0/1`), ETC1 hint
+search (flip estimate, sorted bias table, YCbCr error) and `uastc_pack_eac_a8`.
+Decoders needed for the error checks: `unpack_bc1` and `bc7u::unpack_bc7` (`basisu::gpu_texture`).
+- The repeated C++ mode functions are folded: one subset modes (0, 1, 5, 10, 12, 14, 18), 2
+  subset RGB (2, 4), dual plane (6, 11, 13, 17); per mode tables keep the C++ constants.
+- `results[MAX_ENCODE_RESULTS]` becomes a capped `Vec`; `BASISU_VALIDATE_UASTC_ENC` (debug only)
+  checks are not ported.
+Tests: `tests/basisu_uastc_enc.rs` vs `scripts/golden/gen_basisu_uastc_enc_golden.sh` (3000
+blocks incl. LA and near opaque kinds x levels 0..4 + 6 flag variants; random BC1 / BC7 decode).

@@ -390,7 +390,7 @@ pub fn encode_bc1(dst: &mut Dxt1Block, px: &[Color32; 16], flags: u32) {
 }
 
 /// Port of `transcode_uastc_to_bc1_hint0`.
-fn transcode_uastc_to_bc1_hint0(u: &UnpackedUastcBlock, b: &mut Dxt1Block) {
+pub fn transcode_uastc_to_bc1_hint0(u: &UnpackedUastcBlock, b: &mut Dxt1Block) {
     let tb = uastc_tables();
     let mode = u.mode as usize;
     let a = &u.astc;
@@ -449,7 +449,7 @@ fn transcode_uastc_to_bc1_hint0(u: &UnpackedUastcBlock, b: &mut Dxt1Block) {
 }
 
 /// Port of `transcode_uastc_to_bc1_hint1`.
-fn transcode_uastc_to_bc1_hint1(
+pub fn transcode_uastc_to_bc1_hint1(
     u: &UnpackedUastcBlock,
     px: &[Color32; 16],
     b: &mut Dxt1Block,
