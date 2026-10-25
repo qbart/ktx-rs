@@ -247,3 +247,26 @@ scales, ultra quant, weight plane optimization x CEM 7 / 11 with random weight /
 and opt modes, refinement on downsampled grids and subset offsets, dual plane per channel,
 downsampled CEM 11 over 9 grid sizes). Unkilled mutations: ties of the dual plane brightness
 test, flat channel box fallback, all zero weight averages.
+
+## ASTC HDR 6x6 encoder building blocks (`basisu::astc_hdr_6x6_enc`)
+
+`astc_hdr_6x6_global_config` (+ `set_user_level` 0..12), PQ (`forwardPQ`, bfloat16 table
+`forwardPQTab`) and linear RGB (REC 709 / 2020) to ICtCp / ITP, partition patterns, the vantage
+point tree (bounded max heap results; `find_nearest` returns heap order like C++), the unique 2 / 3
+subset tables (`global_init`, incl. the Gaussian contributor lists), `estimate_partition2/3_6x6`,
+`estimate_partitions_mode7_and_11` / `_mode7` (libstdc++ `std::sort` order for ties),
+`encode_block_2_subsets` / `_3_subsets`, `encode_values` / `code_block`, `filter_block` (vec4 /
+vec3), `diff_blocks`, `sub_and_compute_std_dev`, `stats<float>` / `comparative_stats` parts,
+`create_smooth_maps2`, `tonemap_image_compressive2`, ITP MSE / SSIM / delta ITP,
+`calc_deblocking_penalty_itp`, `calc_strip_size`, `convet_rgb_image_to_itp`, float
+`image_resample` (`image_resample_f`), `decode_astc_block`, `validate_log_blk`.
+- GCC keeps `powf(x, .5f)` as a libm call while LLVM folds it into `sqrt`; such calls go through
+  `black_box` exponents. `pow(d, 2.0)` is a multiply in both compilers.
+- The debug image outputs of the smooth maps and the debug statistics are not ported.
+Tests: `tests/basisu_hdr6x6_parts.rs` vs `scripts/golden/gen_basisu_hdr6x6_parts_golden.sh`
+(the harness includes the C++ .cpp for its statics and links a library without the 6x6 and
+`basisu_comp` objects): table hash, 400 PQ / ITP vector sets, 240 6x6 blocks of 6 kinds
+(estimates at 1..48 results, mode 7 / 11 pre-selection incl. brute force, 2 / 3 subset encodes
+over random block modes with their coded bits, filters, stats, ITP metrics, `encode_values` for
+all 21 ranges), 24 images (tone map, smooth maps, Gaussian 1.45 / 1.83 resampling, ITP,
+deblocking penalties) and strip sizes.

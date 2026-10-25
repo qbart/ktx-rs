@@ -5,6 +5,7 @@
 
 pub mod astc;
 pub mod astc_6x6_hdr;
+pub mod astc_hdr_6x6_enc;
 pub mod astc_hdr_downsample_tables;
 pub mod astc_hdr_enc;
 pub mod astc_helpers;
