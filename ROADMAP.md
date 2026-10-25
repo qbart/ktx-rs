@@ -49,8 +49,10 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] basisu SSIM (`basisu_ssim.cpp`) and 8-bit `image_metrics::calc` (CTS exact output)
 - [x] basisu resampler + 16 filters (`encoder/basisu_resampler`, bit exact vs C++, used by image scaling)
 - [x] ETC1 block encoder `basisu_etc.cpp` (etc_block, etc1_optimizer, solid color, EAC A8; bit exact vs SSE build)
-- [~] ETC1S encoder (`ktxTexture2_CompressBasis`): [x] TSVQ vector quantizer, frontend, Huffman
-  encoder, backend (bit exact); todo `basis_compressor` (plan: docs/spec/basis_encode.md)
+- [x] ETC1S encoder: TSVQ vector quantizer, frontend, Huffman encoder, backend, `basis_compressor`
+  + `.basis` writer (bit exact)
+- [x] `ktxTexture2_CompressBasisEx` / `CompressBasis` (`basis_encode.cpp`): ETC1S/BasisLZ and UASTC
+  LDR 4x4 byte exact vs CTS; todo UASTC HDR 4x4 / 6x6i encoders (plan: docs/spec/basis_encode.md)
 - [x] UASTC encoder + RDO: bc7enc color cell compressor, `encode_uastc` block encoder (all
   levels / flags, BC1/ETC1/EAC hints) and `uastc_rdo` post-pass (incl. job split) bit exact
 
@@ -88,20 +90,22 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
-  generation, all convertible formats, ASTC encoding, `--compare-ssim/psnr` metrics (4482 CTS
-  create subcases pass); pending Basis encoders
+  generation, all convertible formats, ASTC, BasisLZ and UASTC LDR encoding, `--compare-ssim/psnr`
+  metrics (4696 CTS create subcases pass); pending UASTC HDR encoders
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
-- [~] encode: ASTC + SSIM / PSNR metrics (800 CTS encode subcases pass); pending Basis encoders
+- [~] encode: ASTC, BasisLZ, UASTC LDR + SSIM / PSNR metrics (1157 CTS encode subcases pass);
+  pending UASTC HDR encoders
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
 - [x] unittests: WriterTestHelper
-- [ ] unittests: Swizzle (needs basis_encode), BadVulkanAlloc (needs Vulkan loader)
-- [~] texturetests: 105 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
+- [x] unittests: Swizzle (`swizzle_to_rgba`)
+- [ ] unittests: BadVulkanAlloc (needs Vulkan loader)
+- [~] texturetests: 115 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
-  unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode). Todo:
-  BasisCompress/Transcode.
+  unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode, BasisCompress,
+  TranscodeBasis MissingAlphaSlices, GetNumComponents BasisLZ/UASTC).
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
 - [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,

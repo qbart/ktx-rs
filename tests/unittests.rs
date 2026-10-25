@@ -982,3 +982,101 @@ mod writer_test_helper_rgb8_test {
         assert_eq!(NUM_COMPONENTS, 3);
     }
 }
+
+///////////////////////
+// Swizzle tests
+///////////////////////
+
+mod swizzle_to_rgba_test {
+    use super::common::wthelper::{E_NONE, WriterTestHelper};
+    use ktx::basis_encode::{A, B, G, ONE, R, SwizzleE, ZERO, swizzle_to_rgba};
+    use ktx::gl_format::{GL_R8, GL_RG8, GL_RGB8, GL_RGBA8};
+    use ktx::vk_format::{RgbaAstcMapping, vk_get_format_from_opengl_internal_format};
+    use ktx::{Texture2, TextureCreateStorage};
+
+    const WIDTH: u32 = 16;
+    const HEIGHT: u32 = 16;
+
+    /// `SwizzleTestBase<num_components, internalformat>::runTest`.
+    fn run_test<const NC: u32, const IF: u32>(swizzle: [SwizzleE; 4]) {
+        // Use swizzle enumerator values for easy checking of result.
+        let default_color = [R, G, B, A];
+        let color: Vec<u8> = default_color[..NC as usize].to_vec();
+        let mut helper = WriterTestHelper::<u8, NC, IF>::new();
+        helper.resize_with_color(E_NONE, 1, 1, 2, WIDTH, HEIGHT, 1, Some(&color));
+
+        let mut ci = helper.create_info.clone();
+        ci.vk_format =
+            vk_get_format_from_opengl_internal_format(ci.gl_internalformat, RgbaAstcMapping::ToHdr);
+        let mut texture = match Texture2::create(&ci, TextureCreateStorage::AllocStorage) {
+            Ok(t) => t,
+            Err(e) => panic!("ktxTexture_Create failed: {e:?}"),
+        };
+        assert!(texture.p_data.is_some(), "Image storage not allocated");
+        assert_eq!(helper.copy_images_to_texture2(&mut texture), Ok(()));
+
+        let dest_byte_len = (WIDTH * HEIGHT * 4) as usize;
+        let src_byte_len = (WIDTH * HEIGHT * NC) as usize;
+        let mut dest = vec![0x7fu8; dest_byte_len];
+        let src = texture.p_data.as_deref().unwrap_or_default();
+        swizzle_to_rgba(&mut dest, src, NC, src_byte_len, &swizzle);
+
+        for i in 0..(WIDTH * HEIGHT) as usize {
+            for c in 0..4 {
+                let got = dest[i * 4 + c];
+                if swizzle[c] == ZERO {
+                    assert_eq!(got, 0);
+                } else if swizzle[c] == ONE {
+                    assert_eq!(got, 255);
+                } else {
+                    assert_eq!(swizzle[c], got, "c = {c}, i = {i}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn r8_rrrone() {
+        run_test::<1, GL_R8>([R, R, R, ONE]);
+    }
+
+    #[test]
+    fn rg8_rrrg() {
+        run_test::<2, GL_RG8>([R, R, R, G]);
+    }
+
+    #[test]
+    fn rgb8_rgbone() {
+        run_test::<3, GL_RGB8>([R, G, B, ONE]);
+    }
+
+    #[test]
+    fn rgb8_rrrg() {
+        run_test::<3, GL_RGB8>([R, R, R, G]);
+    }
+
+    #[test]
+    fn rgba8_rgba() {
+        run_test::<4, GL_RGBA8>([R, G, B, A]);
+    }
+
+    #[test]
+    fn rgba8_rrrg() {
+        run_test::<4, GL_RGBA8>([R, R, R, G]);
+    }
+
+    #[test]
+    fn rgba8_bgra() {
+        run_test::<4, GL_RGBA8>([B, G, R, A]);
+    }
+
+    #[test]
+    fn rgba8_bgrzero() {
+        run_test::<4, GL_RGBA8>([B, G, R, ZERO]);
+    }
+
+    #[test]
+    fn rgba8_argb() {
+        run_test::<4, GL_RGBA8>([A, R, G, B]);
+    }
+}

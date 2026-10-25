@@ -1,8 +1,7 @@
 //! Port of tools/ktx/command_create.cpp (`ktx create`).
 //!
-//! The Basis Universal and ASTC encoders are not ported yet: `--encode` and
-//! ASTC `--format`s are parsed and validated like the C++ but fail with
-//! `NOT_IMPLEMENTED` when the encoding step is reached.
+//! The UASTC HDR 4x4 / 6x6i encoders are not ported yet: `--encode uastc-hdr-*` is parsed and
+//! validated like the C++ but fails with `NOT_IMPLEMENTED` when the encoding step is reached.
 
 use std::rc::Rc;
 
@@ -2409,11 +2408,18 @@ impl CommandCreate {
         let mut metrics = MetricsCalculator::default();
         metrics.save_reference_images(&texture, &self.metrics);
 
-        if self.basis.selected_codec != BasisCodec::None {
+        if matches!(
+            self.basis.selected_codec,
+            BasisCodec::UastcHdr4x4 | BasisCodec::UastcHdr6x6i
+        ) {
+            // TODO: UASTC HDR encoders are not ported yet.
             return Err(self.fatal(ReturnCode::NotImplemented, format!(
-                "Failed to encode KTX2 file with codec \"{}\". The Basis Universal encoder is not implemented.",
+                "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR encoder is not implemented.",
                 self.basis.selected_codec as u32
             )));
+        }
+        if self.basis.selected_codec != BasisCodec::None {
+            self.encode_basis(&mut texture)?;
         }
         if self.astc.encode_astc {
             self.encode_astc(&mut texture)?;
@@ -2477,6 +2483,20 @@ impl CommandCreate {
     }
 
     /// `encodeASTC`.
+    fn encode_basis(&self, texture: &mut Texture2) -> CmdResult {
+        if let Err(e) = texture.compress_basis_ex(&self.basis.params) {
+            return Err(self.fatal(
+                ReturnCode::RuntimeError,
+                format!(
+                    "Failed to encode KTX2 file with codec \"{}\". KTX Error: {}",
+                    self.basis.selected_codec as u32,
+                    ktx_error_string(e)
+                ),
+            ));
+        }
+        Ok(())
+    }
+
     fn encode_astc(&self, texture: &mut Texture2) -> CmdResult {
         if let Err(e) = texture.compress_astc_ex(&self.astc.params) {
             return Err(self.fatal(

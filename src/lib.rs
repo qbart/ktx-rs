@@ -5,6 +5,7 @@
 
 pub mod astc_codec;
 pub mod astcenc;
+pub mod basis_encode;
 pub mod basis_transcode;
 pub mod basisu;
 pub mod cli;

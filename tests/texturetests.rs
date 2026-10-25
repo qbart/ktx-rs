@@ -1953,9 +1953,51 @@ fn ktx_texture2_deflate_test_deflate_zlib() {
     assert_eq!(texture.deflate_zlib(9), Err(ErrorCode::InvalidOperation));
 }
 
-// TODO(basis): ktxTexture2_BasisCompressTest.Compress, ktxTexture2_TranscodeBasis.
-// MissingAlphaSlices and the BasisLZ/UASTC GetNumComponents variants need the
-// Basis Universal encoder/transcoder.
+/////////////////////////////////////////
+// ktxTexture2_BasisCompress tests
+////////////////////////////////////////
+
+#[test]
+fn ktx_texture2_basis_compress_test_compress() {
+    let f = ktx2_fixture();
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    let data_size = texture.data_size;
+    assert_eq!(texture.compress_basis(0), Ok(()));
+    assert_eq!(
+        texture.supercompression_scheme,
+        ktx::defs::SupercmpScheme::BASIS_LZ
+    );
+    assert!(!texture.supercompression_global_data().is_empty());
+    assert_eq!(texture.num_levels, f.helper.num_levels);
+    assert!(texture.data_size < data_size);
+    // How else to test the result?
+    assert_eq!(
+        texture.transcode_basis(ktx::defs::TranscodeFmt::BC1_RGB, 0),
+        Ok(())
+    );
+}
+
+#[test]
+fn ktx_texture2_transcode_basis_missing_alpha_slices() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/resources/ktx2/invalid_blze_alpha_slice_missing.ktx2"
+    );
+    let mut texture = ok(
+        Texture2::create_from_named_file(path, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromNamedFile",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    // This should error out and not leak
+    assert_eq!(
+        texture.transcode_basis(ktx::defs::TranscodeFmt::BC1_RGB, 0),
+        Err(ErrorCode::FileDataError)
+    );
+}
 
 ////////////////////////////////////////////
 // ktxTexture2_GetNumComponents tests
@@ -1989,6 +2031,68 @@ fn ktx_texture2_get_num_components_test_rgb8_uncompressed() {
 #[test]
 fn ktx_texture2_get_num_components_test_rgba8_uncompressed() {
     get_num_components_uncompressed::<4, GL_RGBA8>(4);
+}
+
+fn get_num_components_basis<const NC: u32, const IF: u32>(expected: u32, uastc: bool) {
+    let f = TextureTestBase::<u8, NC, IF>::new(FormatVersion::Two);
+    let mut texture = ok(
+        Texture2::create_from_memory(&f.ktx_mem_file, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT),
+        "CreateFromMemory",
+    );
+    assert!(texture.p_data.is_some(), "Image data not loaded");
+    let components = texture.get_num_components();
+    assert_eq!(components, expected);
+    if uastc {
+        // As in the C++, structSize is left 0 so this fails with KTX_INVALID_VALUE.
+        let cparams = ktx::encode_params::BasisParams {
+            codec: ktx::encode_params::KTX_BASIS_CODEC_UASTC_LDR_4X4,
+            ..Default::default()
+        };
+        let _ = texture.compress_basis_ex(&cparams);
+    } else {
+        let _ = texture.compress_basis(0);
+    }
+    assert_eq!(components, texture.get_num_components());
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_r8_basis_lz() {
+    get_num_components_basis::<1, GL_R8>(1, false);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_r8_uastc() {
+    get_num_components_basis::<1, GL_R8>(1, true);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rg8_basis_lz() {
+    get_num_components_basis::<2, GL_RG8>(2, false);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rg8_uastc() {
+    get_num_components_basis::<2, GL_RG8>(2, true);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgb8_basis_lz() {
+    get_num_components_basis::<3, GL_RGB8>(3, false);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgb8_uastc() {
+    get_num_components_basis::<3, GL_RGB8>(3, true);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgba8_basis_lz() {
+    get_num_components_basis::<4, GL_RGBA8>(4, false);
+}
+
+#[test]
+fn ktx_texture2_get_num_components_test_rgba8_uastc() {
+    get_num_components_basis::<4, GL_RGBA8>(4, true);
 }
 
 ////////////////////////////////////////////

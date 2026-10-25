@@ -295,12 +295,25 @@ impl CommandEncode {
                     ),
                 ));
             }
-        } else {
+        } else if matches!(
+            self.basis.selected_codec,
+            BasisCodec::UastcHdr4x4 | BasisCodec::UastcHdr6x6i
+        ) {
+            // TODO: UASTC HDR encoders are not ported yet.
             return Err(report.fatal(
                 ReturnCode::NotImplemented,
                 &format!(
-                    "Failed to encode KTX2 file with codec \"{}\". The Basis Universal encoder is not implemented.",
+                    "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR encoder is not implemented.",
                     self.basis.codec_name
+                ),
+            ));
+        } else if let Err(e) = texture.compress_basis_ex(&self.basis.params) {
+            return Err(report.fatal(
+                ReturnCode::IoFailure,
+                &format!(
+                    "Failed to encode KTX2 file with codec \"{}\". KTX Error: {}",
+                    self.basis.codec_name,
+                    ktx_error_string(e)
                 ),
             ));
         }
