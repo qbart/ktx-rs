@@ -3,19 +3,20 @@
 //! copied (and swizzled) into compressor images, encoded to a `.basis` file, which is then
 //! unpicked into the KTX2 level data, BasisLZ global data and an ETC1S / UASTC DFD.
 //!
-//! The UASTC HDR 4x4 and 6x6 intermediate codecs fail with `UnsupportedFeature` until their
-//! encoders are ported. `noSSE` has no effect: the port has no SIMD kernels and its output
+//! The UASTC HDR 6x6 intermediate codec fails with `UnsupportedFeature` until its encoder is
+//! ported. `noSSE` has no effect: the port has no SIMD kernels and its output
 //! matches the SSE 4.1 build.
 
 use crate::basis_transcode::{
     AlphaContent, BASIS_LZ_ETC1S_IMAGE_DESC_SIZE, BASIS_LZ_GLOBAL_HEADER_SIZE,
 };
+use crate::basisu::astc_helpers::half_to_float;
 use crate::basisu::basis_file::{
     BASIS_SLICE_DESC_SIZE, BasisFileHeader, BasisSliceDesc, C_BASIS_HEADER_FLAG_HAS_ALPHA_SLICES,
     C_SLICE_DESC_FLAGS_FRAME_IS_I_FRAME, C_SLICE_DESC_FLAGS_HAS_ALPHA,
 };
 use crate::basisu::comp::{
-    BasisCompressor, BasisCompressorErrorCode, BasisCompressorParams, Image,
+    BasisCompressor, BasisCompressorErrorCode, BasisCompressorParams, HdrModes, Image, ImageF,
 };
 use crate::basisu::frontend::{C_BASIS_TEX_TYPE_2D, C_BASIS_TEX_TYPE_VIDEO_FRAMES};
 use crate::defs::{KTX_SWIZZLE_KEY, SupercmpScheme};
@@ -85,6 +86,65 @@ pub fn swizzle_to_rgba(
             rgbadst[d + c] = v;
         }
         d += 4;
+        i += src_len;
+    }
+}
+
+/// `copy_rgbaF_to_rgbaF`: halves to floats.
+fn copy_rgbaf_to_rgbaf(rgbadst: &mut [[f32; 4]], rgbasrc: &[u8], image_size: usize) {
+    let src = &rgbasrc[..image_size.min(rgbasrc.len())];
+    for (d, s) in rgbadst.iter_mut().zip(src.as_chunks::<8>().0) {
+        for c in 0..4 {
+            d[c] = half_to_float(u16::from_le_bytes([s[c * 2], s[c * 2 + 1]]));
+        }
+    }
+}
+
+/// `copy_rgbF_to_rgbaF`: no swizzle, alpha set to 1 to convince Basis there is no alpha.
+fn copy_rgbf_to_rgbaf(rgbadst: &mut [[f32; 4]], rgbsrc: &[u8], image_size: usize) {
+    let src = &rgbsrc[..image_size.min(rgbsrc.len())];
+    for (d, s) in rgbadst.iter_mut().zip(src.as_chunks::<6>().0) {
+        for c in 0..3 {
+            d[c] = half_to_float(u16::from_le_bytes([s[c * 2], s[c * 2 + 1]]));
+        }
+        d[3] = 1.0;
+    }
+}
+
+/// Port of `swizzle_to_rgbaF` (public, like the C++). The C++ steps `src_len` halves per pixel
+/// but counts `image_size` in bytes, overrunning the destination; this stops when the
+/// destination is full. Halves past the end of `rgbasrc` read as 0.
+pub fn swizzle_to_rgbaf(
+    rgbadst: &mut [[f32; 4]],
+    rgbasrc: &[u8],
+    src_len: u32,
+    image_size: usize,
+    swizzle: &[SwizzleE; 4],
+) {
+    let src_len = src_len.max(1) as usize;
+    let mut i = 0;
+    for d in rgbadst.iter_mut() {
+        if i >= image_size {
+            break;
+        }
+        let src = |c: usize| {
+            let o = (i + c) * 2;
+            match rgbasrc.get(o..o + 2) {
+                Some(b) => half_to_float(u16::from_le_bytes([b[0], b[1]])),
+                None => 0.0,
+            }
+        };
+        for (c, &s) in swizzle.iter().enumerate() {
+            d[c] = match s {
+                R => src(0),
+                G => src(1),
+                B => src(2),
+                A => src(3),
+                ZERO => 0.0,
+                ONE => 1.0,
+                _ => continue,
+            };
+        }
         i += src_len;
     }
 }
@@ -205,6 +265,22 @@ impl Texture2 {
         self.p_dfd = ndfd;
     }
 
+    /// `ktxTexture2_rewriteDfd4UastcHDR4x4`.
+    fn rewrite_dfd4_uastc_hdr_4x4(&mut self) {
+        let mut ndfd = new_basis_dfd(bdb(&self.p_dfd), KHR_DF_MODEL_UASTC_HDR_4x4, 1, 3, 16);
+        let nbdb = bdb_mut(&mut ndfd);
+        set_sample(
+            nbdb,
+            0,
+            KHR_DF_CHANNEL_UASTC_HDR_4x4_RGB,
+            KHR_DF_SAMPLE_DATATYPE_FLOAT,
+            0,
+            127,
+            0x3F80_0000,
+        );
+        self.p_dfd = ndfd;
+    }
+
     /// Port of `ktxTexture2_CompressBasisEx`: encodes the uncompressed images to ETC1S
     /// (supercompressed with BasisLZ) or UASTC, replacing the images, DFD and format.
     pub fn compress_basis_ex(&mut self, params: &BasisParams) -> KtxResult<()> {
@@ -247,8 +323,13 @@ impl Texture2 {
         match params.codec {
             KTX_BASIS_CODEC_ETC1S => cparams.uastc = false,
             KTX_BASIS_CODEC_UASTC_LDR_4X4 => cparams.uastc = true,
-            KTX_BASIS_CODEC_UASTC_HDR_4X4 | KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE => {
-                // TODO: UASTC HDR encoders (docs/spec/basis_encode.md stages 5, 6).
+            KTX_BASIS_CODEC_UASTC_HDR_4X4 => {
+                cparams.uastc = true;
+                cparams.hdr = true;
+                cparams.hdr_mode = HdrModes::UastcHdr4x4;
+            }
+            KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE => {
+                // TODO: UASTC HDR 6x6i encoder (docs/spec/basis_encode.md stage 6).
                 return Err(ErrorCode::UnsupportedFeature);
             }
             _ => {}
@@ -341,6 +422,7 @@ impl Texture2 {
         // NOTA BENE: It is advantageous for Basis LZ compression to order mipmap levels from
         // largest to smallest.
         let mut source_images = Vec::with_capacity(num_images as usize);
+        let mut source_images_hdr = Vec::with_capacity(num_images as usize);
         {
             let Some(data) = self.base.p_data.as_ref() else {
                 return Err(ErrorCode::InvalidOperation);
@@ -359,22 +441,37 @@ impl Texture2 {
                     for slice in 0..face_slices {
                         let offset = self.get_image_offset(level, layer, slice)?;
                         let src = data.get(offset..).unwrap_or_default();
-                        let mut img = Image::with_size(width, height);
-                        let dst = img.get_pixels_mut().as_flattened_mut();
-                        match (&comp_mapping, num_components) {
-                            (Some(m), _) => {
-                                swizzle_to_rgba(dst, src, num_components, image_size, m)
+                        if cparams.hdr {
+                            let mut img = ImageF::with_size(width, height);
+                            let dst = img.get_pixels_mut();
+                            match (&comp_mapping, num_components) {
+                                (Some(m), _) => {
+                                    swizzle_to_rgbaf(dst, src, num_components, image_size, m)
+                                }
+                                (None, 4) => copy_rgbaf_to_rgbaf(dst, src, image_size),
+                                (None, 3) => copy_rgbf_to_rgbaf(dst, src, image_size),
+                                _ => {}
                             }
-                            (None, 4) => copy_rgba_to_rgba(dst, src, image_size),
-                            (None, 3) => copy_rgb_to_rgba(dst, src, image_size),
-                            _ => {}
+                            source_images_hdr.push(img);
+                        } else {
+                            let mut img = Image::with_size(width, height);
+                            let dst = img.get_pixels_mut().as_flattened_mut();
+                            match (&comp_mapping, num_components) {
+                                (Some(m), _) => {
+                                    swizzle_to_rgba(dst, src, num_components, image_size, m)
+                                }
+                                (None, 4) => copy_rgba_to_rgba(dst, src, image_size),
+                                (None, 3) => copy_rgb_to_rgba(dst, src, image_size),
+                                _ => {}
+                            }
+                            source_images.push(img);
                         }
-                        source_images.push(img);
                     }
                 }
             }
         }
         cparams.source_images = source_images;
+        cparams.source_images_hdr = source_images_hdr;
 
         // No longer needed. Reduce memory footprint.
         self.base.p_data = None;
@@ -419,6 +516,11 @@ impl Texture2 {
                     !params.uastc_rdo_no_multithreading;
             }
             cparams.hdr_favor_astc = params.uastc_hdr_favor_astc;
+            cparams
+                .uastc_hdr_4x4_options
+                .set_quality_level(params.uastc_hdr_quality as i32);
+            cparams.uastc_hdr_4x4_options.base.allow_uber_mode = params.uastc_hdr_uber_mode;
+            cparams.uastc_hdr_4x4_options.base.ultra_quant = params.uastc_hdr_ultra_quant;
             if params.uastc_hdr_lambda > 0.0 {
                 cparams
                     .rdo_uastc_ldr_4x4_quality_scalar
@@ -616,6 +718,9 @@ impl Texture2 {
         let required_level_alignment = if params.codec == KTX_BASIS_CODEC_UASTC_LDR_4X4 {
             self.rewrite_dfd4_uastc(alpha_content, is_luminance, swizzle);
             4 * 4
+        } else if params.codec == KTX_BASIS_CODEC_UASTC_HDR_4X4 {
+            self.rewrite_dfd4_uastc_hdr_4x4();
+            4 * 4
         } else {
             self.rewrite_dfd4_basis_lz_etc1s(alpha_content, is_luminance, swizzle);
             self.supercompression_scheme = SupercmpScheme::BASIS_LZ;
@@ -623,7 +728,11 @@ impl Texture2 {
         };
         // Reflect this in the formatSize
         self.base.protected.format_size = FormatSize::init_from_dfd(&mut self.p_dfd)?;
-        self.vk_format = VkFormat::UNDEFINED;
+        self.vk_format = if params.codec == KTX_BASIS_CODEC_UASTC_HDR_4X4 {
+            VkFormat::ASTC_4x4_SFLOAT_BLOCK
+        } else {
+            VkFormat::UNDEFINED
+        };
         self.base.is_compressed = true;
         self.base.protected.type_size = 1;
 

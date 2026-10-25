@@ -1,30 +1,38 @@
-//! Port of the LDR paths of `encoder/basisu_comp.cpp` (`basis_compressor`) and the parts of
-//! `basisu_enc.h` `image` it needs: ETC1S (frontend + backend) and UASTC LDR 4x4 (+ RDO)
-//! encoding of caller supplied images into a `.basis` file, as driven by libktx
+//! Port of `encoder/basisu_comp.cpp` (`basis_compressor`) and the parts of `basisu_enc.h`
+//! `image` / `imagef` it needs: ETC1S (frontend + backend), UASTC LDR 4x4 (+ RDO) and UASTC
+//! HDR 4x4 encoding of caller supplied images into a `.basis` file, as driven by libktx
 //! `ktxTexture2_CompressBasisEx`.
 //!
 //! Not ported (unreachable from libktx, which never reads files, writes outputs, generates
 //! mipmaps or asks for statistics): source file / DDS / alpha file loading, resampling, y flip,
 //! normal map renormalization, user mipmap chains, `m_compute_stats` / `m_validate_output_data`
-//! transcode checks, KTX2 output, debug images, OpenCL. The HDR and XUASTC / ASTC LDR modes
-//! return `FailedEncodeUastc` until their encoders are ported.
+//! transcode checks, KTX2 output, debug images, OpenCL. The ASTC HDR 6x6 / UASTC HDR 6x6i and
+//! XUASTC / ASTC LDR modes return `FailedEncodeUastc` until their encoders are ported.
 
 use super::BasisTexFormat;
+use super::astc_hdr_enc::{
+    ASTC_HDR_MAX_VAL, MAX_HALF_FLOAT, compute_block_error, float_to_half_non_neg_no_nan_inf,
+};
 use super::backend::{
     BasisuBackend, BasisuBackendOutput, BasisuBackendParams, BasisuBackendSliceDesc,
 };
 use super::basis_file::BasisuFile;
+use super::bc6h::astc_hdr_transcode_to_bc6h;
 use super::enc::{ColorRgba, crc16};
 use super::frontend::{
     BASISU_DEFAULT_ETC1S_COMPRESSION_LEVEL, BASISU_MAX_ETC1S_COMPRESSION_LEVEL, BasisuFrontend,
     BasisuFrontendParams, C_BASIS_TEX_TYPE_2D, C_BASIS_TEX_TYPE_CUBEMAP_ARRAY,
     C_BASIS_TEX_TYPE_VIDEO_FRAMES, C_MAX_ENDPOINT_CLUSTERS, C_MAX_SELECTOR_CLUSTERS, PixelBlock,
 };
+use super::gpu_texture::unpack_bc6h;
 use super::uastc_enc::{
     C_PACK_UASTC_FAVOR_SIMPLER_MODES, C_PACK_UASTC_LEVEL_DEFAULT,
     UASTC_RDO_DEFAULT_MAX_ALLOWED_RMS_INCREASE_RATIO, UASTC_RDO_DEFAULT_MAX_SMOOTH_BLOCK_STD_DEV,
     UASTC_RDO_DEFAULT_SKIP_BLOCK_RMS_THRESH, UASTC_RDO_DEFAULT_SMOOTH_BLOCK_MAX_ERROR_SCALE,
     UastcRdoParams, encode_uastc, uastc_rdo,
+};
+use super::uastc_hdr_4x4_enc::{
+    UastcHdr4x4CodecOptions, astc_hdr_4x4_enc_block, astc_hdr_4x4_pack_results_to_block,
 };
 
 pub const BASISU_MAX_SUPPORTED_TEXTURE_DIMENSION: u32 = 16384;
@@ -213,6 +221,202 @@ impl Image {
     }
 }
 
+/// `basisu::imagef`: an RGBA float image with a pitch (in pixels).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ImageF {
+    width: u32,
+    height: u32,
+    pitch: u32,
+    pixels: Vec<[f32; 4]>,
+}
+
+impl ImageF {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// `imagef(w, h)`.
+    pub fn with_size(w: u32, h: u32) -> Self {
+        let mut img = Self::default();
+        img.resize(w, h);
+        img
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn get_width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn get_height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn get_block_width(&self, w: u32) -> u32 {
+        self.width.div_ceil(w)
+    }
+
+    pub fn get_block_height(&self, h: u32) -> u32 {
+        self.height.div_ceil(h)
+    }
+
+    pub fn get_pixels(&self) -> &[[f32; 4]] {
+        &self.pixels
+    }
+
+    pub fn get_pixels_mut(&mut self) -> &mut [[f32; 4]] {
+        &mut self.pixels
+    }
+
+    /// `resize(w, h)` (background (0, 0, 0, 1)).
+    pub fn resize(&mut self, w: u32, h: u32) -> &mut Self {
+        self.crop(w, h, u32::MAX, [0.0, 0.0, 0.0, 1.0])
+    }
+
+    /// `crop(w, h, p, background)`.
+    pub fn crop(&mut self, w: u32, h: u32, p: u32, background: [f32; 4]) -> &mut Self {
+        let p = if p == u32::MAX { w } else { p };
+        if w == self.width && h == self.height && p == self.pitch {
+            return self;
+        }
+        if w == 0 || h == 0 || p == 0 {
+            self.clear();
+            return self;
+        }
+        let cur_state = std::mem::take(&mut self.pixels);
+        self.pixels = vec![background; (p * h) as usize];
+        for y in 0..h.min(self.height) {
+            for x in 0..w.min(self.width) {
+                self.pixels[(x + y * p) as usize] = cur_state[(x + y * self.pitch) as usize];
+            }
+        }
+        self.width = w;
+        self.height = h;
+        self.pitch = p;
+        self
+    }
+
+    pub fn get(&self, x: u32, y: u32) -> [f32; 4] {
+        self.pixels[(x + y * self.pitch) as usize]
+    }
+
+    pub fn get_mut(&mut self, x: u32, y: u32) -> &mut [f32; 4] {
+        &mut self.pixels[(x + y * self.pitch) as usize]
+    }
+
+    pub fn get_clamped(&self, x: i32, y: i32) -> [f32; 4] {
+        let x = x.clamp(0, self.width as i32 - 1) as u32;
+        let y = y.clamp(0, self.height as i32 - 1) as u32;
+        self.get(x, y)
+    }
+
+    pub fn set_clipped(&mut self, x: i32, y: i32, c: [f32; 4]) -> &mut Self {
+        if (x as u32) < self.width && (y as u32) < self.height {
+            *self.get_mut(x as u32, y as u32) = c;
+        }
+        self
+    }
+
+    /// `crop_dup_borders(w, h)`.
+    pub fn crop_dup_borders(&mut self, w: u32, h: u32) -> &mut Self {
+        let (orig_w, orig_h) = (self.width, self.height);
+        self.resize(w, h);
+        if orig_w != 0 && orig_h != 0 {
+            if self.width > orig_w {
+                for x in orig_w..self.width {
+                    for y in 0..self.height {
+                        let c =
+                            self.get_clamped(x.min(orig_w - 1) as i32, y.min(orig_h - 1) as i32);
+                        self.set_clipped(x as i32, y as i32, c);
+                    }
+                }
+            }
+            if self.height > orig_h {
+                for y in orig_h..self.height {
+                    for x in 0..self.width {
+                        let c =
+                            self.get_clamped(x.min(orig_w - 1) as i32, y.min(orig_h - 1) as i32);
+                        self.set_clipped(x as i32, y as i32, c);
+                    }
+                }
+            }
+        }
+        self
+    }
+
+    /// `extract_block_clamped(pDst, src_x, src_y, w, h)`.
+    pub fn extract_block_clamped(
+        &self,
+        dst: &mut [[f32; 4]],
+        src_x: u32,
+        src_y: u32,
+        w: u32,
+        h: u32,
+    ) {
+        for y in 0..h {
+            for x in 0..w {
+                dst[(x + y * w) as usize] =
+                    self.get_clamped((src_x + x) as i32, (src_y + y) as i32);
+            }
+        }
+    }
+
+    /// `clean_astc_hdr_pixels`: zeroes NaN / Inf / -0 / negative components and clamps to
+    /// `highest_mag`, printing a warning per kind like the C++. Returns false if anything
+    /// changed.
+    pub fn clean_astc_hdr_pixels(&mut self, highest_mag: f32) -> bool {
+        let mut status = true;
+        let (mut nan_msg, mut inf_msg, mut neg_zero_msg, mut neg_msg, mut clamp_msg) =
+            (false, false, false, false, false);
+        for iy in 0..self.height {
+            for ix in 0..self.width {
+                for p in self.get_mut(ix, iy).iter_mut() {
+                    if p.is_nan() || p.is_infinite() || p.to_bits() == 0x8000_0000 {
+                        if p.is_nan() && !nan_msg {
+                            eprintln!("One or more input pixels was NaN, setting to 0.");
+                            nan_msg = true;
+                        }
+                        if p.is_infinite() && !inf_msg {
+                            eprintln!("One or more input pixels was INF, setting to 0.");
+                            inf_msg = true;
+                        }
+                        if p.to_bits() == 0x8000_0000 && !neg_zero_msg {
+                            eprintln!("One or more input pixels was -0, setting them to 0.");
+                            neg_zero_msg = true;
+                        }
+                        *p = 0.0;
+                        status = false;
+                    } else {
+                        if *p < 0.0 {
+                            *p = 0.0;
+                            if !neg_msg {
+                                eprintln!(
+                                    "One or more input pixels was negative -- setting these pixel components to 0 because ASTC HDR doesn't support signed values."
+                                );
+                                neg_msg = true;
+                            }
+                            status = false;
+                        }
+                        if *p > highest_mag {
+                            *p = highest_mag;
+                            if !clamp_msg {
+                                eprintln!(
+                                    "One or more input pixels had to be clamped to {highest_mag:.6}."
+                                );
+                                clamp_msg = true;
+                            }
+                            status = false;
+                        }
+                    }
+                }
+            }
+        }
+        status
+    }
+}
+
 /// `param<T>`: a value clamped to `[min, max]` on assignment that remembers whether it was set.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Param<T: Copy + PartialOrd> {
@@ -284,6 +488,7 @@ pub struct BasisCompressorParams {
     pub hdr_mode: HdrModes,
     pub status_output: bool,
     pub source_images: Vec<Image>,
+    pub source_images_hdr: Vec<ImageF>,
     pub y_flip: bool,
     pub debug: bool,
     pub validate_etc1s: bool,
@@ -325,6 +530,7 @@ pub struct BasisCompressorParams {
     pub ktx2_and_basis_srgb_transfer_function: bool,
     pub validate_output_data: bool,
     pub hdr_favor_astc: bool,
+    pub uastc_hdr_4x4_options: UastcHdr4x4CodecOptions,
     /// `m_pJob_pool->get_total_threads()`; 0 = no job pool (`init` fails like C++).
     pub job_pool_threads: u32,
 }
@@ -337,6 +543,7 @@ impl Default for BasisCompressorParams {
             hdr_mode: HdrModes::UastcHdr4x4,
             status_output: true,
             source_images: Vec::new(),
+            source_images_hdr: Vec::new(),
             y_flip: false,
             debug: false,
             validate_etc1s: false,
@@ -402,6 +609,7 @@ impl Default for BasisCompressorParams {
             ktx2_and_basis_srgb_transfer_function: true,
             validate_output_data: false,
             hdr_favor_astc: false,
+            uastc_hdr_4x4_options: UastcHdr4x4CodecOptions::default(),
             job_pool_threads: 0,
         }
     }
@@ -446,9 +654,12 @@ pub struct BasisCompressor {
     fmt_mode_block_height: u32,
     slice_descs: Vec<BasisuBackendSliceDesc>,
     slice_images: Vec<Image>,
+    slice_images_hdr: Vec<ImageF>,
     total_blocks: u32,
+    hdr_image_scale: f32,
     any_source_image_has_alpha: bool,
     source_blocks: Vec<PixelBlock>,
+    source_blocks_hdr: Vec<[[f32; 4]; 16]>,
     frontend: BasisuFrontend,
     backend: BasisuBackend,
     uastc_backend_output: BasisuBackendOutput,
@@ -487,6 +698,11 @@ impl BasisCompressor {
         self.basis_bits_per_texel
     }
 
+    /// `get_hdr_image_scale`: the factor the HDR source was scaled down by (1 if not).
+    pub fn get_hdr_image_scale(&self) -> f32 {
+        self.hdr_image_scale
+    }
+
     pub fn get_any_source_image_has_alpha(&self) -> bool {
         self.any_source_image_has_alpha
     }
@@ -499,8 +715,12 @@ impl BasisCompressor {
         self.fmt_mode_block_height
     }
 
-    /// `check_for_hdr_inputs` (no source filenames or HDR images in this port).
+    /// `check_for_hdr_inputs` (no source filenames in this port).
     fn check_for_hdr_inputs(&mut self) {
+        if self.params.source_images.is_empty() && !self.params.source_images_hdr.is_empty() {
+            // Assume they want UASTC HDR if they've specified any HDR source images.
+            self.params.hdr = true;
+        }
         if self.params.hdr {
             self.params.uastc = true;
         }
@@ -508,8 +728,16 @@ impl BasisCompressor {
 
     /// `sanity_check_input_params`.
     fn sanity_check_input_params(&self) -> bool {
-        // Reading source files is not supported, so images must be supplied.
-        !self.params.read_source_images && !self.params.source_images.is_empty()
+        // Reading source files is not supported, so images must be supplied, LDR or HDR.
+        let p = &self.params;
+        if p.read_source_images {
+            return false;
+        }
+        if p.source_images.is_empty() {
+            !p.source_images_hdr.is_empty()
+        } else {
+            p.source_images_hdr.is_empty()
+        }
     }
 
     /// `basis_compressor::init`.
@@ -524,6 +752,7 @@ impl BasisCompressor {
         self.total_slice_orig_texels = 0;
         self.basis_file_size = 0;
         self.basis_bits_per_texel = 0.0;
+        self.hdr_image_scale = 1.0;
         self.check_for_hdr_inputs();
         if self.params.hdr {
             self.params.ktx2_and_basis_srgb_transfer_function = false;
@@ -561,8 +790,14 @@ impl BasisCompressor {
             return Ec::FailedFrontEnd;
         }
         if self.params.hdr {
-            // TODO: UASTC HDR 4x4 / 6x6i encoders (docs/spec/basis_encode.md stages 5, 6).
-            return Ec::FailedEncodeUastc;
+            if self.params.hdr_mode != HdrModes::UastcHdr4x4 {
+                // TODO: ASTC HDR 6x6 / UASTC HDR 6x6i encoder (docs/spec/basis_encode.md stage 6).
+                return Ec::FailedEncodeUastc;
+            }
+            let ec = self.encode_slices_to_uastc_4x4_hdr();
+            if ec != Ec::Success {
+                return ec;
+            }
         } else if self.params.uastc {
             let ec = self.encode_slices_to_uastc_4x4_ldr();
             if ec != Ec::Success {
@@ -682,8 +917,11 @@ impl BasisCompressor {
         Ec::Success
     }
 
-    /// `read_source_images` for caller supplied LDR images.
+    /// `read_source_images` for caller supplied LDR or HDR images.
     fn read_source_images(&mut self) -> bool {
+        if self.params.hdr {
+            return self.read_source_images_hdr() && self.check_slice_descs();
+        }
         let total_source_files = self.params.source_images.len() as u32;
         if total_source_files == 0 {
             return false;
@@ -816,6 +1054,119 @@ impl BasisCompressor {
             }
         }
 
+        self.check_slice_descs()
+    }
+
+    /// The HDR part of `read_source_images` (HDR inputs have no alpha).
+    fn read_source_images_hdr(&mut self) -> bool {
+        let total_source_files = self.params.source_images_hdr.len();
+        if total_source_files == 0 {
+            return false;
+        }
+        self.slice_descs.clear();
+        self.slice_images_hdr.clear();
+        self.total_blocks = 0;
+        self.any_source_image_has_alpha = false;
+        let identity_swizzle = self.params.swizzle == [0, 1, 2, 3];
+        let images = std::mem::take(&mut self.params.source_images_hdr);
+        let mut source_images = Vec::with_capacity(total_source_files);
+        for mut file_image in images {
+            self.clean_hdr_image(&mut file_image);
+            if !identity_swizzle {
+                // For now, alpha is always 1.0f in UASTC HDR.
+                let s = self.params.swizzle.map(|c| c as usize & 3);
+                for c in file_image.get_pixels_mut() {
+                    *c = [c[s[0]], c[s[1]], c[s[2]], 1.0];
+                }
+            }
+            if self.params.y_flip {
+                // Not ported; libktx flips images itself.
+                return false;
+            }
+            let (width, height) = (file_image.get_width(), file_image.get_height());
+            if width == 0 || height == 0 {
+                return false;
+            }
+            if width > BASISU_MAX_SUPPORTED_TEXTURE_DIMENSION
+                || height > BASISU_MAX_SUPPORTED_TEXTURE_DIMENSION
+            {
+                return false;
+            }
+            source_images.push(file_image);
+        }
+
+        let bw = self.get_block_width();
+        let bh = self.get_block_height();
+        for (source_file_index, mut slice_image) in source_images.into_iter().enumerate() {
+            let orig_width = slice_image.get_width();
+            let orig_height = slice_image.get_height();
+            // Don't pad in 6x6 mode, the lower level compressor handles it.
+            if self.params.hdr_mode == HdrModes::UastcHdr4x4 {
+                let w = slice_image.get_block_width(bw) * bw;
+                let h = slice_image.get_block_height(bh) * bh;
+                slice_image.crop_dup_borders(w, h);
+            }
+            let mut slice_desc = BasisuBackendSliceDesc {
+                first_block_index: self.total_blocks,
+                orig_width,
+                orig_height,
+                width: slice_image.get_width(),
+                height: slice_image.get_height(),
+                num_blocks_x: slice_image.get_block_width(bw),
+                num_blocks_y: slice_image.get_block_height(bh),
+                source_file_index: source_file_index as u32,
+                ..Default::default()
+            };
+            slice_desc.num_macroblocks_x = (slice_desc.num_blocks_x + 1) >> 1;
+            slice_desc.num_macroblocks_y = (slice_desc.num_blocks_y + 1) >> 1;
+            // If it's not ETC1S, all slices are currently i-frames.
+            slice_desc.iframe = self.params.tex_type == C_BASIS_TEX_TYPE_VIDEO_FRAMES;
+            self.total_blocks += slice_desc.num_blocks_x * slice_desc.num_blocks_y;
+            self.slice_descs.push(slice_desc);
+            self.slice_images_hdr.push(slice_image);
+        }
+        true
+    }
+
+    /// `clean_hdr_image`: rescales images whose maximum exceeds `ASTC_HDR_MAX_VAL` and cleans
+    /// pixels ASTC HDR can't encode.
+    fn clean_hdr_image(&mut self, src_img: &mut ImageF) {
+        let mut max_used_val = 0f32;
+        for c in src_img.get_pixels() {
+            for &v in c.iter().take(3) {
+                max_used_val = if max_used_val < v { v } else { max_used_val };
+            }
+        }
+        let mut hdr_image_scale = 1.0f64;
+        // If the max value can't be encoded safely to ASTC HDR, rescale the source image.
+        if max_used_val > ASTC_HDR_MAX_VAL {
+            hdr_image_scale = (max_used_val / ASTC_HDR_MAX_VAL) as f64;
+            let inv_hdr_image_scale = ASTC_HDR_MAX_VAL as f64 / max_used_val as f64;
+            for c in src_img.get_pixels_mut() {
+                for v in c.iter_mut().take(3) {
+                    *v = (*v as f64 * inv_hdr_image_scale).min(ASTC_HDR_MAX_VAL as f64) as f32;
+                }
+            }
+            println!(
+                "Warning: The input HDR image's maximum used float value was {max_used_val:.6}, which is too high to encode as ASTC HDR. The image's components have been linearly scaled so the maximum used value is {:.6}, by multiplying by {inv_hdr_image_scale:.6}.",
+                ASTC_HDR_MAX_VAL
+            );
+            println!(
+                "The decoded/sampled ASTC HDR texture will have to be scaled up by {hdr_image_scale:.6}. See the \"HDRScale\" KTX2 key value field."
+            );
+        }
+        // Remember the scale factor so it can be written to the output file.
+        self.hdr_image_scale = hdr_image_scale as f32;
+        // Final check of the input pixels for anything bad that could cause encoding problems.
+        if !src_img.clean_astc_hdr_pixels(ASTC_HDR_MAX_VAL) {
+            println!(
+                "Warning: clean_astc_hdr_pixels() had to modify the input image to encode to ASTC HDR - see previous warning(s)."
+            );
+        }
+    }
+
+    /// The slice sanity checks at the end of `read_source_images`.
+    fn check_slice_descs(&self) -> bool {
         // Make sure we don't have too many slices
         if self.slice_descs.len() as u32 > BASISU_MAX_SLICES {
             return false;
@@ -907,8 +1258,138 @@ impl BasisCompressor {
             .all(|&l| l == image_mipmap_levels[0])
     }
 
+    /// `encode_slices_to_uastc_4x4_hdr`. The 256 block jobs are independent, so they run in
+    /// order on the calling thread. Debug block statistics are not ported.
+    fn encode_slices_to_uastc_4x4_hdr(&mut self) -> BasisCompressorErrorCode {
+        let out = &mut self.uastc_backend_output;
+        out.tex_format = BasisTexFormat::UastcHdr4x4;
+        out.etc1s = false;
+        out.srgb = false;
+        out.slice_desc = self.slice_descs.clone();
+        out.slice_image_data = vec![Vec::new(); self.slice_descs.len()];
+        out.slice_image_crcs = vec![0; self.slice_descs.len()];
+
+        let opts = &mut self.params.uastc_hdr_4x4_options;
+        if !self.params.perceptual {
+            opts.base.r_err_scale = 1.0;
+            opts.base.g_err_scale = 1.0;
+        }
+        const DEFAULT_BC6H_ERROR_WEIGHT: f32 = 0.65;
+        const LOWEST_BC6H_ERROR_WEIGHT: f32 = 0.1;
+        opts.bc6h_err_weight = if self.params.hdr_favor_astc {
+            LOWEST_BC6H_ERROR_WEIGHT
+        } else {
+            DEFAULT_BC6H_ERROR_WEIGHT
+        };
+        let opts = *opts;
+        let bc6h_err_weight = opts.bc6h_err_weight as f64;
+        let astc_err_weight = 1.0 - bc6h_err_weight;
+
+        let mut all_results = Vec::with_capacity(256);
+        for (slice_index, slice_desc) in self.slice_descs.iter().enumerate() {
+            // gpu_image::init(cUASTC_HDR_4x4, orig_width, orig_height)
+            let num_blocks_x = slice_desc.orig_width.div_ceil(4);
+            let num_blocks_y = slice_desc.orig_height.div_ceil(4);
+            let total_blocks = num_blocks_x * num_blocks_y;
+            let source_image = &self.slice_images_hdr[slice_index];
+            let mut tex = vec![[0u8; 16]; total_blocks as usize];
+            for (block_index, dest_block) in tex.iter_mut().enumerate() {
+                let block_x = block_index as u32 % num_blocks_x;
+                let block_y = block_index as u32 / num_blocks_x;
+                let mut block_pixels = [[0f32; 4]; 16];
+                source_image.extract_block_clamped(
+                    &mut block_pixels,
+                    block_x * 4,
+                    block_y * 4,
+                    4,
+                    4,
+                );
+                let mut rgb_pixels = [0f32; 48];
+                let mut rgb_pixels_half = [0u16; 48];
+                for i in 0..16 {
+                    for c in 0..3 {
+                        rgb_pixels[i * 3 + c] = block_pixels[i][c];
+                        rgb_pixels_half[i * 3 + c] =
+                            float_to_half_non_neg_no_nan_inf(block_pixels[i][c]);
+                    }
+                }
+                if !astc_hdr_4x4_enc_block(&rgb_pixels, &rgb_pixels_half, &opts, &mut all_results) {
+                    return Ec::FailedEncodeUastc;
+                }
+                let mut src_half = [[0u16; 3]; 16];
+                for (i, d) in src_half.iter_mut().enumerate() {
+                    d.copy_from_slice(&rgb_pixels_half[i * 3..i * 3 + 3]);
+                }
+                let mut best_err = 1e30f32 as f64;
+                let mut best_result_index = 0usize;
+                for (i, r) in all_results.iter_mut().enumerate() {
+                    let mut unpacked_bc6h_block = [[0u16; 3]; 16];
+                    unpack_bc6h(&r.bc6h_block, &mut unpacked_bc6h_block, false);
+                    r.bc6h_block_error =
+                        compute_block_error(16, &src_half, &unpacked_bc6h_block, &opts.base);
+                    let overall_err =
+                        r.bc6h_block_error * bc6h_err_weight + r.best_block_error * astc_err_weight;
+                    if i == 0 || overall_err < best_err {
+                        best_err = overall_err;
+                        best_result_index = i;
+                    }
+                }
+                let Some(best_results) = all_results.get(best_result_index) else {
+                    return Ec::FailedEncodeUastc;
+                };
+                if !astc_hdr_4x4_pack_results_to_block(dest_block, best_results) {
+                    return Ec::FailedEncodeUastc;
+                }
+                // Verify that this block is valid UASTC HDR and transcodes to BC6H (except in
+                // fastest mode).
+                if opts.level > 0 {
+                    let mut transcoded_bc6h_blk = [0u8; 16];
+                    if !astc_hdr_transcode_to_bc6h(dest_block, &mut transcoded_bc6h_blk) {
+                        return Ec::FailedEncodeUastc;
+                    }
+                }
+            }
+            let data: Vec<u8> = tex.iter().flat_map(|b| b.iter().copied()).collect();
+            out.slice_image_crcs[slice_index] = crc16(&data, 0);
+            out.slice_image_data[slice_index] = data;
+        }
+        Ec::Success
+    }
+
     /// `extract_source_blocks`.
     fn extract_source_blocks(&mut self) -> bool {
+        if self.params.hdr {
+            // No need to extract blocks in 6x6 mode, but the 4x4 compressors want 4x4 blocks.
+            if self.params.hdr_mode != HdrModes::UastcHdr4x4 {
+                return true;
+            }
+            self.source_blocks_hdr = vec![[[0f32; 4]; 16]; self.total_blocks as usize];
+            for (slice_desc, img) in self.slice_descs.iter().zip(&self.slice_images_hdr) {
+                for block_y in 0..slice_desc.num_blocks_y {
+                    for block_x in 0..slice_desc.num_blocks_x {
+                        let idx = (slice_desc.first_block_index
+                            + block_x
+                            + block_y * slice_desc.num_blocks_x)
+                            as usize;
+                        let blk = &mut self.source_blocks_hdr[idx];
+                        img.extract_block_clamped(blk, block_x * 4, block_y * 4, 4, 4);
+                        // Additional (technically optional) early sanity checking of the block texels.
+                        for p in blk.iter() {
+                            for &v in p.iter().take(3) {
+                                if v.is_nan()
+                                    || v.is_infinite()
+                                    || v < 0.0
+                                    || v as f64 > MAX_HALF_FLOAT
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
         self.source_blocks = vec![[[0u8; 4]; 16]; self.total_blocks as usize];
         for (slice_desc, img) in self.slice_descs.iter().zip(&self.slice_images) {
             for block_y in 0..slice_desc.num_blocks_y {

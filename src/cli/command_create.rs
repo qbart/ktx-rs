@@ -1,6 +1,6 @@
 //! Port of tools/ktx/command_create.cpp (`ktx create`).
 //!
-//! The UASTC HDR 4x4 / 6x6i encoders are not ported yet: `--encode uastc-hdr-*` is parsed and
+//! The UASTC HDR 6x6i encoder is not ported yet: `--encode uastc-hdr-6x6i` is parsed and
 //! validated like the C++ but fails with `NOT_IMPLEMENTED` when the encoding step is reached.
 
 use std::rc::Rc;
@@ -2408,13 +2408,10 @@ impl CommandCreate {
         let mut metrics = MetricsCalculator::default();
         metrics.save_reference_images(&texture, &self.metrics);
 
-        if matches!(
-            self.basis.selected_codec,
-            BasisCodec::UastcHdr4x4 | BasisCodec::UastcHdr6x6i
-        ) {
-            // TODO: UASTC HDR encoders are not ported yet.
+        if matches!(self.basis.selected_codec, BasisCodec::UastcHdr6x6i) {
+            // TODO: the UASTC HDR 6x6i encoder is not ported yet.
             return Err(self.fatal(ReturnCode::NotImplemented, format!(
-                "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR encoder is not implemented.",
+                "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR 6x6i encoder is not implemented.",
                 self.basis.selected_codec as u32
             )));
         }

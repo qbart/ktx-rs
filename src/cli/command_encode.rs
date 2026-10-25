@@ -295,15 +295,12 @@ impl CommandEncode {
                     ),
                 ));
             }
-        } else if matches!(
-            self.basis.selected_codec,
-            BasisCodec::UastcHdr4x4 | BasisCodec::UastcHdr6x6i
-        ) {
-            // TODO: UASTC HDR encoders are not ported yet.
+        } else if matches!(self.basis.selected_codec, BasisCodec::UastcHdr6x6i) {
+            // TODO: the UASTC HDR 6x6i encoder is not ported yet.
             return Err(report.fatal(
                 ReturnCode::NotImplemented,
                 &format!(
-                    "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR encoder is not implemented.",
+                    "Failed to encode KTX2 file with codec \"{}\". The UASTC HDR 6x6i encoder is not implemented.",
                     self.basis.codec_name
                 ),
             ));
