@@ -1,11 +1,12 @@
 //! Port of the CEM 7 / CEM 11 single plane parts of `encoder/basisu_astc_hdr_common.cpp` used by
 //! the UASTC HDR 4x4 encoder: codec base options, qlog tables, PCA / least squares endpoint
 //! fitting, selector evaluation, mode 7 / mode 11 endpoint packing and the
-//! `encode_astc_hdr_block_mode_7` / `_mode_11` block encoders.
+//! `encode_astc_hdr_block_mode_7` / `_mode_11` block encoders, and the 6x6 only dual plane,
+//! downsampled weight grid and endpoint refinement paths.
 //!
 //! Float evaluation follows the SSE build (no FMA): f32 vector math in `vec<N, float>` order,
-//! f64 where the C++ uses `double`. The dual plane, downsampled and refinement paths (6x6 only)
-//! are not ported yet.
+//! f64 where the C++ uses `double`. The 8x6 downsample matrices and the upsample matrix /
+//! gradient descent helpers are not ported (unused by the libktx encoders).
 
 // The float literals keep the C++ spelling (they round to the same f32).
 #![allow(clippy::needless_range_loop, clippy::excessive_precision)]
@@ -13,6 +14,7 @@
 use std::sync::OnceLock;
 
 use super::astc_6x6_hdr::requantize_ise_endpoints;
+use super::astc_hdr_downsample_tables::DOWNSAMPLE_MATRICES_6X6;
 use super::astc_helpers::{
     self as ah, BISE_3_LEVELS, BISE_12_LEVELS, BISE_16_LEVELS, BISE_256_LEVELS, HalfFloat,
     dequant_tables, get_ise_levels, half_to_float, is_half_inf_or_nan, qlog16_to_half,
@@ -2510,4 +2512,1262 @@ pub fn encode_astc_hdr_block_mode_7(
         trial_blk_weights[..num_pixels].copy_from_slice(&blk_weights[..num_pixels]);
     }
     cur_block_error
+}
+
+// ---------------------------------------------------------------------------------------------
+// 6x6 only: CEM config decoding, dual plane, downsampled weight grids, endpoint refinement
+
+/// `decode_cem_11_config`: (submode_index, maj_index).
+pub fn decode_cem_11_config(endpoints: &[u8]) -> (i32, i32) {
+    let mut submode_index = 0;
+    let mut maj_index = 0;
+    pack_bit(&mut submode_index, 0, endpoints[1] as i32, 7);
+    pack_bit(&mut submode_index, 1, endpoints[2] as i32, 7);
+    pack_bit(&mut submode_index, 2, endpoints[3] as i32, 7);
+    pack_bit(&mut maj_index, 0, endpoints[4] as i32, 7);
+    pack_bit(&mut maj_index, 1, endpoints[5] as i32, 7);
+    (submode_index, maj_index)
+}
+
+/// `decode_cem_7_config`: (submode_index, maj_index).
+pub fn decode_cem_7_config(endpoints: &[u8]) -> (i32, i32) {
+    let (v0, v1, v2) = (
+        endpoints[0] as i32,
+        endpoints[1] as i32,
+        endpoints[2] as i32,
+    );
+    // Extract mode bits and unpack to major component and mode.
+    let modeval = ((v0 & 0xC0) >> 6) | ((v1 & 0x80) >> 5) | ((v2 & 0x80) >> 4);
+    if (modeval & 0xC) != 0xC {
+        (modeval & 3, modeval >> 2)
+    } else if modeval != 0xF {
+        (4, modeval & 3)
+    } else {
+        (5, 0)
+    }
+}
+
+/// `dequantize_astc_weights`: ISE weight symbols to raw [0, 64] weights.
+pub fn dequantize_astc_weights(
+    n: usize,
+    src_ise_vals: &[u8],
+    from_ise_range: u32,
+    dst_raw_weights: &mut [u8],
+) {
+    let tab = &dequant_tables().weight_tab(from_ise_range).ise_to_val;
+    for (d, &s) in dst_raw_weights.iter_mut().zip(src_ise_vals).take(n) {
+        *d = tab.get(s as usize).copied().unwrap_or(0);
+    }
+}
+
+/// `eval_selectors_dual_plane`: plane 0 holds the two channels other than `channel_index`,
+/// plane 1 the `channel_index` channel.
+#[allow(clippy::too_many_arguments)]
+pub fn eval_selectors_dual_plane(
+    channel_index: usize,
+    num_pixels: usize,
+    weights0: &mut [u8],
+    weights1: &mut [u8],
+    block_pixels_half: &[[HalfFloat; 3]],
+    num_weight_levels: usize,
+    decoded_half: &[[HalfFloat; 3]],
+    coptions: &AstcHdrCodecBaseOptions,
+    usable_selector_bitmask: u32,
+) -> f64 {
+    let bias = coptions.q_log_bias;
+    let mut total_error = 0f64;
+    let mut decoded_half_q = [[0f64; 3]; MAX_SUPPORTED_WEIGHT_LEVELS];
+    for i in 0..num_weight_levels {
+        for c in 0..3 {
+            decoded_half_q[i][c] = q(decoded_half[i][c], bias);
+        }
+    }
+    let channel_weights = [
+        coptions.r_err_scale as f64,
+        coptions.g_err_scale as f64,
+        1.0f64,
+    ];
+    let first_channel = (channel_index + 1) % 3;
+    let second_channel = (channel_index + 2) % 3;
+    // First plane
+    let first_channel_weight = channel_weights[first_channel];
+    let second_channel_weight = channel_weights[second_channel];
+    for p in 0..num_pixels {
+        let desired = &block_pixels_half[p];
+        let dx = q(desired[first_channel], bias);
+        let dy = q(desired[second_channel], bias);
+        let mut lowest_e = BIG_FLOAT_VAL as f64;
+        for i in 0..num_weight_levels {
+            if (1u32 << i) & usable_selector_bitmask == 0 {
+                continue;
+            }
+            let xd = decoded_half_q[i][first_channel] - dx;
+            let yd = decoded_half_q[i][second_channel] - dy;
+            let e = first_channel_weight * (xd * xd) + second_channel_weight * (yd * yd);
+            if e < lowest_e {
+                lowest_e = e;
+                weights0[p] = i as u8;
+            }
+        }
+        total_error += lowest_e;
+    }
+    // Second plane
+    let alt_channel_weight = channel_weights[channel_index];
+    for p in 0..num_pixels {
+        let da = q(block_pixels_half[p][channel_index], bias);
+        let mut lowest_e = BIG_FLOAT_VAL as f64;
+        for i in 0..num_weight_levels {
+            if (1u32 << i) & usable_selector_bitmask == 0 {
+                continue;
+            }
+            let ad = decoded_half_q[i][channel_index] - da;
+            let e = alt_channel_weight * (ad * ad);
+            if e < lowest_e {
+                lowest_e = e;
+                weights1[p] = i as u8;
+            }
+        }
+        total_error += lowest_e;
+    }
+    total_error
+}
+
+/// `compute_least_squares_endpoints_2D` / `_1D`: per channel least squares fit with box
+/// fallback, clamped to the qlog16 range.
+fn compute_least_squares_endpoints_nd<const N: usize>(
+    n: usize,
+    selectors: &[u8],
+    selector_weights: &[[f32; 4]],
+    colors: &[[f32; N]],
+    box_lo: [f32; N],
+    box_hi: [f32; N],
+) -> Option<([f32; N], [f32; N])> {
+    let (mut z00, mut z10, mut z11) = (0f32, 0f32, 0f32);
+    let mut q00 = [0f32; N];
+    let mut t = [0f32; N];
+    for i in 0..n {
+        let sw = selector_weights[selectors[i] as usize];
+        z00 += sw[0];
+        z10 += sw[1];
+        z11 += sw[2];
+        let w = sw[3];
+        for c in 0..N {
+            q00[c] += w * colors[i][c];
+            t[c] += colors[i][c];
+        }
+    }
+    let z01 = z10;
+    let mut det = z00 * z11 - z01 * z10;
+    if det == 0.0 {
+        return None;
+    }
+    det = 1.0 / det;
+    let iz00 = z11 * det;
+    let iz01 = -z01 * det;
+    let iz10 = -z10 * det;
+    let iz11 = z00 * det;
+    let mut xl = [0f32; N];
+    let mut xh = [0f32; N];
+    for c in 0..N {
+        let q10 = t[c] - q00[c];
+        xl[c] = iz00 * q00[c] + iz01 * q10;
+        xh[c] = iz10 * q00[c] + iz11 * q10;
+        if box_hi[c] - box_lo[c] < 0.0000125 {
+            xl[c] = box_lo[c];
+            xh[c] = box_hi[c];
+        }
+    }
+    for c in 0..N {
+        xl[c] = clampf(xl[c], 0.0, MAX_QLOG16_VAL);
+        xh[c] = clampf(xh[c], 0.0, MAX_QLOG16_VAL);
+    }
+    Some((xl, xh))
+}
+
+/// `try_mode11_dual_plane`.
+#[allow(clippy::too_many_arguments)]
+pub fn try_mode11_dual_plane(
+    channel_index: usize,
+    num_pixels: usize,
+    endpoints: &mut [u8],
+    weights0: &mut [u8],
+    weights1: &mut [u8],
+    cur_block_error: &mut f64,
+    submode_used: &mut u32,
+    low_color_q16: Vec3,
+    high_color_q16: Vec3,
+    block_pixels_half: &[[HalfFloat; 3]],
+    num_weight_levels: usize,
+    ise_weight_range: u32,
+    coptions: &AstcHdrCodecBaseOptions,
+    direct_only: bool,
+    ise_endpoint_range: u32,
+    constrain_ise_weight_selectors: bool,
+    first_submode: i32,
+    last_submode: i32,
+    ignore_clamping: bool,
+) -> bool {
+    let (best_trial_endpoints, best_trial_dist, best_submode) = search_mode11(
+        low_color_q16,
+        high_color_q16,
+        ise_endpoint_range,
+        coptions,
+        direct_only,
+        first_submode,
+        last_submode,
+        ignore_clamping,
+    );
+    if best_trial_dist == BIG_FLOAT_VAL as f64 {
+        return false;
+    }
+    let mut decoded_half = [[0 as HalfFloat; 3]; MAX_SUPPORTED_WEIGHT_LEVELS];
+    if !get_astc_hdr_mode_11_block_colors(
+        &best_trial_endpoints,
+        &mut decoded_half,
+        num_weight_levels,
+        ise_weight_range,
+        ise_endpoint_range,
+    ) {
+        return false;
+    }
+    let mut usable_selector_bitmask = u32::MAX;
+    if constrain_ise_weight_selectors && ise_weight_range == BISE_16_LEVELS {
+        usable_selector_bitmask = (1 << 0)
+            | (1 << 1)
+            | (1 << 4)
+            | (1 << 5)
+            | (1 << 10)
+            | (1 << 11)
+            | (1 << 14)
+            | (1 << 15);
+    } else if constrain_ise_weight_selectors && ise_weight_range == BISE_12_LEVELS {
+        usable_selector_bitmask = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
+    }
+    let mut trial_weights0 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let mut trial_weights1 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let trial_blk_error = eval_selectors_dual_plane(
+        channel_index,
+        num_pixels,
+        &mut trial_weights0,
+        &mut trial_weights1,
+        block_pixels_half,
+        num_weight_levels,
+        &decoded_half,
+        coptions,
+        usable_selector_bitmask,
+    );
+    if trial_blk_error < *cur_block_error {
+        *cur_block_error = trial_blk_error;
+        endpoints[..NUM_MODE11_ENDPOINTS].copy_from_slice(&best_trial_endpoints);
+        weights0[..num_pixels].copy_from_slice(&trial_weights0[..num_pixels]);
+        weights1[..num_pixels].copy_from_slice(&trial_weights1[..num_pixels]);
+        *submode_used = (best_submode + 1) as u32;
+        return true;
+    }
+    false
+}
+
+/// `encode_astc_hdr_block_mode_11_dual_plane` (`uber_mode` is unused, as in C++).
+#[allow(clippy::too_many_arguments)]
+pub fn encode_astc_hdr_block_mode_11_dual_plane(
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    block_pixels_q16: &[[f32; 4]],
+    channel_index: usize,
+    ise_weight_range: u32,
+    best_submode: &mut u32,
+    mut cur_block_error: f64,
+    blk_endpoints: &mut [u8],
+    blk_weights0: &mut [u8],
+    blk_weights1: &mut [u8],
+    coptions: &AstcHdrCodecBaseOptions,
+    direct_only: bool,
+    ise_endpoint_range: u32,
+    _uber_mode: bool,
+    constrain_ise_weight_selectors: bool,
+    first_submode: i32,
+    last_submode: i32,
+    ignore_clamping: bool,
+) -> f64 {
+    let t = astc_hdr_enc_tables();
+    *best_submode = 0;
+    let num_weight_levels = get_ise_levels(ise_weight_range) as usize;
+
+    let mut temp_block_pixels_q16 = [[0f32; 4]; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    for i in 0..num_pixels {
+        temp_block_pixels_q16[i] = block_pixels_q16[i];
+        temp_block_pixels_q16[i][channel_index] = 0.0;
+    }
+    let block_mean_color_q16 = calc_mean(num_pixels, &temp_block_pixels_q16);
+    let block_axis_q16 = calc_rgb_pca(num_pixels, &temp_block_pixels_q16, block_mean_color_q16);
+
+    let mut l = BIG_FLOAT_VAL;
+    let mut h = -BIG_FLOAT_VAL;
+    let mut low_color_q16 = [0f32; 3];
+    let mut high_color_q16 = [0f32; 3];
+    let mut color_box_q16 = Aabb3::init_expand();
+    for i in 0..num_pixels {
+        color_box_q16.expand(xyz(&block_pixels_q16[i]));
+        let k = v_sub(xyz(&temp_block_pixels_q16[i]), block_mean_color_q16);
+        let kd = v_dot(k, block_axis_q16);
+        if kd < l {
+            l = kd;
+            low_color_q16 = xyz(&block_pixels_q16[i]);
+        }
+        if kd > h {
+            h = kd;
+            high_color_q16 = xyz(&block_pixels_q16[i]);
+        }
+    }
+    low_color_q16[channel_index] = 0.0;
+    high_color_q16[channel_index] = 0.0;
+    let a = v_dot(low_color_q16, [1.0; 3]);
+    let b = v_dot(high_color_q16, [1.0; 3]);
+    if a <= b {
+        low_color_q16[channel_index] = color_box_q16.lo[channel_index];
+        high_color_q16[channel_index] = color_box_q16.hi[channel_index];
+    } else {
+        high_color_q16[channel_index] = color_box_q16.lo[channel_index];
+        low_color_q16[channel_index] = color_box_q16.hi[channel_index];
+    }
+    let (old_low, old_high) = (low_color_q16, high_color_q16);
+    for i in 0..3 {
+        low_color_q16[i] = lerpf(old_low[i], old_high[i], 1.0 / 64.0);
+        high_color_q16[i] = lerpf(old_low[i], old_high[i], 63.0 / 64.0);
+    }
+
+    let mut trial_blk_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+    let mut trial_blk_weights0 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let mut trial_blk_weights1 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let mut trial_best_submode = 0u32;
+    let mut trial_blk_error = BIG_FLOAT_VAL as f64;
+
+    let try_dp = |e: &mut [u8],
+                  w0: &mut [u8],
+                  w1: &mut [u8],
+                  cur: &mut f64,
+                  bs: &mut u32,
+                  lo: Vec3,
+                  hi: Vec3| {
+        try_mode11_dual_plane(
+            channel_index,
+            num_pixels,
+            e,
+            w0,
+            w1,
+            cur,
+            bs,
+            lo,
+            hi,
+            block_pixels_half,
+            num_weight_levels,
+            ise_weight_range,
+            coptions,
+            direct_only,
+            ise_endpoint_range,
+            constrain_ise_weight_selectors,
+            first_submode,
+            last_submode,
+            ignore_clamping,
+        )
+    };
+
+    let did_improve = try_dp(
+        &mut trial_blk_endpoints,
+        &mut trial_blk_weights0,
+        &mut trial_blk_weights1,
+        &mut trial_blk_error,
+        &mut trial_best_submode,
+        low_color_q16,
+        high_color_q16,
+    );
+    // If we couldn't find ANY usable solution due to endpoint quantization, just return.
+    if !did_improve {
+        return cur_block_error;
+    }
+    if trial_blk_error < cur_block_error {
+        cur_block_error = trial_blk_error;
+        blk_endpoints[..NUM_MODE11_ENDPOINTS].copy_from_slice(&trial_blk_endpoints);
+        blk_weights0[..num_pixels].copy_from_slice(&trial_blk_weights0[..num_pixels]);
+        blk_weights1[..num_pixels].copy_from_slice(&trial_blk_weights1[..num_pixels]);
+        *best_submode = trial_best_submode;
+    }
+
+    let chan0 = (channel_index + 1) % 3;
+    let chan1 = (channel_index + 2) % 3;
+    let plane0_lo = [color_box_q16.lo[chan0], color_box_q16.lo[chan1]];
+    let plane0_hi = [color_box_q16.hi[chan0], color_box_q16.hi[chan1]];
+    let plane1_lo = [color_box_q16.lo[channel_index]];
+    let plane1_hi = [color_box_q16.hi[channel_index]];
+    let mut plane0_q16 = [[0f32; 2]; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let mut plane1_q16 = [[0f32; 1]; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    for i in 0..num_pixels {
+        plane0_q16[i] = [block_pixels_q16[i][chan0], block_pixels_q16[i][chan1]];
+        plane1_q16[i] = [block_pixels_q16[i][channel_index]];
+    }
+    let ls_weights = &t.ls_weights_ise[ise_weight_range as usize];
+    const NUM_LS_PASSES: u32 = 3;
+    for _ in 0..NUM_LS_PASSES {
+        let Some((l0, h0)) = compute_least_squares_endpoints_nd(
+            num_pixels,
+            &trial_blk_weights0,
+            ls_weights,
+            &plane0_q16,
+            plane0_lo,
+            plane0_hi,
+        ) else {
+            break;
+        };
+        let Some((l1, h1)) = compute_least_squares_endpoints_nd(
+            num_pixels,
+            &trial_blk_weights1,
+            ls_weights,
+            &plane1_q16,
+            plane1_lo,
+            plane1_hi,
+        ) else {
+            break;
+        };
+        let mut l_q16 = [0f32; 3];
+        let mut h_q16 = [0f32; 3];
+        l_q16[channel_index] = l1[0];
+        h_q16[channel_index] = h1[0];
+        l_q16[chan0] = l0[0];
+        h_q16[chan0] = h0[0];
+        l_q16[chan1] = l0[1];
+        h_q16[chan1] = h0[1];
+        if !try_dp(
+            blk_endpoints,
+            blk_weights0,
+            blk_weights1,
+            &mut cur_block_error,
+            best_submode,
+            l_q16,
+            h_q16,
+        ) {
+            break;
+        }
+        // It's improved, so let's take the new weight indices.
+        trial_blk_weights0[..num_pixels].copy_from_slice(&blk_weights0[..num_pixels]);
+        trial_blk_weights1[..num_pixels].copy_from_slice(&blk_weights1[..num_pixels]);
+    }
+    cur_block_error
+}
+
+/// Error of qlog16 endpoints (`e16`, already shifted) interpolated by raw [0, 64] weights.
+fn raw_weights_error(
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    raw_weights: &[u8],
+    e16: &[[i32; 3]; 2],
+    coptions: &AstcHdrCodecBaseOptions,
+) -> f64 {
+    let r_weight = coptions.r_err_scale as f64;
+    let g_weight = coptions.g_err_scale as f64;
+    let bias = coptions.q_log_bias;
+    let mut err = 0f64;
+    for p in 0..num_pixels {
+        let desired = &block_pixels_half[p];
+        let c = raw_weights[p] as u32;
+        let mut d = [0f64; 3];
+        for j in 0..3 {
+            let (a0, a1) = (e16[0][j] as u32, e16[1][j] as u32);
+            let v = (a0 * (64 - c) + a1 * c + 32) / 64;
+            d[j] = q(qlog16_to_half(v as i32), bias) - q(desired[j], bias);
+        }
+        err += r_weight * (d[0] * d[0]) + g_weight * (d[1] * d[1]) + d[2] * d[2];
+    }
+    err
+}
+
+/// `compute_block_error_from_raw_weights` (qlog12 endpoints).
+pub fn compute_block_error_from_raw_weights(
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    raw_weights: &[u8],
+    endpoints_qlog12: &[[i32; 3]; 2],
+    coptions: &AstcHdrCodecBaseOptions,
+) -> f64 {
+    let mut e16 = [[0i32; 3]; 2];
+    for i in 0..3 {
+        e16[0][i] = endpoints_qlog12[0][i] << 4;
+        e16[1][i] = endpoints_qlog12[1][i] << 4;
+    }
+    raw_weights_error(num_pixels, block_pixels_half, raw_weights, &e16, coptions)
+}
+
+/// `get_6x6_downsample_matrix`.
+pub fn get_6x6_downsample_matrix(grid_width: u32, grid_height: u32) -> Option<&'static [f32]> {
+    DOWNSAMPLE_MATRICES_6X6
+        .iter()
+        .find(|m| m.0 == grid_width && m.1 == grid_height)
+        .map(|m| m.2)
+}
+
+/// `downsample_weight_grid`: dequantized [by][bx] weights to a [wy][wx] grid.
+pub fn downsample_weight_grid(
+    matrix_weights: &[f32],
+    bx: u32,
+    by: u32,
+    wx: u32,
+    wy: u32,
+    src_weights: &[u8],
+    dst_weights: &mut [u8],
+) {
+    let total_block_samples = (bx * by) as usize;
+    let mut m = 0;
+    for y in 0..wy {
+        for x in 0..wx {
+            let mut total = 0.5f32;
+            for i in 0..total_block_samples {
+                let w = matrix_weights.get(m + i).copied().unwrap_or(0.0);
+                if w != 0.0 {
+                    total += w * src_weights[i] as f32;
+                }
+            }
+            dst_weights[(x + y * wx) as usize] = (total as i32).clamp(0, 64) as u8;
+            m += total_block_samples;
+        }
+    }
+}
+
+/// `downsample_ise_weights`: block resolution ISE weights to grid resolution ISE weights.
+#[allow(clippy::too_many_arguments)]
+pub fn downsample_ise_weights(
+    dequant_weight_ise_range: u32,
+    quant_weight_ise_range: u32,
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    src_weights: &[u8],
+    dst_weights: &mut [u8],
+) {
+    if block_w == grid_w && block_h == grid_h {
+        let n = (block_w * block_h) as usize;
+        if dequant_weight_ise_range != quant_weight_ise_range {
+            super::astc_6x6_hdr::requantize_astc_weights(
+                n,
+                src_weights,
+                dequant_weight_ise_range,
+                dst_weights,
+                quant_weight_ise_range,
+            );
+        } else {
+            dst_weights[..n].copy_from_slice(&src_weights[..n]);
+        }
+        return;
+    }
+    let mut desired_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let dequant_tab = &dequant_tables()
+        .weight_tab(dequant_weight_ise_range)
+        .ise_to_val;
+    for i in 0..(block_w * block_h) as usize {
+        desired_weights[i] = dequant_tab
+            .get(src_weights[i] as usize)
+            .copied()
+            .unwrap_or(0);
+    }
+    let mut downsampled_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let matrix = get_6x6_downsample_matrix(grid_w, grid_h).unwrap_or(&[]);
+    downsample_weight_grid(
+        matrix,
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        &desired_weights,
+        &mut downsampled_weights,
+    );
+    let quant_tab = &dequant_tables()
+        .weight_tab(quant_weight_ise_range)
+        .val_to_ise;
+    for i in 0..(grid_w * grid_h) as usize {
+        dst_weights[i] = quant_tab
+            .get(downsampled_weights[i] as usize)
+            .copied()
+            .unwrap_or(0);
+    }
+}
+
+/// `downsample_ise_weights_dual_plane`: interleaves the two downsampled planes.
+#[allow(clippy::too_many_arguments)]
+pub fn downsample_ise_weights_dual_plane(
+    dequant_weight_ise_range: u32,
+    quant_weight_ise_range: u32,
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    src_weights0: &[u8],
+    src_weights1: &[u8],
+    dst_weights: &mut [u8],
+) {
+    let mut d0 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    let mut d1 = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    downsample_ise_weights(
+        dequant_weight_ise_range,
+        quant_weight_ise_range,
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        src_weights0,
+        &mut d0,
+    );
+    downsample_ise_weights(
+        dequant_weight_ise_range,
+        quant_weight_ise_range,
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        src_weights1,
+        &mut d1,
+    );
+    for i in 0..(grid_w * grid_h) as usize {
+        dst_weights[i * 2] = d0[i];
+        dst_weights[i * 2 + 1] = d1[i];
+    }
+}
+
+/// Emphasis weights along the block's principal axis (weighted least squares variants).
+#[allow(clippy::too_many_arguments)]
+fn emphasis_weights_for(
+    num_pixels: usize,
+    block_pixels_q16: &[[f32; 4]],
+    mean: Vec3,
+    axis: Vec3,
+    l: f32,
+    h: f32,
+    opt_mode: OptMode,
+    out: &mut [f32],
+) {
+    if h == l {
+        for w in out.iter_mut().take(num_pixels) {
+            *w = 1.0;
+        }
+        return;
+    }
+    let mut mid = (0.0 - l) / (h - l);
+    mid = clampf(mid, 0.01, 0.99);
+    let (lw, mw, hw) = if opt_mode == OptMode::WeightedLeastSquaresHeavy {
+        (
+            LOW_EMPHASIS_WEIGHT_HEAVY,
+            MIDDLE_EMPHASIS_WEIGHT_HEAVY,
+            HIGH_EMPHASIS_WEIGHT_HEAVY,
+        )
+    } else {
+        (
+            LOW_EMPHASIS_WEIGHT,
+            MIDDLE_EMPHASIS_WEIGHT,
+            HIGH_EMPHASIS_WEIGHT,
+        )
+    };
+    for i in 0..num_pixels {
+        let k = v_sub(xyz(&block_pixels_q16[i]), mean);
+        let kd = v_dot(k, axis);
+        let mut v = (kd - l) / (h - l);
+        v = if v < mid {
+            lerpf(lw, mw, v / mid)
+        } else {
+            lerpf(mw, hw, (v - mid) * (1.0 - mid))
+        };
+        out[i] = v;
+    }
+}
+
+/// `encode_astc_hdr_block_downsampled_mode_11`: CEM 11 with a `grid_x` x `grid_y` weight grid.
+/// C++ quirk kept: a failed weighted least squares fit returns 0 (`return false` from a function
+/// returning double).
+#[allow(clippy::too_many_arguments)]
+pub fn encode_astc_hdr_block_downsampled_mode_11(
+    block_x: u32,
+    block_y: u32,
+    grid_x: u32,
+    grid_y: u32,
+    ise_weight_range: u32,
+    ise_endpoint_range: u32,
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    block_pixels_q16: &[[f32; 4]],
+    mut cur_block_error: f64,
+    first_submode: i32,
+    last_submode: i32,
+    ignore_clamping: bool,
+    opt_mode: OptMode,
+    blk_endpoints: &mut [u8],
+    blk_weights: &mut [u8],
+    best_submode: &mut u32,
+    coptions: &AstcHdrCodecBaseOptions,
+    block_stats: Option<&EncodeAstcBlockStats>,
+) -> f64 {
+    *best_submode = 0;
+    let num_weights = (grid_x * grid_y) as usize;
+    let (block_mean_color_q16, block_axis_q16) = match block_stats {
+        Some(s) => (s.mean_q16, s.axis_q16),
+        None => {
+            let m = calc_mean(num_pixels, block_pixels_q16);
+            (m, calc_rgb_pca(num_pixels, block_pixels_q16, m))
+        }
+    };
+    let mut color_box_q16 = Aabb3::init_expand();
+    let mut l = BIG_FLOAT_VAL;
+    let mut h = -BIG_FLOAT_VAL;
+    let mut low_color_q16 = [0f32; 3];
+    let mut high_color_q16 = [0f32; 3];
+    for p in block_pixels_q16.iter().take(num_pixels) {
+        color_box_q16.expand(xyz(p));
+        let k = v_sub(xyz(p), block_mean_color_q16);
+        let kd = v_dot(k, block_axis_q16);
+        if kd < l {
+            l = kd;
+            low_color_q16 = xyz(p);
+        }
+        if kd > h {
+            h = kd;
+            high_color_q16 = xyz(p);
+        }
+    }
+    let (old_low, old_high) = (low_color_q16, high_color_q16);
+    for i in 0..3 {
+        low_color_q16[i] = lerpf(old_low[i], old_high[i], 1.0 / 64.0);
+        high_color_q16[i] = lerpf(old_low[i], old_high[i], 63.0 / 64.0);
+    }
+
+    const NUM_PASSES: u32 = 3;
+    for pass in 0..NUM_PASSES {
+        let mut trial_blk_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+        // at block resolution, not grid res
+        let mut trial_blk_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+        let mut trial_best_submode = 0u32;
+        let mut trial_blk_error = BIG_FLOAT_VAL as f64;
+        let could_pack = try_mode11(
+            num_pixels,
+            &mut trial_blk_endpoints,
+            &mut trial_blk_weights,
+            &mut trial_blk_error,
+            &mut trial_best_submode,
+            low_color_q16,
+            high_color_q16,
+            block_pixels_half,
+            32,
+            ah::BISE_32_LEVELS,
+            coptions,
+            false,
+            ise_endpoint_range,
+            false,
+            first_submode,
+            last_submode,
+            ignore_clamping,
+        );
+        if !could_pack {
+            break;
+        }
+        let mut trial_downsampled_ise_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+        downsample_ise_weights(
+            ah::BISE_32_LEVELS,
+            ise_weight_range,
+            block_x,
+            block_y,
+            grid_x,
+            grid_y,
+            &trial_blk_weights,
+            &mut trial_downsampled_ise_weights,
+        );
+        let mut trial_downsampled_raw_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+        dequantize_astc_weights(
+            num_weights,
+            &trial_downsampled_ise_weights,
+            ise_weight_range,
+            &mut trial_downsampled_raw_weights,
+        );
+        // raw weights, NOT ISE
+        let mut trial_upsampled_raw_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+        ah::upsample_weight_grid(
+            block_x,
+            block_y,
+            grid_x,
+            grid_y,
+            &trial_downsampled_raw_weights,
+            &mut trial_upsampled_raw_weights,
+        );
+
+        let mut trial_e = [[0i32; 3]; 2];
+        if !decode_mode11_to_qlog12(&trial_blk_endpoints, &mut trial_e, ise_endpoint_range) {
+            return cur_block_error;
+        }
+        let mut trial_error = compute_block_error_from_raw_weights(
+            num_pixels,
+            block_pixels_half,
+            &trial_upsampled_raw_weights,
+            &trial_e,
+            coptions,
+        );
+        if trial_error < cur_block_error {
+            cur_block_error = trial_error;
+            blk_endpoints[..NUM_MODE11_ENDPOINTS].copy_from_slice(&trial_blk_endpoints);
+            blk_weights[..num_weights]
+                .copy_from_slice(&trial_downsampled_ise_weights[..num_weights]);
+            *best_submode = trial_best_submode;
+        } else if pass != 0 {
+            break;
+        }
+
+        if matches!(
+            opt_mode,
+            OptMode::WeightedLeastSquares | OptMode::WeightedLeastSquaresHeavy
+        ) {
+            let mut emphasis_weights = [0f32; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+            emphasis_weights_for(
+                num_pixels,
+                block_pixels_q16,
+                block_mean_color_q16,
+                block_axis_q16,
+                l,
+                h,
+                opt_mode,
+                &mut emphasis_weights,
+            );
+            let mut wf = [0f32; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+            for i in 0..num_pixels {
+                wf[i] = trial_upsampled_raw_weights[i] as f32 * (1.0 / 64.0);
+            }
+            match compute_weighted_least_squares_endpoints_rgb(
+                num_pixels,
+                None,
+                &wf,
+                &emphasis_weights,
+                block_pixels_q16,
+            ) {
+                Some((lo, hi)) => {
+                    low_color_q16 = lo;
+                    high_color_q16 = hi;
+                }
+                None => return 0.0,
+            }
+        } else {
+            match compute_least_squares_endpoints_rgb_raw_weights(
+                num_pixels,
+                &trial_upsampled_raw_weights,
+                block_pixels_q16,
+                &color_box_q16,
+            ) {
+                Some((lo, hi)) => {
+                    low_color_q16 = lo;
+                    high_color_q16 = hi;
+                }
+                None => break,
+            }
+        }
+
+        let Some(sm) = pack_mode11(
+            low_color_q16,
+            high_color_q16,
+            ise_endpoint_range,
+            &mut trial_blk_endpoints,
+            coptions,
+            false,
+            first_submode,
+            last_submode,
+            false,
+        ) else {
+            break;
+        };
+        trial_best_submode = sm;
+        if !decode_mode11_to_qlog12(&trial_blk_endpoints, &mut trial_e, ise_endpoint_range) {
+            break;
+        }
+        trial_error = compute_block_error_from_raw_weights(
+            num_pixels,
+            block_pixels_half,
+            &trial_upsampled_raw_weights,
+            &trial_e,
+            coptions,
+        );
+        if trial_error < cur_block_error {
+            cur_block_error = trial_error;
+            blk_endpoints[..NUM_MODE11_ENDPOINTS].copy_from_slice(&trial_blk_endpoints);
+            blk_weights[..num_weights]
+                .copy_from_slice(&trial_downsampled_ise_weights[..num_weights]);
+            *best_submode = trial_best_submode;
+        } else {
+            break;
+        }
+    }
+    cur_block_error
+}
+
+/// Upsamples a subset's grid weights to raw per pixel weights via `pixel_block_ofs`.
+#[allow(clippy::too_many_arguments)]
+fn subset_raw_weights(
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    weights: &[u8],
+    weight_ise_range: u32,
+    num_pixels: usize,
+    pixel_block_ofs: Option<&[u8]>,
+) -> [u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS] {
+    let num_weights = (grid_w * grid_h) as usize;
+    let mut dequantized_raw_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    dequantize_astc_weights(
+        num_weights,
+        weights,
+        weight_ise_range,
+        &mut dequantized_raw_weights,
+    );
+    let mut upsampled_weights = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    ah::upsample_weight_grid(
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        &dequantized_raw_weights,
+        &mut upsampled_weights,
+    );
+    let mut out = [0u8; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    for i in 0..num_pixels {
+        let ofs = pixel_block_ofs.map_or(i, |o| o[i] as usize);
+        out[i] = upsampled_weights[ofs];
+    }
+    out
+}
+
+#[allow(clippy::too_many_arguments)]
+fn refine_endpoints_mode11(
+    endpoint_ise_range: u32,
+    endpoint_vals: &mut [u8],
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    weights: &[u8],
+    weight_ise_range: u32,
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    block_pixels_q16: &[[f32; 4]],
+    pixel_block_ofs: Option<&[u8]>,
+    coptions: &AstcHdrCodecBaseOptions,
+    direct_only: bool,
+    first_submode: i32,
+    last_submode: i32,
+    opt_mode: OptMode,
+) -> bool {
+    if opt_mode == OptMode::NoOpt {
+        return false;
+    }
+    let trial_blk_raw_weights = subset_raw_weights(
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        weights,
+        weight_ise_range,
+        num_pixels,
+        pixel_block_ofs,
+    );
+    let mut color_box_q16 = Aabb3::init_expand();
+    let mut trial_blk_raw_weightsf = [0f32; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+    for i in 0..num_pixels {
+        color_box_q16.expand(xyz(&block_pixels_q16[i]));
+        trial_blk_raw_weightsf[i] = trial_blk_raw_weights[i] as f32 * (1.0 / 64.0);
+    }
+    let (l_q16, h_q16) = match opt_mode {
+        OptMode::OrdinaryLeastSquares => {
+            match compute_least_squares_endpoints_rgb_raw_weights(
+                num_pixels,
+                &trial_blk_raw_weights,
+                block_pixels_q16,
+                &color_box_q16,
+            ) {
+                Some(r) => r,
+                None => return false,
+            }
+        }
+        OptMode::WeightedLeastSquares | OptMode::WeightedLeastSquaresHeavy => {
+            let mean = calc_mean(num_pixels, block_pixels_q16);
+            let axis = calc_rgb_pca(num_pixels, block_pixels_q16, mean);
+            let mut l = BIG_FLOAT_VAL;
+            let mut h = -BIG_FLOAT_VAL;
+            for p in block_pixels_q16.iter().take(num_pixels) {
+                let kd = v_dot(v_sub(xyz(p), mean), axis);
+                if kd < l {
+                    l = kd;
+                }
+                if kd > h {
+                    h = kd;
+                }
+            }
+            let mut emphasis_weights = [0f32; MAX_ASTC_HDR_ENC_BLOCK_PIXELS];
+            emphasis_weights_for(
+                num_pixels,
+                block_pixels_q16,
+                mean,
+                axis,
+                l,
+                h,
+                opt_mode,
+                &mut emphasis_weights,
+            );
+            match compute_weighted_least_squares_endpoints_rgb(
+                num_pixels,
+                None,
+                &trial_blk_raw_weightsf,
+                &emphasis_weights,
+                block_pixels_q16,
+            ) {
+                Some(r) => r,
+                None => return false,
+            }
+        }
+        _ => {
+            // cWeightedAverage
+            let mut l_q16 = [0f32; 3];
+            let mut total_low = 0f32;
+            let mut h_q16 = [0f32; 3];
+            let mut total_high = 0f32;
+            for i in 0..num_pixels {
+                let p = xyz(&block_pixels_q16[i]);
+                let lerp = trial_blk_raw_weights[i] as f32 * (1.0 / 64.0);
+                l_q16 = v_add(l_q16, v_mul(p, 1.0 - lerp));
+                total_low += 1.0 - lerp;
+                h_q16 = v_add(h_q16, v_mul(p, lerp));
+                total_high += lerp;
+            }
+            if total_low == 0.0 || total_high == 0.0 {
+                return false;
+            }
+            (
+                v_mul(l_q16, 1.0 / total_low),
+                v_mul(h_q16, 1.0 / total_high),
+            )
+        }
+    };
+    let mut trial_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+    if pack_mode11(
+        l_q16,
+        h_q16,
+        endpoint_ise_range,
+        &mut trial_endpoints,
+        coptions,
+        direct_only,
+        first_submode,
+        last_submode,
+        false,
+    )
+    .is_none()
+    {
+        return false;
+    }
+    let mut cur_e = [[0i32; 3]; 2];
+    if !decode_mode11_to_qlog12(endpoint_vals, &mut cur_e, endpoint_ise_range) {
+        return false;
+    }
+    let mut trial_e = [[0i32; 3]; 2];
+    if !decode_mode11_to_qlog12(&trial_endpoints, &mut trial_e, endpoint_ise_range) {
+        return false;
+    }
+    let cur_error = compute_block_error_from_raw_weights(
+        num_pixels,
+        block_pixels_half,
+        &trial_blk_raw_weights,
+        &cur_e,
+        coptions,
+    );
+    let trial_error = compute_block_error_from_raw_weights(
+        num_pixels,
+        block_pixels_half,
+        &trial_blk_raw_weights,
+        &trial_e,
+        coptions,
+    );
+    if trial_error < cur_error {
+        endpoint_vals[..NUM_MODE11_ENDPOINTS].copy_from_slice(&trial_endpoints);
+        return true;
+    }
+    false
+}
+
+#[allow(clippy::too_many_arguments)]
+fn refine_endpoints_mode7(
+    endpoint_ise_range: u32,
+    endpoint_vals: &mut [u8],
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    weights: &[u8],
+    weight_ise_range: u32,
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    block_pixels_q16: &[[f32; 4]],
+    pixel_block_ofs: Option<&[u8]>,
+    coptions: &AstcHdrCodecBaseOptions,
+    first_submode: i32,
+    last_submode: i32,
+) -> bool {
+    let trial_blk_raw_weights = subset_raw_weights(
+        block_w,
+        block_h,
+        grid_w,
+        grid_h,
+        weights,
+        weight_ise_range,
+        num_pixels,
+        pixel_block_ofs,
+    );
+    let mut cur_e = [[0i32; 3]; 2];
+    let mut cur_s = 0;
+    if !decode_mode7_to_qlog12_s(
+        endpoint_vals,
+        &mut cur_e,
+        Some(&mut cur_s),
+        endpoint_ise_range,
+    ) {
+        return false;
+    }
+    cur_s <<= 4;
+    let block_mean_color_q16 = calc_mean(num_pixels, block_pixels_q16);
+    let mut new_high_color_q16 = block_mean_color_q16;
+    let one_over_num_pixels = 1.0f32 / num_pixels as f32;
+    for &w in trial_blk_raw_weights.iter().take(num_pixels) {
+        let lerp = w as f32 * (1.0 / 64.0);
+        let k = cur_s as f32 * (1.0 - lerp) * one_over_num_pixels;
+        new_high_color_q16[0] += k;
+        new_high_color_q16[1] += k;
+        new_high_color_q16[2] += k;
+    }
+    // Given a set of selectors and a high color, try to compute a better S.
+    let mut t = 0f32;
+    for &w in trial_blk_raw_weights.iter().take(num_pixels) {
+        let lerp = w as f32 * (1.0 / 64.0);
+        t += 1.0 - lerp;
+    }
+    t *= one_over_num_pixels;
+    if t.abs() < 0.0000125 {
+        return false;
+    }
+    let mut trial_endpoints = [0u8; NUM_MODE7_ENDPOINTS];
+    if pack_mode7(
+        new_high_color_q16,
+        cur_s as f32,
+        endpoint_ise_range,
+        &mut trial_endpoints,
+        weight_ise_range,
+        coptions,
+        first_submode,
+        last_submode,
+        false,
+    )
+    .is_none()
+    {
+        return false;
+    }
+    let mut trial_e = [[0i32; 3]; 2];
+    if !decode_mode7_to_qlog12_s(&trial_endpoints, &mut trial_e, None, endpoint_ise_range) {
+        return false;
+    }
+    let cur_h_q16 = q16_of(&trial_e[1]);
+    let s_r = (cur_h_q16[0] - block_mean_color_q16[0]) / t;
+    let new_s_q16 = s_r.ceil();
+    if pack_mode7(
+        new_high_color_q16,
+        new_s_q16,
+        endpoint_ise_range,
+        &mut trial_endpoints,
+        weight_ise_range,
+        coptions,
+        first_submode,
+        last_submode,
+        false,
+    )
+    .is_none()
+    {
+        return false;
+    }
+    if !decode_mode7_to_qlog12_s(&trial_endpoints, &mut trial_e, None, endpoint_ise_range) {
+        return false;
+    }
+    let cur_error = compute_block_error_from_raw_weights(
+        num_pixels,
+        block_pixels_half,
+        &trial_blk_raw_weights,
+        &cur_e,
+        coptions,
+    );
+    let trial_error = compute_block_error_from_raw_weights(
+        num_pixels,
+        block_pixels_half,
+        &trial_blk_raw_weights,
+        &trial_e,
+        coptions,
+    );
+    if trial_error < cur_error {
+        endpoint_vals[..NUM_MODE7_ENDPOINTS].copy_from_slice(&trial_endpoints);
+        return true;
+    }
+    false
+}
+
+/// `refine_endpoints`: refits CEM 7 / 11 endpoints given a (possibly downsampled) weight grid.
+/// `pixel_block_ofs` maps the subset's pixels to block offsets (`None` = identity).
+#[allow(clippy::too_many_arguments)]
+pub fn refine_endpoints(
+    cem: u32,
+    endpoint_ise_range: u32,
+    endpoint_vals: &mut [u8],
+    block_w: u32,
+    block_h: u32,
+    grid_w: u32,
+    grid_h: u32,
+    weights: &[u8],
+    weight_ise_range: u32,
+    num_pixels: usize,
+    block_pixels_half: &[[HalfFloat; 3]],
+    block_pixels_q16: &[[f32; 4]],
+    pixel_block_ofs: Option<&[u8]>,
+    coptions: &AstcHdrCodecBaseOptions,
+    opt_mode: OptMode,
+) -> bool {
+    match cem {
+        7 => refine_endpoints_mode7(
+            endpoint_ise_range,
+            endpoint_vals,
+            block_w,
+            block_h,
+            grid_w,
+            grid_h,
+            weights,
+            weight_ise_range,
+            num_pixels,
+            block_pixels_half,
+            block_pixels_q16,
+            pixel_block_ofs,
+            coptions,
+            FIRST_MODE7_SUBMODE_INDEX,
+            MAX_MODE7_SUBMODE_INDEX,
+        ),
+        11 => refine_endpoints_mode11(
+            endpoint_ise_range,
+            endpoint_vals,
+            block_w,
+            block_h,
+            grid_w,
+            grid_h,
+            weights,
+            weight_ise_range,
+            num_pixels,
+            block_pixels_half,
+            block_pixels_q16,
+            pixel_block_ofs,
+            coptions,
+            false,
+            FIRST_MODE11_SUBMODE_INDEX,
+            MAX_MODE11_SUBMODE_INDEX,
+            opt_mode,
+        ),
+        _ => false,
+    }
 }
