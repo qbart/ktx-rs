@@ -227,7 +227,8 @@ Tests: `tests/basisu_uastc_hdr_4x4_enc.rs` vs `scripts/golden/gen_basisu_uastc_h
 (600 blocks of 9 kinds: wild, greyscale, solid, near solid, gradient, two color, tiny / zero,
 bright, noisy x 11 configs: levels 0..4, linear / perceptual error scales, uber mode, ultra quant,
 BC6H weight; every candidate's error, submodes, partition, packed ASTC and BC6H blocks, BC6H error
-and the compressor's choice; 400 random `unpack_bc6h` blocks, signed and unsigned); CTS
+and the compressor's choice; 150 wide range blocks (random / two region, -14..15 exponents) x
+all 11 configs, which reach the level 2 mode 7 2 subset 4 weight level fallback; 400 random `unpack_bc6h` blocks, signed and unsigned); CTS
 `encode_uastc_hdr` / `create` UASTC HDR 4x4 subcases byte exact.
 
 ## ASTC HDR common, 6x6 paths (`basisu::astc_hdr_enc`)

@@ -64,6 +64,25 @@ static void make_block(uint32_t b, uint16_t h[48]) {
     }
 }
 
+// Wide dynamic range blocks: random texels or two regions with unrelated colors, which reach
+// the 4 weight level fallback of the 2 subset mode 7 search at level 2.
+static void make_wide_block(uint32_t b, uint16_t h[48]) {
+    Lcg l{b * 104729u + 5u};
+    const uint32_t kind = b % 3;
+    uint16_t c0[3] = { rand_half(l, -14, 15), rand_half(l, -14, 15), rand_half(l, -14, 15) };
+    uint16_t c1[3] = { rand_half(l, -14, 15), rand_half(l, -14, 15), rand_half(l, -14, 15) };
+    for (uint32_t i = 0; i < 16; i++) {
+        for (uint32_t c = 0; c < 3; c++) {
+            uint32_t v;
+            if (kind == 0) v = rand_half(l, -14, 15);
+            else if (kind == 1) v = (i < 8) ? c0[c] : c1[c];
+            else v = ((i & 3) < 2) ? c0[c] : c1[c];
+            if (v > 0x7BFF) v = 0x7BFF;
+            h[i * 3 + c] = (uint16_t)v;
+        }
+    }
+}
+
 struct Cfg { int level; bool perceptual; bool uber; bool ultra; bool favor_astc; };
 static const Cfg CFGS[] = {
     {0, true, false, false, false},
@@ -79,19 +98,16 @@ static const Cfg CFGS[] = {
     {1, true, false, true, false},
 };
 
-int main() {
-    basisu_encoder_init(false, false);
-    const uint32_t NB = 600;
+// Hashes every result of every config (all_cfgs) or of the per block subset of configs.
+static uint64_t block_hash(uint32_t b, const uint16_t* hb, bool all_cfgs) {
     const uint32_t nc = sizeof(CFGS) / sizeof(CFGS[0]);
-    for (uint32_t b = 0; b < NB; b++) {
-        uint16_t hb[48];
-        make_block(b, hb);
+    {
         float fb[48];
         for (uint32_t i = 0; i < 48; i++) fb[i] = basist::half_to_float(hb[i]);
         H hh;
         for (uint32_t c = 0; c < nc; c++) {
             // Each block runs a subset of the configs to keep the run short.
-            if (((b + c) % 3) != 0 && c != 1) continue;
+            if (!all_cfgs && ((b + c) % 3) != 0 && c != 1) continue;
             const Cfg& cfg = CFGS[c];
             uastc_hdr_4x4_codec_options o;
             o.set_quality_level(cfg.level);
@@ -130,7 +146,21 @@ int main() {
             }
             hh.u((uint32_t)best);
         }
-        printf("b%u\t%016llx\n", b, (unsigned long long)hh.h);
+        return hh.h;
+    }
+}
+
+int main() {
+    basisu_encoder_init(false, false);
+    for (uint32_t b = 0; b < 600; b++) {
+        uint16_t hb[48];
+        make_block(b, hb);
+        printf("b%u\t%016llx\n", b, (unsigned long long)block_hash(b, hb, false));
+    }
+    for (uint32_t b = 0; b < 150; b++) {
+        uint16_t hb[48];
+        make_wide_block(b, hb);
+        printf("w%u\t%016llx\n", b, (unsigned long long)block_hash(b, hb, true));
     }
     // unpack_bc6h on random blocks
     for (uint32_t b = 0; b < 400; b++) {

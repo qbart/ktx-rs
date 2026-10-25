@@ -97,6 +97,47 @@ fn make_block(b: u32) -> [u16; 48] {
     h
 }
 
+/// Wide dynamic range blocks: random texels or two regions with unrelated colors, which reach
+/// the 4 weight level fallback of the 2 subset mode 7 search at level 2.
+fn make_wide_block(b: u32) -> [u16; 48] {
+    let mut l = Lcg(b.wrapping_mul(104729).wrapping_add(5));
+    let kind = b % 3;
+    let c0 = [
+        rand_half(&mut l, -14, 15),
+        rand_half(&mut l, -14, 15),
+        rand_half(&mut l, -14, 15),
+    ];
+    let c1 = [
+        rand_half(&mut l, -14, 15),
+        rand_half(&mut l, -14, 15),
+        rand_half(&mut l, -14, 15),
+    ];
+    let mut h = [0u16; 48];
+    for i in 0..16usize {
+        for c in 0..3usize {
+            let v = match kind {
+                0 => rand_half(&mut l, -14, 15),
+                1 => {
+                    if i < 8 {
+                        c0[c]
+                    } else {
+                        c1[c]
+                    }
+                }
+                _ => {
+                    if (i & 3) < 2 {
+                        c0[c]
+                    } else {
+                        c1[c]
+                    }
+                }
+            };
+            h[i * 3 + c] = v.min(0x7BFF) as u16;
+        }
+    }
+    h
+}
+
 // (level, perceptual, uber, ultra, favor_astc)
 const CFGS: [(i32, bool, bool, bool, bool); 11] = [
     (0, true, false, false, false),
@@ -112,8 +153,8 @@ const CFGS: [(i32, bool, bool, bool, bool); 11] = [
     (1, true, false, true, false),
 ];
 
-fn block_hash(b: u32) -> u64 {
-    let hb = make_block(b);
+/// Hashes every result of every config (`all_cfgs`) or of the per block subset of configs.
+fn block_hash(b: u32, hb: [u16; 48], all_cfgs: bool) -> u64 {
     let mut fb = [0f32; 48];
     for (f, &h) in fb.iter_mut().zip(hb.iter()) {
         *f = half_to_float(h);
@@ -124,7 +165,7 @@ fn block_hash(b: u32) -> u64 {
     }
     let mut hh = H(0xcbf29ce484222325);
     for (c, &(level, perceptual, uber, ultra, favor_astc)) in CFGS.iter().enumerate() {
-        if (b as usize + c) % 3 != 0 && c != 1 {
+        if !all_cfgs && (b as usize + c) % 3 != 0 && c != 1 {
             continue;
         }
         let mut o = UastcHdr4x4CodecOptions::default();
@@ -209,7 +250,9 @@ fn uastc_hdr_4x4_enc_matches_basisu() {
         let got = format!(
             "{:016x}",
             if key.starts_with('b') {
-                block_hash(idx)
+                block_hash(idx, make_block(idx), false)
+            } else if key.starts_with('w') {
+                block_hash(idx, make_wide_block(idx), true)
             } else {
                 unpack_hash(idx)
             }
