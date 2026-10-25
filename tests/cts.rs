@@ -18,17 +18,6 @@ fn cts_dir() -> PathBuf {
     common::resources_path().join("cts")
 }
 
-/// Large sample inputs (> 128 KiB) that are not vendored, one path per line
-/// in `NOT_VENDORED.txt`; subcases using them are skipped.
-fn not_vendored() -> Vec<String> {
-    std::fs::read_to_string(cts_dir().join("NOT_VENDORED.txt"))
-        .unwrap_or_default()
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(str::to_string)
-        .collect()
-}
-
 /// Python `str()` of a JSON value.
 fn py_str(v: &Value) -> String {
     match v {
@@ -102,8 +91,8 @@ fn read_text(path: &Path) -> Option<String> {
         .map(|b| String::from_utf8_lossy(&b).replace("\r\n", "\n"))
 }
 
-/// Runs every subcase of one JSON test case; returns (passed, skipped, failures).
-fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
+/// Runs every subcase of one JSON test case; returns (passed, failures).
+fn run_case(file: &Path) -> (usize, Vec<String>) {
     let text = match std::fs::read_to_string(file) {
         Ok(t) => t,
         Err(e) => panic!("{}: {e}", file.display()),
@@ -130,8 +119,7 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             .collect();
     }
 
-    let not_vendored = not_vendored();
-    let (mut passed, mut skipped) = (0, 0);
+    let mut passed = 0;
     let mut failures = Vec::new();
     for combo in combos {
         let ctx = Subcase {
@@ -142,13 +130,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             .get("stdin")
             .and_then(Value::as_str)
             .map(|s| ctx.eval(s));
-        if not_vendored
-            .iter()
-            .any(|f| command.contains(f.as_str()) || stdin_path.as_deref() == Some(f.as_str()))
-        {
-            skipped += 1;
-            continue;
-        }
         let cmd_args: Vec<&str> = command.split(' ').filter(|a| !a.is_empty()).collect();
         let mut proc = Command::new(env!("CARGO_BIN_EXE_ktx"));
         proc.args(cmd_args.iter().skip(1))
@@ -171,12 +152,6 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             Err(e) => panic!("{command}: {e}"),
         };
         let status = out.status.code().unwrap_or(-1);
-        // Features that are not ported yet (Basis Universal encoder, image comparison
-        // metrics) fail with NOT_IMPLEMENTED; such subcases are pending, not failed.
-        if status == 6 && String::from_utf8_lossy(&out.stderr).contains("not implemented") {
-            skipped += 1;
-            continue;
-        }
         let mut problems = Vec::new();
         let expected_status = match &case["status"] {
             Value::String(s) => ctx.eval(s),
@@ -279,7 +254,7 @@ fn run_case(file: &Path) -> (usize, usize, Vec<String>) {
             ));
         }
     }
-    (passed, skipped, failures)
+    (passed, failures)
 }
 
 fn run_command_dir(command: &str) {
@@ -292,18 +267,14 @@ fn run_command_dir(command: &str) {
         Err(e) => panic!("{}: {e}", dir.display()),
     };
     files.sort();
-    let (mut passed, mut skipped) = (0, 0);
+    let mut passed = 0;
     let mut failures = Vec::new();
     for f in &files {
-        let (p, s, mut fl) = run_case(f);
+        let (p, mut fl) = run_case(f);
         passed += p;
-        skipped += s;
         failures.append(&mut fl);
     }
-    eprintln!(
-        "cts {command}: {passed} passed, {skipped} skipped, {} failed",
-        failures.len()
-    );
+    eprintln!("cts {command}: {passed} passed, {} failed", failures.len());
     if !failures.is_empty() {
         let shown: Vec<&String> = failures
             .iter()

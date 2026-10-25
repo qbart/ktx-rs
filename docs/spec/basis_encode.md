@@ -198,7 +198,7 @@ codebooks, tables), level data in smallest first order, ETC1S / UASTC DFD rewrit
 - UASTC HDR 4x4 / 6x6i codecs return `UnsupportedFeature` (the CLI keeps `NOT_IMPLEMENTED`).
 - `noSSE` and the SSE flag guard are moot (no SIMD kernels; output equals the SSE build).
 - Out of range swizzle reads (C++ UB) read 0; an unset mapping leaves the pixel unchanged.
-Tests: CTS `encode` (1157) and `create` (4696) subcases incl. every vendored `basis-lz` /
+Tests: CTS `encode` (1213) and `create` (4784) subcases incl. every `basis-lz` /
 `uastc` LDR case byte exact; texturetests `BasisCompressTest.Compress`, `GetNumComponents`
 BasisLZ / UASTC, `TranscodeBasis.MissingAlphaSlices`; unittests `SwizzleToRGBA*`.
 

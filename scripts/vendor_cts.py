@@ -3,8 +3,7 @@
 
 Copies tests/<command>/*.json and every file referenced by a subcase (inputs
 named in the command line, stdin, golden stdout/stderr and reference outputs).
-Subcases using an input listed in NOT_VENDORED.txt are skipped, mirroring
-tests/cts.rs. Usage: scripts/vendor_cts.py <command>
+Usage: scripts/vendor_cts.py <command>
 """
 import itertools
 import json
@@ -31,8 +30,6 @@ def evaluate(text, args):
 
 def main():
     command = sys.argv[1]
-    with open(os.path.join(DST, "NOT_VENDORED.txt")) as f:
-        not_vendored = [l.strip() for l in f if l.strip()]
     files = set()
     tests_dir = os.path.join(SRC, "tests", command)
     for name in sorted(os.listdir(tests_dir)):
@@ -46,8 +43,6 @@ def main():
             args = dict(zip(names, combo))
             cmd = evaluate(case["command"], args)
             stdin = evaluate(case["stdin"], args) if "stdin" in case else None
-            if any(nv in cmd or stdin == nv for nv in not_vendored):
-                continue
             refs = [t for t in cmd.split(" ") if os.path.isfile(os.path.join(SRC, t))]
             if stdin:
                 refs.append(stdin)

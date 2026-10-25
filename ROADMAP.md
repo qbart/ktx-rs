@@ -86,7 +86,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] transcode (all targets, swizzle/channel conversion, --zstd/--zlib), help (man pages)
 - [x] deflate (KTXwriter / KTXwriterScParams rewrite rules, all CTS deflate cases pass)
 - [x] extract: options, fragment URIs, selection checks, raw, PNG, EXR, ASTC decode, 4:2:2
-  unpack (all vendored CTS extract cases pass)
+  unpack (all CTS extract cases pass)
 - [x] compare (header, level index, DFD, KVD, SGD, raw / per texel block image content;
   `ImageCodec` port; all CTS compare cases pass)
 - [x] imageio subset for create: FormatDescriptor, ImageSpec, ImageInput, PNG + EXR + JPEG
@@ -95,7 +95,7 @@ Legend: [x] done, [~] partial, [ ] todo.
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
   generation, all convertible formats, ASTC and all Basis encoders, `--compare-ssim/psnr`
-  metrics (4746 CTS create subcases pass)
+  metrics (all 4784 CTS create subcases pass)
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
 - [x] encode: ASTC and all Basis encoders + SSIM / PSNR metrics (all 1213 CTS encode subcases
   pass)
@@ -112,5 +112,5 @@ Legend: [x] done, [~] partial, [ ] todo.
   TranscodeBasis MissingAlphaSlices, GetNumComponents BasisLZ/UASTC).
   Null-pointer tests are not applicable in Rust.
 - [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
-- [~] CLI tests (tests/cts): runner ported (`tests/cts.rs`); validate, info, help,
-  transcode, deflate, extract, compare, tools done
+- [x] CLI tests (tests/cts): runner ported (`tests/cts.rs`), all CTS data vendored, every
+  subcase of every command runs (no skips) and passes

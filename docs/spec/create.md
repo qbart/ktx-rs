@@ -20,7 +20,6 @@ Source: `tools/ktx/command_create.cpp`, `encode_utils_{common,astc,basis}.h`, `m
 - Not yet: Basis Universal (`--encode`) encoding: parsed and validated, then fails with
   NOT_IMPLEMENTED ("... not implemented").
 
-Tests: CTS `tests/create` (4482 subcases pass; the rest skip non-vendored inputs or are
-pending on the Basis encoders). `outputTolerance` cases use `tests/common/ktxdiff.rs` (port of
+Tests: CTS `tests/create` (all 4784 subcases pass, none skipped). `outputTolerance` cases use `tests/common/ktxdiff.rs` (port of
 `tests/ktxdiff`) like clitest.py on non-primary platforms: the ZLIB level 1 goldens come from
 arm64 miniz, which has no x86-64 `tdefl_compress_fast` path.
