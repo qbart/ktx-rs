@@ -5,6 +5,7 @@
 
 pub mod astc;
 pub mod astc_6x6_hdr;
+pub mod astc_hdr_enc;
 pub mod astc_helpers;
 pub mod atc;
 pub mod backend;
@@ -38,6 +39,7 @@ pub mod uastc_bc7;
 pub mod uastc_enc;
 pub mod uastc_etc;
 pub mod uastc_hdr;
+pub mod uastc_hdr_4x4_enc;
 pub mod uastc_hdr_6x6i;
 pub mod uastc_ldr;
 pub mod uastc_pvrtc;

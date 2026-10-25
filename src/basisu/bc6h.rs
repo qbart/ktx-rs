@@ -475,9 +475,22 @@ fn qlog12_in_range(e: &[[i32; 3]; 2]) -> bool {
 
 /// Port of `decode_mode7_to_qlog12`: `e[lh][comp]`.
 pub fn decode_mode7_to_qlog12(endpoints: &[u8], e: &mut [[i32; 3]; 2], ise_range: u32) -> bool {
+    decode_mode7_to_qlog12_s(endpoints, e, None, ise_range)
+}
+
+/// Port of `decode_mode7_to_qlog12` with the optional `pScale` output.
+pub fn decode_mode7_to_qlog12_s(
+    endpoints: &[u8],
+    e: &mut [[i32; 3]; 2],
+    scale: Option<&mut i32>,
+    ise_range: u32,
+) -> bool {
     let [v0, v1, v2, v3] = dequant_endpoints::<4>(endpoints, ise_range);
-    let (lo, hi, _) = ah::decode_mode7_ise20(v0, v1, v2, v3);
+    let (lo, hi, s) = ah::decode_mode7_ise20(v0, v1, v2, v3);
     *e = [lo, hi];
+    if let Some(p) = scale {
+        *p = s;
+    }
     qlog12_in_range(e)
 }
 
@@ -498,7 +511,7 @@ fn map_weights(src: &[u8; 64], table: &[u8]) -> [u8; 16] {
 }
 
 /// Port of `transcode_bc6h_1subset`.
-fn transcode_bc6h_1subset(
+pub fn transcode_bc6h_1subset(
     h_e: &[[HalfFloat; 2]; 3],
     best_blk: &LogAstcBlock,
     dst: &mut [u8; 16],
@@ -528,7 +541,7 @@ fn transcode_bc6h_1subset(
 }
 
 /// Port of `transcode_bc6h_2subsets`.
-fn transcode_bc6h_2subsets(
+pub fn transcode_bc6h_2subsets(
     common_part_index: u32,
     best_blk: &LogAstcBlock,
     dst: &mut [u8; 16],

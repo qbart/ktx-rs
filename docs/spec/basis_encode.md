@@ -15,7 +15,8 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
    (`src/basisu/huffman_enc.rs`), backend (`basisu_backend.cpp`, `src/basisu/backend.rs`)
 4. [x] `basis_compressor` pipeline (`basisu_comp.cpp`, `basisu_basis_file.cpp`,
    `src/basisu/comp.rs`, `basis_file.rs`) and libktx `basis_encode.cpp` (`src/basis_encode.rs`)
-5. [ ] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
+5. [x] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp` -> `src/basisu/uastc_hdr_4x4_enc.rs`,
+   CEM 7 / 11 single plane parts of `basisu_astc_hdr_common.cpp` -> `src/basisu/astc_hdr_enc.rs`)
 6. [ ] UASTC HDR 6x6 intermediate (`basisu_astc_hdr_6x6_enc.cpp`)
 
 ## Shared helpers (`basisu::enc`)
@@ -199,3 +200,32 @@ codebooks, tables), level data in smallest first order, ETC1S / UASTC DFD rewrit
 Tests: CTS `encode` (1157) and `create` (4696) subcases incl. every vendored `basis-lz` /
 `uastc` LDR case byte exact; texturetests `BasisCompressTest.Compress`, `GetNumComponents`
 BasisLZ / UASTC, `TranscodeBasis.MissingAlphaSlices`; unittests `SwizzleToRGBA*`.
+
+## ASTC HDR common + UASTC HDR 4x4 encoder (`basisu::astc_hdr_enc`, `basisu::uastc_hdr_4x4_enc`)
+
+`astc_hdr_codec_base_options`, encoder tables (`g_half_to_qlog7/8`, least squares weights,
+linear <-> ASTC weight order maps; built once via `OnceLock`), `q` / `q2` log approximations,
+`float_to_half_non_neg_no_nan_inf`, mean / PCA, ordinary, raw weight and weighted least squares
+endpoint fits (with the `interp_color` ray / AABB clipping), `eval_selectors` (integer path for the
+2/3 error scales incl. the weight plane split, float path otherwise), `compute_block_error`, CEM
+11 submode / direct packing, CEM 7 submode packing, `pack_mode7/11`, `try_mode7/11` (ultra quant
+rank variation), `encode_astc_hdr_block_mode_7` and `_mode_11` (all `opt_mode_t`s, uber mode).
+UASTC HDR 4x4: codec options and quality levels 0..4, solid blocks, CEM 11 / CEM 7 one subset,
+two subset CEM 7 / 11 over the 27 ASTC / BC6H common partitions (k-means partition estimate),
+BC6H transcode per candidate, BC6H aware weight refinement, `pack_results_to_block`.
+`unpack_bc6h` (`basisu_gpu_texture.cpp`) added to `basisu::gpu_texture`; `transcode_bc6h_1subset`
+/ `_2subsets` made public and `decode_mode7_to_qlog12_s` returns the scale.
+- C++ quirk kept: `unpack_bc6h` on an invalid mode clears only 4 halves of each 12 half row.
+- Not ported yet (6x6 only): dual plane, downsampled weight grids, endpoint refinement.
+- `basis_compressor`: `imagef` (`ImageF`), `clean_hdr_image` (rescale above `ASTC_HDR_MAX_VAL`,
+  `clean_astc_hdr_pixels` warnings), HDR slices / source block checks and
+  `encode_slices_to_uastc_4x4_hdr` (best of ASTC and BC6H error, BC6H transcode check).
+- libktx: `copy_rgbaF_to_rgbaF`, `copy_rgbF_to_rgbaF`, `swizzle_to_rgbaF` (the C++ overruns the
+  destination by counting bytes as halves; the port stops at the end), HDR 4x4 DFD rewrite,
+  `VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK`.
+Tests: `tests/basisu_uastc_hdr_4x4_enc.rs` vs `scripts/golden/gen_basisu_uastc_hdr_4x4_enc_golden.sh`
+(600 blocks of 9 kinds: wild, greyscale, solid, near solid, gradient, two color, tiny / zero,
+bright, noisy x 11 configs: levels 0..4, linear / perceptual error scales, uber mode, ultra quant,
+BC6H weight; every candidate's error, submodes, partition, packed ASTC and BC6H blocks, BC6H error
+and the compressor's choice; 400 random `unpack_bc6h` blocks, signed and unsigned); CTS
+`encode_uastc_hdr` / `create` UASTC HDR 4x4 subcases byte exact.
