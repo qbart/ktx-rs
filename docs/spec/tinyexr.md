@@ -51,7 +51,7 @@ Source: `ParseEXRVersionFromMemory`, `ParseEXRHeaderFromMemory` (`ParseEXRHeader
   layers / `LoadEXR*` RGBA helpers, ZFP.
 
 Tests: `tests/tinyexr.rs` (writer, 122 cases vs `scripts/golden/gen_tinyexr_golden.sh`);
-`tests/tinyexr_load.rs` (reader, 8332 cases vs `gen_tinyexr_load_golden.sh`: 619 synthetic
+`tests/tinyexr_load.rs` (reader, 8350 cases vs `gen_tinyexr_load_golden.sh`: 619 synthetic
 files written by tinyexr — scanline and tiled one level / mipmap / ripmap, all compressions,
 HALF / FLOAT / UINT, line order 1, zeroed offsets — plus Desk.exr (PIZ) and the vendored CTS
 EXR inputs, in 3-4 requested type / line order variants, byte flips and truncations; the C runs

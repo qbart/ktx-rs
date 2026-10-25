@@ -65,7 +65,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] lodepng PNG decoder incl. KTX's split decode API and its inflater (byte exact vs C, 20800 cases)
 - [x] tinyexr EXR writer (scanline, uncompressed; byte exact vs C++, `src/tinyexr.rs`)
 - [x] tinyexr EXR reader: version / header parsing, scanline + tiled (one level, mipmap, ripmap),
-  NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8332 cases)
+  NONE / RLE / ZIPS / ZIP / PIZ (byte exact vs C++, 8350 cases)
 - [x] astcenc decompressor (byte exact vs AVX2/F16C astcenc, `src/astcenc`)
 - [x] astcenc compressor: `astcenc_compress_image` bit exact vs the AVX2 C++ build (all block
   sizes, profiles, presets, flags); alpha scale RDO (`a_scale_radius`) not ported (unused by KTX)
