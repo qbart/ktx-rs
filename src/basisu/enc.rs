@@ -104,16 +104,207 @@ pub fn hash_hsieh(buf: &[u8]) -> u32 {
     h
 }
 
-/// `indirect_sort`: fills `indices` with 0..n ordered by `keys`.
-///
-/// `std::sort` is not stable; callers only rely on the key order (ties are equivalent).
+/// `indirect_sort`: fills `indices` with 0..n ordered by `keys` (`std::sort`, so ties keep
+/// the libstdc++ introsort order).
 pub fn indirect_sort<T: PartialOrd>(indices: &mut [u32], keys: &[T]) {
     for (i, v) in indices.iter_mut().enumerate() {
         *v = i as u32;
     }
-    indices.sort_by(|&a, &b| {
-        keys[a as usize]
-            .partial_cmp(&keys[b as usize])
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    std_sort_by(indices, |&a, &b| keys[a as usize] < keys[b as usize]);
+}
+
+/// libstdc++ `std::sort(first, last, comp)` (introsort: median of three quicksort with a
+/// `2 * log2(n)` depth limit and heapsort fallback, then a final insertion sort with a 16
+/// element threshold). Reproduces the exact order of equivalent elements.
+pub fn std_sort_by<T: Copy, F: FnMut(&T, &T) -> bool>(v: &mut [T], mut less: F) {
+    let n = v.len();
+    if n < 2 {
+        return;
+    }
+    let depth = 2 * (usize::BITS - 1 - n.leading_zeros()) as usize;
+    introsort_loop(v, 0, n, depth, &mut less);
+    final_insertion_sort(v, 0, n, &mut less);
+}
+
+const STL_THRESHOLD: usize = 16;
+
+fn introsort_loop<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    first: usize,
+    mut last: usize,
+    mut depth_limit: usize,
+    less: &mut F,
+) {
+    while last - first > STL_THRESHOLD {
+        if depth_limit == 0 {
+            // __partial_sort(first, last, last): make_heap + sort_heap
+            heap_sort(&mut v[first..last], less);
+            return;
+        }
+        depth_limit -= 1;
+        let cut = unguarded_partition_pivot(v, first, last, less);
+        introsort_loop(v, cut, last, depth_limit, less);
+        last = cut;
+    }
+}
+
+fn unguarded_partition_pivot<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    first: usize,
+    last: usize,
+    less: &mut F,
+) -> usize {
+    let mid = first + (last - first) / 2;
+    move_median_to_first(v, first, first + 1, mid, last - 1, less);
+    // __unguarded_partition(first + 1, last, first)
+    let (mut lo, mut hi) = (first + 1, last);
+    loop {
+        while less(&v[lo], &v[first]) {
+            lo += 1;
+        }
+        hi -= 1;
+        while less(&v[first], &v[hi]) {
+            hi -= 1;
+        }
+        if lo >= hi {
+            return lo;
+        }
+        v.swap(lo, hi);
+        lo += 1;
+    }
+}
+
+fn move_median_to_first<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    result: usize,
+    a: usize,
+    b: usize,
+    c: usize,
+    less: &mut F,
+) {
+    let m = if less(&v[a], &v[b]) {
+        if less(&v[b], &v[c]) {
+            b
+        } else if less(&v[a], &v[c]) {
+            c
+        } else {
+            a
+        }
+    } else if less(&v[a], &v[c]) {
+        a
+    } else if less(&v[b], &v[c]) {
+        c
+    } else {
+        b
+    };
+    v.swap(result, m);
+}
+
+fn final_insertion_sort<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    first: usize,
+    last: usize,
+    less: &mut F,
+) {
+    if last - first > STL_THRESHOLD {
+        insertion_sort(v, first, first + STL_THRESHOLD, less);
+        for i in first + STL_THRESHOLD..last {
+            unguarded_linear_insert(v, i, less);
+        }
+    } else {
+        insertion_sort(v, first, last, less);
+    }
+}
+
+fn insertion_sort<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    first: usize,
+    last: usize,
+    less: &mut F,
+) {
+    if first == last {
+        return;
+    }
+    for i in first + 1..last {
+        if less(&v[i], &v[first]) {
+            let val = v[i];
+            v.copy_within(first..i, first + 1);
+            v[first] = val;
+        } else {
+            unguarded_linear_insert(v, i, less);
+        }
+    }
+}
+
+fn unguarded_linear_insert<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    mut last: usize,
+    less: &mut F,
+) {
+    let val = v[last];
+    let mut next = last - 1;
+    while less(&val, &v[next]) {
+        v[last] = v[next];
+        last = next;
+        next -= 1;
+    }
+    v[last] = val;
+}
+
+fn heap_sort<T: Copy, F: FnMut(&T, &T) -> bool>(v: &mut [T], less: &mut F) {
+    let len = v.len();
+    if len < 2 {
+        return;
+    }
+    // make_heap
+    let mut parent = (len - 2) / 2;
+    loop {
+        let value = v[parent];
+        adjust_heap(v, parent, len, value, less);
+        if parent == 0 {
+            break;
+        }
+        parent -= 1;
+    }
+    // sort_heap
+    let mut last = len;
+    while last > 1 {
+        last -= 1;
+        // __pop_heap(first, last, last)
+        let value = v[last];
+        v[last] = v[0];
+        adjust_heap(v, 0, last, value, less);
+    }
+}
+
+fn adjust_heap<T: Copy, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    mut hole: usize,
+    len: usize,
+    value: T,
+    less: &mut F,
+) {
+    let top = hole;
+    let mut second = hole;
+    while second < (len - 1) / 2 {
+        second = 2 * (second + 1);
+        if less(&v[second], &v[second - 1]) {
+            second -= 1;
+        }
+        v[hole] = v[second];
+        hole = second;
+    }
+    if len & 1 == 0 && second == (len - 2) / 2 {
+        second = 2 * (second + 1);
+        v[hole] = v[second - 1];
+        hole = second - 1;
+    }
+    // __push_heap(first, hole, top, value)
+    let mut parent = hole.wrapping_sub(1) / 2;
+    while hole > top && less(&v[parent], &value) {
+        v[hole] = v[parent];
+        hole = parent;
+        parent = hole.wrapping_sub(1) / 2;
+    }
+    v[hole] = value;
 }

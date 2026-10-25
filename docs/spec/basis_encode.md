@@ -11,7 +11,7 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
 2. [x] UASTC LDR 4x4: `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), block encoder
    (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), RDO (`uastc_rdo`)
 3. [~] ETC1S: [x] vector quantizer (`basisu_enc.h` `tree_vector_quant`, `src/basisu/vq.rs`),
-   [ ] frontend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
+   [x] frontend (`basisu_frontend.cpp`, `src/basisu/frontend.rs`), [ ] backend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
    endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
 4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
 5. [ ] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
@@ -21,7 +21,9 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
 
 `color_rgba` as `[u8; 4]` with clamping / no-clamp constructors, `color_distance` (perceptual
 14/45/5 luma, 26/3 chroma weights, u32 wrap as in C; linear squared distance), `hash_hsieh`,
-`indirect_sort` (C++ uses unstable `std::sort`; current callers only depend on key order).
+`indirect_sort` / `std_sort_by`: a port of libstdc++ `std::sort` (introsort, median of three,
+heapsort fallback, 16 element final insertion sort) so ties come out in the C++ order
+(`eliminate_redundant_or_empty_endpoint_clusters` merges equal clusters in that order).
 
 ## ETC1 encoder (`basisu::etc_enc`)
 
@@ -103,3 +105,27 @@ unsplittable node fallbacks), `compute_pca_from_covar`, `generate_hierarchical_c
 Tests: `tests/basisu_vq.rs` vs `scripts/golden/gen_basisu_vq_golden.sh` (6 vector kinds incl.
 duplicates, signed zeros and 1e-7 perturbations x 7 sizes x 5 codebook sizes, weights, parent
 codebooks, even/odd pairs, N = 6 and 16; threaded path on 270000 unique vectors).
+
+## ETC1S frontend (`basisu::frontend`)
+
+`basisu_frontend` (`init`, `compress`, getters, `reoptimize_remapped_endpoints`): initial ETC1S
+blocks, endpoint training vectors and TSVQ clusterization (hierarchical parents), endpoint
+codebook / refinement / new cluster introduction / redundant cluster elimination, selector
+clusterization, optimized selector codebook, per block selector search (lower bound early outs,
+duplicate block shortcut per 2048 block job), flat selector clusters, endpoint refinement given
+selectors (levels >= 4 and video), validation checks.
+- Jobs are run in order; only `find_optimal_selector_clusters_for_each_block` depends on the C++
+  job split (2048 blocks) and keeps it. `max_threads` for the codebooks follows C++
+  (`multithreaded ? min(hw threads, 8, job pool threads) : 0`).
+- `find_lowest_error_*_rgb_4_N_sse41` early out with a partial sum above the best error just
+  like the scalar loop, so the scalar loop is ported.
+- Not ported: OpenCL paths, `init_global_codebooks` (libktx never passes global codebooks), the
+  debug image dumps. `BASISU_FRONTEND_VERIFY` aborts in C++; here `compress` returns false.
+- C++ quirk kept: `compute_endpoint_subblock_error_vec` passes `scaled = true` for an unscaled
+  color to `get_block_colors5`.
+Tests: `tests/basisu_frontend.rs` vs `scripts/golden/gen_basisu_frontend_golden.sh` (12 images
+of 64..2560 blocks incl. noise, duplicate blocks and flat areas x 12 configs: levels 0..6,
+perceptual / linear, 16..2000 clusters, video frames, disabled hierarchy, validation; then
+`reoptimize_remapped_endpoints` with and without final codebook optimization) and libstdc++
+`std::sort` tie order (40 key sets). Unkilled mutations are error ties (`>=` vs `>` in the
+flat selector and step >= 1 endpoint acceptance) and equivalent early outs.

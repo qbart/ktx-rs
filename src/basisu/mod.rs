@@ -18,6 +18,7 @@ pub mod etc;
 pub mod etc1s;
 pub mod etc_enc;
 pub mod etc_enc_tables;
+pub mod frontend;
 pub mod gpu_texture;
 pub mod hdr_tables;
 pub mod miniz;
