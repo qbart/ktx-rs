@@ -21,6 +21,7 @@ pub mod etc_enc_tables;
 pub mod frontend;
 pub mod gpu_texture;
 pub mod hdr_tables;
+pub mod huffman_enc;
 pub mod miniz;
 pub mod pvrtc;
 pub mod pvrtc2;
