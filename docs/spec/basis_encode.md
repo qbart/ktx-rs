@@ -17,7 +17,8 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
    `src/basisu/comp.rs`, `basis_file.rs`) and libktx `basis_encode.cpp` (`src/basis_encode.rs`)
 5. [x] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp` -> `src/basisu/uastc_hdr_4x4_enc.rs`,
    CEM 7 / 11 single plane parts of `basisu_astc_hdr_common.cpp` -> `src/basisu/astc_hdr_enc.rs`)
-6. [ ] UASTC HDR 6x6 intermediate (`basisu_astc_hdr_6x6_enc.cpp`)
+6. [x] UASTC HDR 6x6 intermediate (`basisu_astc_hdr_6x6_enc.cpp` -> `src/basisu/astc_hdr_6x6_enc.rs`,
+   6x6 paths of `basisu_astc_hdr_common.cpp`)
 
 ## Shared helpers (`basisu::enc`)
 
@@ -270,3 +271,24 @@ Tests: `tests/basisu_hdr6x6_parts.rs` vs `scripts/golden/gen_basisu_hdr6x6_parts
 over random block modes with their coded bits, filters, stats, ITP metrics, `encode_values` for
 all 21 ranges), 24 images (tone map, smooth maps, Gaussian 1.45 / 1.83 resampling, ITP,
 deblocking penalties) and strip sizes.
+
+## ASTC HDR 6x6 encoder (`astc_hdr_6x6_enc::compress_photo`)
+
+`compress_strip_task` (per block: three source passes (original, Gaussian 1.45 / 1.83), block
+statistics driving the per block comp level, dual plane channel choice and pattern counts; run,
+reuse (32 xy deltas), solid and coded candidates over the 75 block modes and 5 endpoint modes
+(raw incl. downsampled CEM 11, 2 / 3 subsets, left / upper endpoint reuse, left / upper endpoint
+deltas); ITP MSE + SSIM + deblocking scoring at lambda 0, perceptually weighted RD with candidate
+diversity boost and JND replacement at lambda > 0; run extension rewriting) and `compress_photo`
+(input cleanup, smooth maps, blurred and ITP images, strips, stream framing and a decode check
+with the transcoder's `decode_6x6_hdr`). `basis_compressor` `encode_slices_to_astc_6x6_hdr` and
+libktx 6x6i (`ktxUASTCHDR6x6IntermediateImageDesc` SGD, DFD, `KTX_SS_UASTC_HDR_6x6_INTERMEDIATE`).
+- Strips run in order (they are independent; the strip count follows the job pool size at
+  lambda 0). The image statistics, debug images and ASTC / BC6H output images are not ported;
+  the Google ASTC cross check of the decoded blocks is replaced by the transcoder decode check.
+- `candidate_encoding` copies drop the ITP pixels and RD values in C++; nothing reads them after a
+  copy, so the port clones everything.
+Tests: `tests/basisu_hdr6x6_enc.rs` vs `scripts/golden/gen_basisu_hdr6x6_enc_golden.sh` (6 HDR
+images 6x6..40x26 of 5 kinds x 18 configs: user levels 0..12, lambda 0..8, REC 2020, 1..4 strips;
+60 cases hashing the intermediate and ASTC data); CTS `encode_uastc_hdr` / create UASTC HDR 6x6i
+subcases byte exact.

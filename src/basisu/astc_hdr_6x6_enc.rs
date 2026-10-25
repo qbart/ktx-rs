@@ -6,14 +6,18 @@
 //! routed through `std::hint::black_box` so the libm call matches GCC's.
 
 // The float literals keep the C++ spelling (they round to the same f32).
-#![allow(clippy::needless_range_loop, clippy::too_many_arguments, clippy::excessive_precision)]
+#![allow(
+    clippy::needless_range_loop,
+    clippy::too_many_arguments,
+    clippy::excessive_precision
+)]
 
 use std::sync::OnceLock;
 
 use super::astc_hdr_enc::{
-    AstcHdrCodecBaseOptions, BIG_FLOAT_VAL, OptMode,
-    compute_block_error, downsample_weight_grid, encode_astc_hdr_block_mode_7,
-    encode_astc_hdr_block_mode_11, get_6x6_downsample_matrix, refine_endpoints,
+    AstcHdrCodecBaseOptions, BIG_FLOAT_VAL, OptMode, Q_LOG_BIAS_6X6, compute_block_error,
+    downsample_weight_grid, encode_astc_hdr_block_mode_7, encode_astc_hdr_block_mode_11,
+    get_6x6_downsample_matrix, refine_endpoints,
 };
 use super::astc_helpers::{
     self as ah, DecodePixels, HalfFloat, LogAstcBlock, compute_texel_partition, decode_block,
@@ -2413,4 +2417,2028 @@ pub fn decode_astc_block(log_blk: &LogAstcBlock, pixels: &mut [Vec3; 36]) -> boo
 pub fn validate_log_blk(decomp_blk: &LogAstcBlock) -> bool {
     let mut phys = [0u8; 16];
     pack_astc_block(&mut phys, decomp_blk)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Strip encoder
+
+const ET_INVALID: i32 = -1;
+const ET_RUN: i32 = 0;
+const ET_SOLID: i32 = 1;
+const ET_REUSE: i32 = 2;
+const ET_BLOCK: i32 = 3;
+
+const SOLID_PENALTY: f32 = 4.0;
+const REUSE_PENALTY: f32 = 1.0;
+const RUN_PENALTY: f32 = 10.0;
+const MSE_WEIGHT: f32 = 300000.0;
+const SSIM_WEIGHT: f32 = 200.0;
+const TWO_LEVEL_PENALTY: f32 = 1.425;
+const SWITCH_TO_GAUSSIAN_FILTERED_THRESH1_D_SSIM: f32 = 0.04;
+const SWITCH_TO_GAUSSIAN_FILTERED_THRESH2_D_SSIM: f32 = 0.04;
+const COMPLEX_BLOCK_WEIGHT_GRID_2X2_MSE_PENALTY: f32 = 1.5;
+const COMPLEX_BLOCK_WEIGHT_GRID_3X3_MSE_PENALTY: f32 = 1.25;
+const COMPLEX_BLOCK_WEIGHT_GRID_4X4_MSE_PENALTY: f32 = 1.15;
+const REC_709_R: f32 = 0.212656;
+const REC_709_G: f32 = 0.715158;
+const REC_709_B: f32 = 0.072186;
+
+/// `candidate_encoding`.
+#[derive(Debug, Clone)]
+struct CandidateEncoding {
+    encoding_type: i32,
+    solid_color: [HalfFloat; 3],
+    run_len: u32,
+    comp_pixels: [Vec3; 36],
+    comp_pixels_itp: [Vec3; 36],
+    endpoint_mode: i32,
+    block_mode: i32,
+    coder: BitwiseCoder,
+    /// The block to code (may not be valid ASTC before transcoding).
+    coded_log_blk: LogAstcBlock,
+    /// The block the decoder outputs.
+    decomp_log_blk: LogAstcBlock,
+    reuse_delta_index: i32,
+    t: f64,
+    d: f64,
+    bits: f32,
+}
+
+impl Default for CandidateEncoding {
+    fn default() -> Self {
+        CandidateEncoding {
+            encoding_type: ET_INVALID,
+            solid_color: [0; 3],
+            run_len: 0,
+            comp_pixels: [[0.0; 3]; 36],
+            comp_pixels_itp: [[0.0; 3]; 36],
+            endpoint_mode: -1,
+            block_mode: -1,
+            coder: BitwiseCoder::new(),
+            coded_log_blk: LogAstcBlock::default(),
+            decomp_log_blk: LogAstcBlock::default(),
+            reuse_delta_index: 0,
+            t: 0.0,
+            d: 0.0,
+            bits: 0.0,
+        }
+    }
+}
+
+/// `uastc_hdr_6x6_encode_state` (`packed_img` is only used for debug output and not kept).
+struct EncodeState {
+    master_coptions: AstcHdrCodecBaseOptions,
+    src_img: ImageF,
+    src_img_filtered1: ImageF,
+    src_img_filtered2: ImageF,
+    src_img_itp: ImageF,
+    src_img_filtered1_itp: ImageF,
+    src_img_filtered2_itp: ImageF,
+    /// Row major `width * height` (empty unless lambda > 0).
+    smooth_block_mse_scales: Vec<f32>,
+    strip_bits: Vec<BitwiseCoder>,
+    final_astc_blocks: Vec<[u8; 16]>,
+    coded_blocks: Vec<CandidateEncoding>,
+}
+
+/// `fast_float_to_half_no_clamp_neg_nan_or_inf` (round to nearest even).
+#[inline]
+fn fast_float_to_half_no_clamp(f: f32) -> HalfFloat {
+    let fu = (f * f32::from_bits(0x0780_0000)).to_bits();
+    let mut h = (fu >> (23 - 10)) & 0x7FFF;
+    let mant = fu & 8191;
+    let inc = u32::from(mant > 4096) | (u32::from(mant == 4096) & (h & 1));
+    h += inc;
+    h.min(0x7BFF) as HalfFloat
+}
+
+/// Per pass inputs of the current 6x6 block.
+struct BlockPixels {
+    block_pixels: [[f32; 4]; 36],
+    half_pixels: [[HalfFloat; 3]; 36],
+    half_pixels_as_floats: [Vec3; 36],
+    block_pixels_q16: [[f32; 4]; 36],
+    block_pixels_as_itp: [Vec3; 36],
+}
+
+fn pack_weights_and_decomp(
+    cand: &mut CandidateEncoding,
+    md: &super::astc_6x6_hdr::BlockModeDesc,
+    transcode_endpoints: &[u8],
+    use_orig_behavior: bool,
+) -> bool {
+    let grid_x = md.grid_x;
+    let grid_y = md.grid_y;
+    let num_grid_samples = (grid_x * grid_y) as usize;
+    let dual_plane = md.dp;
+    let num_endpoint_vals = get_num_endpoint_vals(md.cem);
+    let mut transcode_weights = [0u8; 72];
+    super::astc_6x6_hdr::requantize_astc_weights(
+        num_grid_samples * if dual_plane { 2 } else { 1 },
+        &cand.coded_log_blk.weights,
+        md.weight_ise_range,
+        &mut transcode_weights,
+        md.transcode_weight_ise_range,
+    );
+    // Create the block the decoder would transcode into.
+    let d = &mut cand.decomp_log_blk;
+    d.clear();
+    d.color_endpoint_modes[0] = md.cem as u8;
+    d.dual_plane = dual_plane;
+    d.color_component_selector = md.dp_channel as u8;
+    d.num_partitions = 1;
+    d.endpoint_ise_range = md.transcode_endpoint_ise_range as u8;
+    d.weight_ise_range = md.transcode_weight_ise_range as u8;
+    d.endpoints[..num_endpoint_vals].copy_from_slice(&transcode_endpoints[..num_endpoint_vals]);
+    super::astc_6x6_hdr::copy_weight_grid(
+        dual_plane,
+        grid_x,
+        grid_y,
+        &transcode_weights,
+        d,
+        use_orig_behavior,
+    );
+    true
+}
+
+/// `compress_strip_task`: encodes the block rows `strip_first_by..=strip_last_by` into
+/// `strip_bits[strip_index]`. Returns false on an internal failure.
+#[allow(clippy::too_many_arguments)]
+fn compress_strip_task(
+    strip_index: usize,
+    strip_first_by: u32,
+    strip_last_by: u32,
+    num_blocks_x: u32,
+    width: u32,
+    height: u32,
+    global_cfg: &AstcHdr6x6GlobalConfig,
+    enc_state: &mut EncodeState,
+) -> bool {
+    use super::astc_6x6_hdr::{
+        BlockModeDesc, block_mode_desc, requantize_astc_weights, requantize_ise_endpoints,
+    };
+    use super::astc_hdr_enc::{
+        EncodeAstcBlockStats, decode_cem_7_config, decode_cem_11_config, downsample_ise_weights,
+        downsample_ise_weights_dual_plane, encode_astc_hdr_block_downsampled_mode_11,
+        encode_astc_hdr_block_mode_11_dual_plane, eval_selectors, eval_selectors_dual_plane,
+        get_astc_hdr_mode_7_block_colors, get_astc_hdr_mode_11_block_colors,
+    };
+    use super::hdr_tables::REUSE_XY_DELTAS;
+
+    let t = hdr6x6_tables();
+    let nbx = num_blocks_x as usize;
+    let mut prev_comp_pixels = [[0f32; 3]; 36];
+    let mut prev_run_len = 0u32;
+    let mut prev_encoding = BitwiseCoder::new();
+    let mut prev_non_run_candidate_encoding = CandidateEncoding::default();
+    let mut strip_coded_bits = BitwiseCoder::new();
+    let mut candidates: Vec<CandidateEncoding> = Vec::with_capacity(1536);
+    let use_orig_behavior = global_cfg.write_basisu_1_6_compatible_files;
+    let descs: Vec<BlockModeDesc> = (0..BM_TOTAL_MODES)
+        .map(|i| block_mode_desc(i).unwrap_or_default())
+        .collect();
+
+    for by in strip_first_by..=strip_last_by {
+        let has_upper_neighbor = by > strip_first_by;
+        for bx in 0..num_blocks_x {
+            let mut outer_pass = 0;
+            while outer_pass < 3 {
+                let has_left_neighbor = bx > 0;
+                let (pass_src_img, pass_src_img_itp) = match outer_pass {
+                    2 => (
+                        &enc_state.src_img_filtered2,
+                        &enc_state.src_img_filtered2_itp,
+                    ),
+                    1 => (
+                        &enc_state.src_img_filtered1,
+                        &enc_state.src_img_filtered1_itp,
+                    ),
+                    _ => (&enc_state.src_img, &enc_state.src_img_itp),
+                };
+                let mut bp = BlockPixels {
+                    block_pixels: [[0.0; 4]; 36],
+                    half_pixels: [[0; 3]; 36],
+                    half_pixels_as_floats: [[0.0; 3]; 36],
+                    block_pixels_q16: [[0.0; 4]; 36],
+                    block_pixels_as_itp: [[0.0; 3]; 36],
+                };
+                pass_src_img.extract_block_clamped(&mut bp.block_pixels, bx * 6, by * 6, 6, 6);
+                let mut block_pixels_itp = [[0f32; 4]; 36];
+                pass_src_img_itp.extract_block_clamped(&mut block_pixels_itp, bx * 6, by * 6, 6, 6);
+
+                let mut is_grayscale = true;
+                candidates.clear();
+                let (mut block_ly, mut block_hy, mut block_avg_y) = (BIG_FLOAT_VAL, 0f32, 0f32);
+                for i in 0..36 {
+                    let mut rgb_input = [0f32; 3];
+                    for c in 0..3 {
+                        let v = bp.block_pixels[i][c];
+                        rgb_input[c] = v;
+                        let h = fast_float_to_half_no_clamp(v);
+                        bp.half_pixels[i][c] = h;
+                        bp.block_pixels_q16[i][c] =
+                            super::astc_hdr_enc::half_to_qlog16(h as i32) as f32;
+                        bp.half_pixels_as_floats[i][c] = h as f32;
+                    }
+                    let py = dot3(rgb_input, [REC_709_R, REC_709_G, REC_709_B]);
+                    if py < block_ly {
+                        block_ly = py;
+                    }
+                    if py > block_hy {
+                        block_hy = py;
+                    }
+                    block_avg_y += py;
+                    bp.block_pixels_as_itp[i] = [
+                        block_pixels_itp[i][0],
+                        block_pixels_itp[i][1],
+                        block_pixels_itp[i][2],
+                    ];
+                    bp.block_pixels_q16[i][3] = 0.0;
+                    let hp = bp.half_pixels[i];
+                    if hp[0] != hp[1] || hp[0] != hp[2] {
+                        is_grayscale = false;
+                    }
+                }
+                block_avg_y *= 1.0 / 36.0;
+
+                let mut enc_block_stats = EncodeAstcBlockStats::default();
+                enc_block_stats.init(36, &bp.block_pixels_q16);
+
+                let mut x_filtered = [[0f32; 4]; 36];
+                let mut y_filtered = [[0f32; 4]; 36];
+                filter_block_v4(3, 6, &bp.block_pixels, &mut x_filtered);
+                filter_block_v4(6, 3, &bp.block_pixels, &mut y_filtered);
+                let filtered_x_err = diff_blocks(&bp.block_pixels, &x_filtered);
+                let filtered_y_err = diff_blocks(&bp.block_pixels, &y_filtered);
+                let filter_horizontally = filtered_x_err < filtered_y_err;
+
+                let mut lowpass_filtered = [[0f32; 3]; 36];
+                filter_block_v3(3, 3, &bp.half_pixels_as_floats, &mut lowpass_filtered);
+                let lowpass_std_dev =
+                    sub_and_compute_std_dev(&lowpass_filtered, &bp.half_pixels_as_floats);
+                let very_detailed_block = lowpass_std_dev > 350.0;
+                let very_blurry_block = lowpass_std_dev < 30.0;
+                let super_blurry_block = lowpass_std_dev < 15.0;
+
+                let chans: [Vec<f32>; 3] =
+                    [0, 1, 2].map(|c| bp.half_pixels_as_floats.iter().map(|p| p[c]).collect());
+                let half_comp_stats: [StatsF; 3] =
+                    [0, 1, 2].map(|c| StatsF::calc(chans[c].iter().copied()));
+
+                const SINGLE_PART_HALF_THRESH: f32 = 256.0;
+                const COMPLEX_HALF_THRESH: f32 = 1024.0;
+                const VERY_COMPLEX_HALF_THRESH: f32 = 1400.0;
+                let max_std_dev = maxf(
+                    maxf(half_comp_stats[0].std_dev, half_comp_stats[1].std_dev),
+                    half_comp_stats[2].std_dev,
+                );
+                let very_simple_block = max_std_dev < SINGLE_PART_HALF_THRESH;
+                let complex_block = max_std_dev > COMPLEX_HALF_THRESH;
+                let very_complex_block = max_std_dev > VERY_COMPLEX_HALF_THRESH;
+
+                // Dynamically choose a comp_level for this block.
+                let mut coptions = enc_state.master_coptions;
+                let mut comp_level = global_cfg.master_comp_level;
+                if very_complex_block {
+                    comp_level = global_cfg.highest_comp_level;
+                } else if complex_block {
+                    comp_level =
+                        (global_cfg.master_comp_level + global_cfg.highest_comp_level).div_ceil(2);
+                }
+                let level_allows = |i: usize| -> bool {
+                    let f = descs[i].flags;
+                    match comp_level {
+                        0 => f & BASIST_HDR_6X6_LEVEL0 != 0,
+                        1 => f & BASIST_HDR_6X6_LEVEL1 != 0,
+                        2 => f & BASIST_HDR_6X6_LEVEL2 != 0,
+                        _ => true,
+                    }
+                };
+                let (
+                    mut any_2subset_enabled,
+                    mut any_2subset_mode7_enabled,
+                    mut any_3subset_enabled,
+                ) = (false, false, false);
+                for i in 0..BM_TOTAL_MODES as usize {
+                    if !level_allows(i) {
+                        continue;
+                    }
+                    if descs[i].num_partitions == 2 {
+                        any_2subset_enabled = true;
+                        if descs[i].cem == 7 {
+                            any_2subset_mode7_enabled = true;
+                        }
+                    } else if descs[i].num_partitions == 3 {
+                        any_3subset_enabled = true;
+                    }
+                }
+                coptions.mode7_full_s_optimization = comp_level >= 2;
+                let uber_mode_flag = comp_level >= 3;
+                coptions.allow_uber_mode = uber_mode_flag;
+                coptions.ultra_quant = comp_level >= 4;
+                coptions.take_first_non_clamping_mode11_submode = comp_level <= 2;
+                coptions.take_first_non_clamping_mode7_submode = comp_level <= 2;
+                coptions.disable_weight_plane_optimization = comp_level >= 2;
+
+                let total_used_block_chans: u32 = half_comp_stats
+                    .iter()
+                    .map(|s| u32::from(s.range > 0.0))
+                    .sum();
+                let is_solid_block = total_used_block_chans == 0;
+
+                let pearson = |a: usize, b: usize| {
+                    calc_pearson(
+                        &chans[a],
+                        &chans[b],
+                        &half_comp_stats[a],
+                        &half_comp_stats[b],
+                    )
+                };
+                let cross = [pearson(0, 1), pearson(0, 2), pearson(1, 2)];
+                let rg_corr = cross[0].abs();
+                let rb_corr = cross[1].abs();
+                let gb_corr = cross[2].abs();
+                let (mut min_corr, mut max_corr) = (BIG_FLOAT_VAL, -BIG_FLOAT_VAL);
+                const CHAN_PAIRS: [[usize; 2]; 3] = [[0, 1], [0, 2], [1, 2]];
+                for i in 0..3 {
+                    let [a, b] = CHAN_PAIRS[i];
+                    if half_comp_stats[a].range > 0.0 && half_comp_stats[b].range > 0.0 {
+                        let c = cross[i].abs();
+                        min_corr = minf32(min_corr, c);
+                        max_corr = maxf(max_corr, c);
+                    }
+                }
+                let _ = max_corr;
+
+                let mut use_single_subset_mode7 = true;
+                if comp_level <= 1 {
+                    const MODE7_MIN_CHAN_CORR: f32 = 0.5;
+                    const MODE7_PCA_ANGLE_THRESH: f32 = 0.9;
+                    use_single_subset_mode7 = is_grayscale
+                        || is_solid_block
+                        || total_used_block_chans == 1
+                        || min_corr >= MODE7_MIN_CHAN_CORR;
+                    if use_single_subset_mode7 {
+                        let cos_ang = dot3(enc_block_stats.axis_q16, [0.5773502691; 3]).abs();
+                        if cos_ang < MODE7_PCA_ANGLE_THRESH {
+                            use_single_subset_mode7 = false;
+                        }
+                    }
+                }
+
+                let strong_corr_thresh = if comp_level <= 1 {
+                    0.5
+                } else if comp_level <= 3 {
+                    0.75
+                } else {
+                    0.9
+                };
+                let mut desired_dp_chan: i32 = -1;
+                if total_used_block_chans > 1 && min_corr < strong_corr_thresh {
+                    if total_used_block_chans == 2 {
+                        if half_comp_stats[0].range == 0.0 {
+                            if gb_corr < strong_corr_thresh {
+                                desired_dp_chan = 1;
+                            }
+                        } else if half_comp_stats[1].range == 0.0 {
+                            if rb_corr < strong_corr_thresh {
+                                desired_dp_chan = 0;
+                            }
+                        } else if rg_corr < strong_corr_thresh {
+                            desired_dp_chan = 0;
+                        }
+                    } else if rg_corr < gb_corr && rb_corr < gb_corr {
+                        desired_dp_chan = 0;
+                    } else if rg_corr < rb_corr && gb_corr < rb_corr {
+                        desired_dp_chan = 1;
+                    } else {
+                        desired_dp_chan = 2;
+                    }
+                }
+                // 2x2 is special for RDO at higher lambdas - always pick a preferred channel.
+                let mut desired_dp_chan_2x2: i32 = 0;
+                if total_used_block_chans == 2 {
+                    if half_comp_stats[0].range == 0.0 {
+                        desired_dp_chan_2x2 = 1;
+                    }
+                } else if total_used_block_chans == 3 {
+                    desired_dp_chan_2x2 = if rg_corr < gb_corr && rb_corr < gb_corr {
+                        0
+                    } else if rg_corr < rb_corr && gb_corr < rb_corr {
+                        1
+                    } else {
+                        2
+                    };
+                }
+
+                // ---- Run candidate
+                if global_cfg.use_runs && (has_left_neighbor || has_upper_neighbor) {
+                    let mut candidate = CandidateEncoding {
+                        encoding_type: ET_RUN,
+                        decomp_log_blk: prev_non_run_candidate_encoding.decomp_log_blk,
+                        coded_log_blk: prev_non_run_candidate_encoding.coded_log_blk,
+                        comp_pixels: prev_comp_pixels,
+                        ..Default::default()
+                    };
+                    if prev_run_len == 0 {
+                        candidate.coder.put_bits(RUN_CODE, RUN_CODE_LEN);
+                        candidate.coder.put_vlc(0, 5);
+                    } else {
+                        // extend current run - compute the # of new bits needed for the extension.
+                        let prev_run_bits = prev_encoding.get_total_bits_u32();
+                        let mut temp_coder = BitwiseCoder::new();
+                        temp_coder.put_bits(RUN_CODE, RUN_CODE_LEN);
+                        temp_coder.put_vlc((prev_run_len + 1) - 1, 5);
+                        let cur_run_bits = temp_coder.get_total_bits_u32();
+                        let total_new_bits = cur_run_bits.saturating_sub(prev_run_bits);
+                        if total_new_bits > 0 {
+                            candidate.coder.put_bits(0, total_new_bits); // dummy bits
+                        }
+                    }
+                    candidate.run_len = prev_run_len + 1;
+                    candidates.push(candidate);
+                }
+
+                // ---- Reuse candidate
+                if !is_solid_block && global_cfg.lambda > 0.0 {
+                    for reuse_delta_index in 0..global_cfg.num_reuse_xy_deltas {
+                        let [dx, dy] = REUSE_XY_DELTAS[reuse_delta_index as usize];
+                        let reuse_bx = bx as i32 + dx as i32;
+                        let reuse_by = by as i32 + dy as i32;
+                        if reuse_bx < 0 || reuse_bx >= num_blocks_x as i32 {
+                            continue;
+                        }
+                        if reuse_by < strip_first_by as i32 {
+                            break;
+                        }
+                        let prev_candidate =
+                            &enc_state.coded_blocks[reuse_bx as usize + reuse_by as usize * nbx];
+                        // TODO - support this.
+                        if prev_candidate.encoding_type == ET_SOLID {
+                            continue;
+                        }
+                        let mut candidate = CandidateEncoding::default();
+                        let prev_coded = prev_candidate.coded_log_blk;
+                        let grid_x = prev_coded.grid_width as u32;
+                        let grid_y = prev_coded.grid_height as u32;
+                        let dual_plane = prev_coded.dual_plane;
+                        let num_grid_samples = (grid_x * grid_y) as usize;
+                        let num_endpoint_vals =
+                            get_num_endpoint_vals(prev_coded.color_endpoint_modes[0] as u32);
+                        candidate.coded_log_blk = prev_coded;
+                        candidate.decomp_log_blk = prev_candidate.decomp_log_blk;
+                        let prev_block_mode = prev_candidate.block_mode;
+                        let prev_endpoint_mode = prev_candidate.endpoint_mode;
+                        let cl = &mut candidate.coded_log_blk;
+                        let wr = cl.weight_ise_range as u32;
+                        let er = cl.endpoint_ise_range as u32;
+                        let levels = ah::get_ise_levels(wr) as usize;
+                        let cem = prev_coded.color_endpoint_modes[0] as u32;
+                        let block_colors = |endpoints: &[u8], decoded: &mut [[HalfFloat; 3]]| {
+                            if cem == 7 {
+                                get_astc_hdr_mode_7_block_colors(endpoints, decoded, levels, wr, er)
+                            } else {
+                                get_astc_hdr_mode_11_block_colors(
+                                    endpoints, decoded, levels, wr, er,
+                                )
+                            }
+                        };
+                        let mut transcode_weights = [0u8; 72];
+                        if prev_coded.num_partitions == 1 {
+                            let mut decoded_half = [[0 as HalfFloat; 3]; 32];
+                            block_colors(&cl.endpoints, &mut decoded_half);
+                            let mut trial_weights0 = [0u8; 36];
+                            let mut trial_weights1 = [0u8; 36];
+                            if dual_plane {
+                                eval_selectors_dual_plane(
+                                    prev_coded.color_component_selector as usize,
+                                    36,
+                                    &mut trial_weights0,
+                                    &mut trial_weights1,
+                                    &bp.half_pixels,
+                                    levels,
+                                    &decoded_half,
+                                    &coptions,
+                                    u32::MAX,
+                                );
+                                downsample_ise_weights_dual_plane(
+                                    wr,
+                                    wr,
+                                    6,
+                                    6,
+                                    grid_x,
+                                    grid_y,
+                                    &trial_weights0,
+                                    &trial_weights1,
+                                    &mut cl.weights,
+                                );
+                                requantize_astc_weights(
+                                    num_grid_samples * 2,
+                                    &cl.weights,
+                                    wr,
+                                    &mut transcode_weights,
+                                    candidate.decomp_log_blk.weight_ise_range as u32,
+                                );
+                            } else {
+                                eval_selectors(
+                                    36,
+                                    &mut trial_weights0,
+                                    wr,
+                                    &bp.half_pixels,
+                                    levels,
+                                    &decoded_half,
+                                    &coptions,
+                                    u32::MAX,
+                                );
+                                downsample_ise_weights(
+                                    wr,
+                                    wr,
+                                    6,
+                                    6,
+                                    grid_x,
+                                    grid_y,
+                                    &trial_weights0,
+                                    &mut cl.weights,
+                                );
+                                requantize_astc_weights(
+                                    num_grid_samples,
+                                    &cl.weights,
+                                    wr,
+                                    &mut transcode_weights,
+                                    candidate.decomp_log_blk.weight_ise_range as u32,
+                                );
+                            }
+                        } else {
+                            let np = prev_coded.num_partitions as usize;
+                            let pat = if np == 2 {
+                                let u = t.part2_seed_to_unique_index
+                                    [prev_coded.partition_id as usize & 1023];
+                                &t.partitions2[u as usize]
+                            } else {
+                                let u = t.part3_seed_to_unique_index
+                                    [prev_coded.partition_id as usize & 1023];
+                                &t.partitions3[u.max(0) as usize]
+                            };
+                            let mut part_half_pixels = [[[0 as HalfFloat; 3]; 36]; 3];
+                            let mut part_total_pixels = [0usize; 3];
+                            for i in 0..36 {
+                                let p = pat[i] as usize % np;
+                                part_half_pixels[p][part_total_pixels[p]] = bp.half_pixels[i];
+                                part_total_pixels[p] += 1;
+                            }
+                            let mut blk_weights = [[0u8; 36]; 3];
+                            for p in 0..np {
+                                let mut decoded_half = [[0 as HalfFloat; 3]; 32];
+                                if np == 3 {
+                                    get_astc_hdr_mode_7_block_colors(
+                                        &cl.endpoints[num_endpoint_vals * p..],
+                                        &mut decoded_half,
+                                        levels,
+                                        wr,
+                                        er,
+                                    );
+                                } else {
+                                    block_colors(
+                                        &cl.endpoints[num_endpoint_vals * p..],
+                                        &mut decoded_half,
+                                    );
+                                }
+                                eval_selectors(
+                                    part_total_pixels[p],
+                                    &mut blk_weights[p],
+                                    wr,
+                                    &part_half_pixels[p],
+                                    levels,
+                                    &decoded_half,
+                                    &coptions,
+                                    u32::MAX,
+                                );
+                            }
+                            let mut ise_weights = [0u8; 36];
+                            let mut src_pixel_index = [0usize; 3];
+                            for i in 0..36 {
+                                let p = pat[i] as usize % np;
+                                ise_weights[i] = blk_weights[p][src_pixel_index[p]];
+                                src_pixel_index[p] += 1;
+                            }
+                            downsample_ise_weights(
+                                wr,
+                                wr,
+                                6,
+                                6,
+                                grid_x,
+                                grid_y,
+                                &ise_weights,
+                                &mut cl.weights,
+                            );
+                            requantize_astc_weights(
+                                num_grid_samples,
+                                &cl.weights,
+                                wr,
+                                &mut transcode_weights,
+                                candidate.decomp_log_blk.weight_ise_range as u32,
+                            );
+                        }
+                        // Create the block the decoder would transcode into.
+                        super::astc_6x6_hdr::copy_weight_grid(
+                            dual_plane,
+                            grid_x,
+                            grid_y,
+                            &transcode_weights,
+                            &mut candidate.decomp_log_blk,
+                            use_orig_behavior,
+                        );
+                        if !validate_log_blk(&candidate.decomp_log_blk) {
+                            return false;
+                        }
+                        if !decode_astc_block(&candidate.decomp_log_blk, &mut candidate.comp_pixels)
+                        {
+                            return false;
+                        }
+                        candidate.coder.put_bits(REUSE_CODE, REUSE_CODE_LEN);
+                        candidate
+                            .coder
+                            .put_bits(reuse_delta_index, super::astc_6x6_hdr::REUSE_XY_DELTA_BITS);
+                        let cl = candidate.coded_log_blk;
+                        encode_values(
+                            &mut candidate.coder,
+                            num_grid_samples * if dual_plane { 2 } else { 1 },
+                            &cl.weights,
+                            cl.weight_ise_range as u32,
+                        );
+                        candidate.encoding_type = ET_REUSE;
+                        candidate.block_mode = prev_block_mode;
+                        candidate.endpoint_mode = prev_endpoint_mode;
+                        candidate.reuse_delta_index = reuse_delta_index as i32;
+                        candidates.push(candidate);
+                    }
+                }
+
+                // ---- Solid candidate
+                if global_cfg.use_solid_blocks {
+                    let mut candidate = CandidateEncoding {
+                        encoding_type: ET_SOLID,
+                        ..Default::default()
+                    };
+                    let (mut r, mut g, mut b) = (0f32, 0f32, 0f32);
+                    const LOG_BIAS: f32 = 0.125;
+                    let mut solid_block = true;
+                    for i in 0..36 {
+                        let p = &bp.block_pixels[i];
+                        let p0 = &bp.block_pixels[0];
+                        if p0[0] != p[0] || p0[1] != p[1] || p0[2] != p[2] {
+                            solid_block = false;
+                        }
+                        r += (p[0] + LOG_BIAS).log2();
+                        g += (p[1] + LOG_BIAS).log2();
+                        b += (p[2] + LOG_BIAS).log2();
+                    }
+                    if solid_block {
+                        r = bp.block_pixels[0][0];
+                        g = bp.block_pixels[0][1];
+                        b = bp.block_pixels[0][2];
+                    } else {
+                        r = maxf(0.0, 2.0f32.powf(r * (1.0 / 36.0)) - LOG_BIAS);
+                        g = maxf(0.0, 2.0f32.powf(g * (1.0 / 36.0)) - LOG_BIAS);
+                        b = maxf(0.0, 2.0f32.powf(b * (1.0 / 36.0)) - LOG_BIAS);
+                        r = minf32(r, 65504.0);
+                        g = minf32(g, 65504.0);
+                        b = minf32(b, 65504.0);
+                    }
+                    let rh = super::astc_hdr_enc::float_to_half_non_neg_no_nan_inf(r);
+                    let gh = super::astc_hdr_enc::float_to_half_non_neg_no_nan_inf(g);
+                    let bh = super::astc_hdr_enc::float_to_half_non_neg_no_nan_inf(b);
+                    candidate.solid_color = [rh, gh, bh];
+                    candidate.coder.put_bits(SOLID_CODE, SOLID_CODE_LEN);
+                    candidate.coder.put_bits(rh as u32, 15);
+                    candidate.coder.put_bits(gh as u32, 15);
+                    candidate.coder.put_bits(bh as u32, 15);
+                    let cp = [half_to_float(rh), half_to_float(gh), half_to_float(bh)];
+                    candidate.comp_pixels = [cp; 36];
+                    let lb = &mut candidate.coded_log_blk;
+                    lb.clear();
+                    lb.solid_color_flag_hdr = true;
+                    lb.set_solid_color(0, rh);
+                    lb.set_solid_color(1, gh);
+                    lb.set_solid_color(2, bh);
+                    lb.set_solid_color(3, float_to_half(1.0, false));
+                    candidate.decomp_log_blk = candidate.coded_log_blk;
+                    candidates.push(candidate);
+                }
+
+                if !is_solid_block || !global_cfg.use_solid_blocks {
+                    const PARTS2_NORMAL: [u32; 5] = [0, 2, 4, 6, 8];
+                    const PARTS3_NORMAL: [u32; 5] = [0, 0, 4, 6, 8];
+                    const PARTS2_COMPLEX: [u32; 5] = [0, 4, 8, 10, 16];
+                    const PARTS3_COMPLEX: [u32; 5] = [0, 0, 8, 10, 16];
+                    const PARTS2_VERY_COMPLEX: [u32; 5] = [0, 8, 12, 14, 20];
+                    const PARTS3_VERY_COMPLEX: [u32; 5] = [0, 0, 12, 14, 20];
+                    let cl_i = (comp_level as usize).min(4);
+                    let (mut total_parts2, mut total_parts3);
+                    if very_simple_block && comp_level <= 3 {
+                        // 2-3 subsets are unlikely to help much
+                        total_parts2 = 0;
+                        total_parts3 = 0;
+                    } else if very_complex_block {
+                        total_parts2 = PARTS2_VERY_COMPLEX[cl_i];
+                        total_parts3 = PARTS3_VERY_COMPLEX[cl_i];
+                        if global_cfg.extra_patterns_flag {
+                            total_parts2 += if comp_level == 4 { 30 } else { 20 };
+                            total_parts3 += if comp_level == 4 { 30 } else { 20 };
+                        }
+                    } else if complex_block {
+                        total_parts2 = PARTS2_COMPLEX[cl_i];
+                        total_parts3 = PARTS3_COMPLEX[cl_i];
+                        if global_cfg.extra_patterns_flag {
+                            total_parts2 += if comp_level == 4 { 15 } else { 10 };
+                            total_parts3 += if comp_level == 4 { 15 } else { 10 };
+                        }
+                    } else {
+                        total_parts2 = PARTS2_NORMAL[cl_i];
+                        total_parts3 = PARTS3_NORMAL[cl_i];
+                        if global_cfg.extra_patterns_flag {
+                            total_parts2 += 5;
+                            total_parts3 += 5;
+                        }
+                    }
+                    if !any_2subset_enabled {
+                        total_parts2 = 0;
+                    }
+                    if !any_3subset_enabled {
+                        total_parts3 = 0;
+                    }
+                    let total_parts2 = total_parts2 as usize;
+                    let total_parts3 = total_parts3 as usize;
+
+                    let mut best_parts2_mode11 = vec![0i32; NUM_UNIQUE_PARTITIONS2 as usize];
+                    let mut best_parts2_mode7 = vec![0i32; NUM_UNIQUE_PARTITIONS2 as usize];
+                    let mut has_estimated_parts2 = false;
+                    if total_parts2 != 0 {
+                        if global_cfg.brute_force_partition_matching {
+                            let all2: Vec<u32> = (0..NUM_UNIQUE_PARTITIONS2).collect();
+                            if any_2subset_enabled {
+                                estimate_partitions_mode7_and_11(
+                                    2,
+                                    &t.partitions2,
+                                    &all2,
+                                    &bp.half_pixels_as_floats,
+                                    total_parts2,
+                                    &mut best_parts2_mode11,
+                                    &mut best_parts2_mode7,
+                                );
+                            }
+                            has_estimated_parts2 = true;
+                        } else if comp_level >= 1 {
+                            const MAX_CANDIDATES2: usize = 48;
+                            let mut candidate_pats2 = [0i32; MAX_CANDIDATES2 * 2];
+                            let mut num_candidate_pats2 =
+                                ((total_parts2 * 3) / 2).max(if very_complex_block {
+                                    MAX_CANDIDATES2
+                                } else {
+                                    MAX_CANDIDATES2 / 2
+                                });
+                            num_candidate_pats2 = num_candidate_pats2.min(candidate_pats2.len());
+                            has_estimated_parts2 = estimate_partition2_6x6(
+                                &bp.half_pixels,
+                                &mut candidate_pats2,
+                                num_candidate_pats2,
+                            );
+                            if has_estimated_parts2 {
+                                let c: Vec<u32> = candidate_pats2[..num_candidate_pats2]
+                                    .iter()
+                                    .map(|&v| v as u32)
+                                    .collect();
+                                estimate_partitions_mode7_and_11(
+                                    2,
+                                    &t.partitions2,
+                                    &c,
+                                    &bp.half_pixels_as_floats,
+                                    total_parts2,
+                                    &mut best_parts2_mode11,
+                                    &mut best_parts2_mode7,
+                                );
+                            }
+                        } else {
+                            has_estimated_parts2 = estimate_partition2_6x6(
+                                &bp.half_pixels,
+                                &mut best_parts2_mode11,
+                                total_parts2,
+                            );
+                            if has_estimated_parts2 && any_2subset_mode7_enabled {
+                                let src = best_parts2_mode11[..total_parts2].to_vec();
+                                best_parts2_mode7[..total_parts2].copy_from_slice(&src);
+                            }
+                        }
+                    }
+
+                    let mut best_parts3 = vec![0i32; NUM_UNIQUE_PARTITIONS3 as usize];
+                    let mut has_estimated_parts3 = false;
+                    if total_parts3 != 0 {
+                        if global_cfg.brute_force_partition_matching {
+                            let all3: Vec<u32> = (0..NUM_UNIQUE_PARTITIONS3).collect();
+                            estimate_partitions_mode7(
+                                3,
+                                &t.partitions3,
+                                &all3,
+                                &bp.half_pixels_as_floats,
+                                total_parts3,
+                                &mut best_parts3,
+                            );
+                            has_estimated_parts3 = true;
+                        } else {
+                            const MAX_CANDIDATES3: usize = 48;
+                            let mut candidate_pats3 = [0i32; MAX_CANDIDATES3 * 2];
+                            let mut num_candidate_pats3 =
+                                ((total_parts3 * 3) / 2).max(if very_complex_block {
+                                    MAX_CANDIDATES3
+                                } else {
+                                    MAX_CANDIDATES3 / 2
+                                });
+                            num_candidate_pats3 = num_candidate_pats3.min(candidate_pats3.len());
+                            has_estimated_parts3 = estimate_partition3_6x6(
+                                &bp.half_pixels,
+                                &mut candidate_pats3,
+                                num_candidate_pats3,
+                            );
+                            if has_estimated_parts3 {
+                                let c: Vec<u32> = candidate_pats3[..num_candidate_pats3]
+                                    .iter()
+                                    .map(|&v| v as u32)
+                                    .collect();
+                                estimate_partitions_mode7(
+                                    3,
+                                    &t.partitions3,
+                                    &c,
+                                    &bp.half_pixels_as_floats,
+                                    total_parts3,
+                                    &mut best_parts3,
+                                );
+                            }
+                        }
+                    }
+
+                    let mode11_opt_mode = if complex_block {
+                        OptMode::WeightedLeastSquares
+                    } else {
+                        OptMode::OrdinaryLeastSquares
+                    };
+
+                    // ---- Encoded block candidates
+                    for block_mode_iter in 0..BM_TOTAL_MODES as usize {
+                        let md = descs[block_mode_iter];
+                        if !level_allows(block_mode_iter) {
+                            continue;
+                        }
+                        if global_cfg.block_stat_optimizations_flag {
+                            if comp_level <= 3 && md.dp {
+                                let want = if global_cfg.lambda > 0.0
+                                    && !complex_block
+                                    && md.grid_x == 2
+                                    && md.grid_y == 2
+                                {
+                                    desired_dp_chan_2x2
+                                } else {
+                                    desired_dp_chan
+                                };
+                                if md.dp_channel as i32 != want {
+                                    continue;
+                                }
+                            }
+                            if comp_level <= 3 {
+                                let (grid_x, grid_y) = (md.grid_x, md.grid_y);
+                                if !md.dp {
+                                    if very_detailed_block && grid_x * grid_y <= 12 {
+                                        continue;
+                                    }
+                                    if very_blurry_block
+                                        && (grid_x > 4 || grid_y > 4 || md.num_partitions > 1)
+                                    {
+                                        continue;
+                                    }
+                                    if super_blurry_block
+                                        && (grid_x > 3 || grid_y > 3 || md.num_partitions > 1)
+                                    {
+                                        continue;
+                                    }
+                                }
+                                if grid_x != grid_y {
+                                    if grid_x < grid_y {
+                                        if !filter_horizontally {
+                                            continue;
+                                        }
+                                    } else if filter_horizontally {
+                                        continue;
+                                    }
+                                }
+                            }
+                            // Rarely useful if lambda=0
+                            if global_cfg.lambda == 0.0 && md.grid_x == 2 && md.grid_y == 2 {
+                                continue;
+                            }
+                        }
+                        if !use_single_subset_mode7 && md.cem == 7 && md.num_partitions == 1 {
+                            continue;
+                        }
+
+                        for em in 0..EM_TOTAL {
+                            if global_cfg.lambda == 0.0 && em != EM_RAW {
+                                continue;
+                            }
+                            if global_cfg.disable_delta_endpoint_usage
+                                && (em == EM_USE_UPPER_DELTA || em == EM_USE_LEFT_DELTA)
+                            {
+                                continue;
+                            }
+                            if !global_cfg.favor_higher_compression {
+                                if comp_level == 0 && em == EM_USE_UPPER_DELTA {
+                                    continue;
+                                }
+                                if comp_level <= 1 && (em == EM_USE_LEFT || em == EM_USE_UPPER) {
+                                    continue;
+                                }
+                            }
+                            let cem = md.cem;
+                            match em {
+                                EM_USE_LEFT | EM_USE_UPPER => {
+                                    if md.num_partitions > 1 {
+                                        continue;
+                                    }
+                                    if (em == EM_USE_LEFT && !has_left_neighbor)
+                                        || (em == EM_USE_UPPER && !has_upper_neighbor)
+                                    {
+                                        continue;
+                                    }
+                                    let (nx, ny) = if em == EM_USE_LEFT {
+                                        (bx - 1, by)
+                                    } else {
+                                        (bx, by - 1)
+                                    };
+                                    let neighbor_blk =
+                                        &enc_state.coded_blocks[nx as usize + ny as usize * nbx];
+                                    if neighbor_blk.encoding_type == ET_SOLID {
+                                        continue;
+                                    }
+                                    let neighbor_md =
+                                        descs[neighbor_blk.block_mode.max(0) as usize];
+                                    if neighbor_md.cem != cem {
+                                        continue;
+                                    }
+                                    let (grid_x, grid_y) = (md.grid_x, md.grid_y);
+                                    let dual_plane = md.dp;
+                                    let num_endpoint_vals = get_num_endpoint_vals(md.cem);
+                                    let mut candidate = CandidateEncoding::default();
+                                    {
+                                        let cl = &mut candidate.coded_log_blk;
+                                        cl.grid_width = grid_x as u8;
+                                        cl.grid_height = grid_y as u8;
+                                        cl.dual_plane = dual_plane;
+                                        cl.color_component_selector = md.dp_channel as u8;
+                                        cl.num_partitions = 1;
+                                        cl.color_endpoint_modes[0] = neighbor_md.cem as u8;
+                                        cl.weight_ise_range = md.weight_ise_range as u8;
+                                        // Reuse the neighbor's endpoints unchanged (so no loss).
+                                        cl.endpoint_ise_range =
+                                            neighbor_blk.coded_log_blk.endpoint_ise_range;
+                                        cl.endpoints[..num_endpoint_vals].copy_from_slice(
+                                            &neighbor_blk.coded_log_blk.endpoints
+                                                [..num_endpoint_vals],
+                                        );
+                                    }
+                                    let mut transcode_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+                                    requantize_ise_endpoints(
+                                        neighbor_md.cem,
+                                        neighbor_blk.coded_log_blk.endpoint_ise_range as u32,
+                                        &neighbor_blk.coded_log_blk.endpoints,
+                                        md.transcode_endpoint_ise_range,
+                                        &mut transcode_endpoints,
+                                    );
+                                    let levels = ah::get_ise_levels(md.weight_ise_range) as usize;
+                                    let mut decoded_half = [[0 as HalfFloat; 3]; 32];
+                                    let ok = if cem == 7 {
+                                        get_astc_hdr_mode_7_block_colors(
+                                            &transcode_endpoints,
+                                            &mut decoded_half,
+                                            levels,
+                                            md.weight_ise_range,
+                                            md.transcode_endpoint_ise_range,
+                                        )
+                                    } else {
+                                        get_astc_hdr_mode_11_block_colors(
+                                            &transcode_endpoints,
+                                            &mut decoded_half,
+                                            levels,
+                                            md.weight_ise_range,
+                                            md.transcode_endpoint_ise_range,
+                                        )
+                                    };
+                                    if !ok {
+                                        continue;
+                                    }
+                                    let mut trial_weights0 = [0u8; 36];
+                                    let mut trial_weights1 = [0u8; 36];
+                                    let wr = md.weight_ise_range;
+                                    if dual_plane {
+                                        eval_selectors_dual_plane(
+                                            md.dp_channel as usize,
+                                            36,
+                                            &mut trial_weights0,
+                                            &mut trial_weights1,
+                                            &bp.half_pixels,
+                                            levels,
+                                            &decoded_half,
+                                            &coptions,
+                                            u32::MAX,
+                                        );
+                                        downsample_ise_weights_dual_plane(
+                                            wr,
+                                            wr,
+                                            6,
+                                            6,
+                                            grid_x,
+                                            grid_y,
+                                            &trial_weights0,
+                                            &trial_weights1,
+                                            &mut candidate.coded_log_blk.weights,
+                                        );
+                                    } else {
+                                        eval_selectors(
+                                            36,
+                                            &mut trial_weights0,
+                                            wr,
+                                            &bp.half_pixels,
+                                            levels,
+                                            &decoded_half,
+                                            &coptions,
+                                            u32::MAX,
+                                        );
+                                        downsample_ise_weights(
+                                            wr,
+                                            wr,
+                                            6,
+                                            6,
+                                            grid_x,
+                                            grid_y,
+                                            &trial_weights0,
+                                            &mut candidate.coded_log_blk.weights,
+                                        );
+                                    }
+                                    pack_weights_and_decomp(
+                                        &mut candidate,
+                                        &md,
+                                        &transcode_endpoints,
+                                        use_orig_behavior,
+                                    );
+                                    if !validate_log_blk(&candidate.decomp_log_blk) {
+                                        return false;
+                                    }
+                                    if !decode_astc_block(
+                                        &candidate.decomp_log_blk,
+                                        &mut candidate.comp_pixels,
+                                    ) {
+                                        return false;
+                                    }
+                                    candidate.coder.put_bits(BLOCK_CODE, BLOCK_CODE_LEN);
+                                    let cl = candidate.coded_log_blk;
+                                    code_block(
+                                        &mut candidate.coder,
+                                        &cl,
+                                        block_mode_iter as u32,
+                                        em,
+                                        None,
+                                    );
+                                    candidate.encoding_type = ET_BLOCK;
+                                    candidate.endpoint_mode = em as i32;
+                                    candidate.block_mode = block_mode_iter as i32;
+                                    candidates.push(candidate);
+                                }
+                                EM_USE_LEFT_DELTA | EM_USE_UPPER_DELTA => {
+                                    if md.num_partitions > 1 {
+                                        continue;
+                                    }
+                                    if (em == EM_USE_LEFT_DELTA && !has_left_neighbor)
+                                        || (em == EM_USE_UPPER_DELTA && !has_upper_neighbor)
+                                    {
+                                        continue;
+                                    }
+                                    let (nx, ny) = if em == EM_USE_LEFT_DELTA {
+                                        (bx - 1, by)
+                                    } else {
+                                        (bx, by - 1)
+                                    };
+                                    let neighbor_blk =
+                                        &enc_state.coded_blocks[nx as usize + ny as usize * nbx];
+                                    if neighbor_blk.encoding_type == ET_SOLID {
+                                        continue;
+                                    }
+                                    let neighbor_md =
+                                        descs[neighbor_blk.block_mode.max(0) as usize];
+                                    if neighbor_md.cem != cem {
+                                        continue;
+                                    }
+                                    let (grid_x, grid_y) = (md.grid_x, md.grid_y);
+                                    let dual_plane = md.dp;
+                                    let num_endpoint_vals = get_num_endpoint_vals(md.cem);
+                                    // Dequantize neighbor's endpoints to ISE 20
+                                    let mut neighbor_endpoints_ise20 = [0u8; NUM_MODE11_ENDPOINTS];
+                                    requantize_ise_endpoints(
+                                        neighbor_md.cem,
+                                        neighbor_blk.coded_log_blk.endpoint_ise_range as u32,
+                                        &neighbor_blk.coded_log_blk.endpoints,
+                                        ah::BISE_256_LEVELS,
+                                        &mut neighbor_endpoints_ise20,
+                                    );
+                                    // Requantize neighbor's endpoints to our local coding ISE range
+                                    let mut neighbor_local = [0u8; NUM_MODE11_ENDPOINTS];
+                                    requantize_ise_endpoints(
+                                        neighbor_md.cem,
+                                        ah::BISE_256_LEVELS,
+                                        &neighbor_endpoints_ise20,
+                                        md.endpoint_ise_range,
+                                        &mut neighbor_local,
+                                    );
+                                    let mut blk_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+                                    let mut blk_weights0 = [0u8; 36];
+                                    let mut blk_weights1 = [0u8; 36];
+                                    let mut best_submode = 0u32;
+                                    let err = if cem == 7 {
+                                        let (submode_index, _maj) =
+                                            decode_cem_7_config(&neighbor_endpoints_ise20);
+                                        encode_astc_hdr_block_mode_7(
+                                            36,
+                                            &bp.half_pixels,
+                                            &bp.block_pixels_q16,
+                                            md.weight_ise_range,
+                                            &mut best_submode,
+                                            BIG_FLOAT_VAL as f64,
+                                            &mut blk_endpoints,
+                                            &mut blk_weights0,
+                                            &coptions,
+                                            md.endpoint_ise_range,
+                                            submode_index,
+                                            submode_index,
+                                            Some(&enc_block_stats),
+                                        )
+                                    } else {
+                                        let (submode_index, maj_index) =
+                                            decode_cem_11_config(&neighbor_endpoints_ise20);
+                                        let (first_submode, last_submode) = if maj_index == 3 {
+                                            (-1, -1)
+                                        } else {
+                                            (submode_index, submode_index)
+                                        };
+                                        if dual_plane {
+                                            encode_astc_hdr_block_mode_11_dual_plane(
+                                                36,
+                                                &bp.half_pixels,
+                                                &bp.block_pixels_q16,
+                                                md.dp_channel as usize,
+                                                md.weight_ise_range,
+                                                &mut best_submode,
+                                                BIG_FLOAT_VAL as f64,
+                                                &mut blk_endpoints,
+                                                &mut blk_weights0,
+                                                &mut blk_weights1,
+                                                &coptions,
+                                                false,
+                                                md.endpoint_ise_range,
+                                                false,
+                                                false,
+                                                first_submode,
+                                                last_submode,
+                                                true,
+                                            )
+                                        } else {
+                                            encode_astc_hdr_block_mode_11(
+                                                36,
+                                                &bp.half_pixels,
+                                                &bp.block_pixels_q16,
+                                                md.weight_ise_range,
+                                                &mut best_submode,
+                                                BIG_FLOAT_VAL as f64,
+                                                &mut blk_endpoints,
+                                                &mut blk_weights0,
+                                                &coptions,
+                                                false,
+                                                md.endpoint_ise_range,
+                                                false,
+                                                false,
+                                                first_submode,
+                                                last_submode,
+                                                true,
+                                                mode11_opt_mode,
+                                                Some(&enc_block_stats),
+                                            )
+                                        }
+                                    };
+                                    if err == BIG_FLOAT_VAL as f64 {
+                                        continue;
+                                    }
+                                    // 5 bits per endpoint delta, computed in ISE rank space.
+                                    let total_endpoint_delta_vals =
+                                        1i32 << super::astc_6x6_hdr::NUM_ENDPOINT_DELTA_BITS;
+                                    let low_delta_limit = -(total_endpoint_delta_vals / 2);
+                                    let high_delta_limit = (total_endpoint_delta_vals / 2) - 1;
+                                    let ise_to_rank = &dequant_tables()
+                                        .endpoint_tab(md.endpoint_ise_range)
+                                        .ise_to_rank;
+                                    let rank = |v: u8| {
+                                        ise_to_rank.get(v as usize).copied().unwrap_or(0) as i32
+                                    };
+                                    let mut all_deltas_in_limits = true;
+                                    let mut endpoint_deltas = [0u8; NUM_MODE11_ENDPOINTS];
+                                    for i in 0..num_endpoint_vals {
+                                        let endpoint_delta =
+                                            rank(blk_endpoints[i]) - rank(neighbor_local[i]);
+                                        if endpoint_delta < low_delta_limit
+                                            || endpoint_delta > high_delta_limit
+                                        {
+                                            all_deltas_in_limits = false;
+                                        }
+                                        endpoint_deltas[i] =
+                                            (endpoint_delta - low_delta_limit) as u8;
+                                    }
+                                    if !all_deltas_in_limits {
+                                        continue;
+                                    }
+                                    let mut candidate = CandidateEncoding::default();
+                                    {
+                                        let cl = &mut candidate.coded_log_blk;
+                                        cl.grid_width = grid_x as u8;
+                                        cl.grid_height = grid_y as u8;
+                                        cl.dual_plane = dual_plane;
+                                        cl.color_component_selector = md.dp_channel as u8;
+                                        cl.num_partitions = 1;
+                                        cl.color_endpoint_modes[0] = md.cem as u8;
+                                        cl.weight_ise_range = md.weight_ise_range as u8;
+                                        cl.endpoint_ise_range = md.endpoint_ise_range as u8;
+                                        cl.endpoints[..num_endpoint_vals]
+                                            .copy_from_slice(&blk_endpoints[..num_endpoint_vals]);
+                                    }
+                                    let mut transcode_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+                                    requantize_ise_endpoints(
+                                        md.cem,
+                                        md.endpoint_ise_range,
+                                        &blk_endpoints,
+                                        md.transcode_endpoint_ise_range,
+                                        &mut transcode_endpoints,
+                                    );
+                                    let wr = md.weight_ise_range;
+                                    if dual_plane {
+                                        downsample_ise_weights_dual_plane(
+                                            wr,
+                                            wr,
+                                            6,
+                                            6,
+                                            grid_x,
+                                            grid_y,
+                                            &blk_weights0,
+                                            &blk_weights1,
+                                            &mut candidate.coded_log_blk.weights,
+                                        );
+                                    } else {
+                                        downsample_ise_weights(
+                                            wr,
+                                            wr,
+                                            6,
+                                            6,
+                                            grid_x,
+                                            grid_y,
+                                            &blk_weights0,
+                                            &mut candidate.coded_log_blk.weights,
+                                        );
+                                    }
+                                    pack_weights_and_decomp(
+                                        &mut candidate,
+                                        &md,
+                                        &transcode_endpoints,
+                                        use_orig_behavior,
+                                    );
+                                    if !validate_log_blk(&candidate.decomp_log_blk) {
+                                        return false;
+                                    }
+                                    if !decode_astc_block(
+                                        &candidate.decomp_log_blk,
+                                        &mut candidate.comp_pixels,
+                                    ) {
+                                        return false;
+                                    }
+                                    candidate.coder.put_bits(BLOCK_CODE, BLOCK_CODE_LEN);
+                                    let cl = candidate.coded_log_blk;
+                                    code_block(
+                                        &mut candidate.coder,
+                                        &cl,
+                                        block_mode_iter as u32,
+                                        em,
+                                        Some(&endpoint_deltas),
+                                    );
+                                    candidate.encoding_type = ET_BLOCK;
+                                    candidate.endpoint_mode = em as i32;
+                                    candidate.block_mode = block_mode_iter as i32;
+                                    candidates.push(candidate);
+                                }
+                                _ => {
+                                    // EM_RAW
+                                    let dual_plane = md.dp;
+                                    if global_cfg.disable_twothree_subsets && md.num_partitions >= 2
+                                    {
+                                        continue;
+                                    }
+                                    if md.num_partitions == 3 {
+                                        if !has_estimated_parts3 {
+                                            continue;
+                                        }
+                                        let mut res = TrialResult::default();
+                                        if !encode_block_3_subsets(
+                                            &mut res,
+                                            cem,
+                                            md.grid_x,
+                                            md.grid_y,
+                                            md.weight_ise_range,
+                                            md.endpoint_ise_range,
+                                            &bp.half_pixels,
+                                            &bp.block_pixels_q16,
+                                            &coptions,
+                                            uber_mode_flag,
+                                            &best_parts3,
+                                            total_parts3,
+                                            comp_level,
+                                            mode11_opt_mode,
+                                        ) {
+                                            continue;
+                                        }
+                                        let mut candidate = CandidateEncoding {
+                                            coded_log_blk: res.log_blk,
+                                            decomp_log_blk: res.log_blk,
+                                            ..Default::default()
+                                        };
+                                        if !validate_log_blk(&candidate.decomp_log_blk) {
+                                            return false;
+                                        }
+                                        if !decode_astc_block(
+                                            &candidate.decomp_log_blk,
+                                            &mut candidate.comp_pixels,
+                                        ) {
+                                            return false;
+                                        }
+                                        candidate.coder.put_bits(BLOCK_CODE, BLOCK_CODE_LEN);
+                                        let cl = candidate.coded_log_blk;
+                                        code_block(
+                                            &mut candidate.coder,
+                                            &cl,
+                                            block_mode_iter as u32,
+                                            em,
+                                            None,
+                                        );
+                                        candidate.encoding_type = ET_BLOCK;
+                                        candidate.endpoint_mode = em as i32;
+                                        candidate.block_mode = block_mode_iter as i32;
+                                        candidates.push(candidate);
+                                    } else if md.num_partitions == 2 {
+                                        if !has_estimated_parts2 {
+                                            continue;
+                                        }
+                                        for est_part_iter in 0..total_parts2 {
+                                            let mut results = [TrialResult::default(); 2];
+                                            let pat = if cem == 11 {
+                                                best_parts2_mode11[est_part_iter]
+                                            } else {
+                                                best_parts2_mode7[est_part_iter]
+                                            };
+                                            if !encode_block_2_subsets(
+                                                &mut results,
+                                                md.grid_x,
+                                                md.grid_y,
+                                                md.cem,
+                                                md.weight_ise_range,
+                                                md.endpoint_ise_range,
+                                                &bp.half_pixels,
+                                                &bp.block_pixels_q16,
+                                                &coptions,
+                                                uber_mode_flag,
+                                                pat,
+                                                comp_level,
+                                                mode11_opt_mode,
+                                                true,
+                                            ) {
+                                                continue;
+                                            }
+                                            for res in results.iter() {
+                                                if !res.valid {
+                                                    continue;
+                                                }
+                                                let mut candidate = CandidateEncoding {
+                                                    coded_log_blk: res.log_blk,
+                                                    decomp_log_blk: res.log_blk,
+                                                    ..Default::default()
+                                                };
+                                                if !validate_log_blk(&candidate.decomp_log_blk) {
+                                                    return false;
+                                                }
+                                                if !decode_astc_block(
+                                                    &candidate.decomp_log_blk,
+                                                    &mut candidate.comp_pixels,
+                                                ) {
+                                                    return false;
+                                                }
+                                                candidate
+                                                    .coder
+                                                    .put_bits(BLOCK_CODE, BLOCK_CODE_LEN);
+                                                let cl = candidate.coded_log_blk;
+                                                code_block(
+                                                    &mut candidate.coder,
+                                                    &cl,
+                                                    block_mode_iter as u32,
+                                                    em,
+                                                    None,
+                                                );
+                                                candidate.encoding_type = ET_BLOCK;
+                                                candidate.endpoint_mode = em as i32;
+                                                candidate.block_mode = block_mode_iter as i32;
+                                                candidates.push(candidate);
+                                            }
+                                        }
+                                    } else {
+                                        // 1 subset
+                                        let mut blk_weights0 = [0u8; 36];
+                                        let mut blk_weights1 = [0u8; 36];
+                                        let mut best_submode = 0u32;
+                                        let mut candidate = CandidateEncoding::default();
+                                        let (grid_x, grid_y) = (md.grid_x, md.grid_y);
+                                        {
+                                            let cl = &mut candidate.coded_log_blk;
+                                            cl.grid_width = grid_x as u8;
+                                            cl.grid_height = grid_y as u8;
+                                            cl.dual_plane = dual_plane;
+                                            cl.color_component_selector = md.dp_channel as u8;
+                                            cl.num_partitions = 1;
+                                            cl.color_endpoint_modes[0] = md.cem as u8;
+                                            cl.weight_ise_range = md.weight_ise_range as u8;
+                                            cl.endpoint_ise_range = md.endpoint_ise_range as u8;
+                                        }
+                                        if cem == 11 && !dual_plane && (grid_x < 6 || grid_y < 6) {
+                                            let cl = &mut candidate.coded_log_blk;
+                                            let e = encode_astc_hdr_block_downsampled_mode_11(
+                                                6,
+                                                6,
+                                                grid_x,
+                                                grid_y,
+                                                md.weight_ise_range,
+                                                md.endpoint_ise_range,
+                                                36,
+                                                &bp.half_pixels,
+                                                &bp.block_pixels_q16,
+                                                BIG_FLOAT_VAL as f64,
+                                                -1,
+                                                7,
+                                                false,
+                                                mode11_opt_mode,
+                                                &mut cl.endpoints,
+                                                &mut cl.weights,
+                                                &mut best_submode,
+                                                &coptions,
+                                                Some(&enc_block_stats),
+                                            );
+                                            if e == BIG_FLOAT_VAL as f64 {
+                                                continue;
+                                            }
+                                        } else {
+                                            if cem == 7 {
+                                                encode_astc_hdr_block_mode_7(
+                                                    36,
+                                                    &bp.half_pixels,
+                                                    &bp.block_pixels_q16,
+                                                    md.weight_ise_range,
+                                                    &mut best_submode,
+                                                    BIG_FLOAT_VAL as f64,
+                                                    &mut candidate.coded_log_blk.endpoints,
+                                                    &mut blk_weights0,
+                                                    &coptions,
+                                                    md.endpoint_ise_range,
+                                                    0,
+                                                    5,
+                                                    Some(&enc_block_stats),
+                                                );
+                                            } else {
+                                                let e = if dual_plane {
+                                                    encode_astc_hdr_block_mode_11_dual_plane(
+                                                        36,
+                                                        &bp.half_pixels,
+                                                        &bp.block_pixels_q16,
+                                                        md.dp_channel as usize,
+                                                        md.weight_ise_range,
+                                                        &mut best_submode,
+                                                        BIG_FLOAT_VAL as f64,
+                                                        &mut candidate.coded_log_blk.endpoints,
+                                                        &mut blk_weights0,
+                                                        &mut blk_weights1,
+                                                        &coptions,
+                                                        false,
+                                                        md.endpoint_ise_range,
+                                                        uber_mode_flag,
+                                                        false,
+                                                        -1,
+                                                        7,
+                                                        false,
+                                                    )
+                                                } else {
+                                                    encode_astc_hdr_block_mode_11(
+                                                        36,
+                                                        &bp.half_pixels,
+                                                        &bp.block_pixels_q16,
+                                                        md.weight_ise_range,
+                                                        &mut best_submode,
+                                                        BIG_FLOAT_VAL as f64,
+                                                        &mut candidate.coded_log_blk.endpoints,
+                                                        &mut blk_weights0,
+                                                        &coptions,
+                                                        false,
+                                                        md.endpoint_ise_range,
+                                                        uber_mode_flag,
+                                                        false,
+                                                        -1,
+                                                        7,
+                                                        false,
+                                                        mode11_opt_mode,
+                                                        Some(&enc_block_stats),
+                                                    )
+                                                };
+                                                if e == BIG_FLOAT_VAL as f64 {
+                                                    continue;
+                                                }
+                                            }
+                                            let wr = md.weight_ise_range;
+                                            if dual_plane {
+                                                downsample_ise_weights_dual_plane(
+                                                    wr,
+                                                    wr,
+                                                    6,
+                                                    6,
+                                                    grid_x,
+                                                    grid_y,
+                                                    &blk_weights0,
+                                                    &blk_weights1,
+                                                    &mut candidate.coded_log_blk.weights,
+                                                );
+                                            } else {
+                                                downsample_ise_weights(
+                                                    wr,
+                                                    wr,
+                                                    6,
+                                                    6,
+                                                    grid_x,
+                                                    grid_y,
+                                                    &blk_weights0,
+                                                    &mut candidate.coded_log_blk.weights,
+                                                );
+                                                if grid_x < 6 || grid_y < 6 {
+                                                    let cl = &mut candidate.coded_log_blk;
+                                                    let weights = cl.weights;
+                                                    refine_endpoints(
+                                                        cem,
+                                                        md.endpoint_ise_range,
+                                                        &mut cl.endpoints,
+                                                        6,
+                                                        6,
+                                                        grid_x,
+                                                        grid_y,
+                                                        &weights,
+                                                        wr,
+                                                        36,
+                                                        &bp.half_pixels,
+                                                        &bp.block_pixels_q16,
+                                                        None,
+                                                        &coptions,
+                                                        mode11_opt_mode,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        let mut transcode_endpoints = [0u8; NUM_MODE11_ENDPOINTS];
+                                        requantize_ise_endpoints(
+                                            md.cem,
+                                            md.endpoint_ise_range,
+                                            &candidate.coded_log_blk.endpoints,
+                                            md.transcode_endpoint_ise_range,
+                                            &mut transcode_endpoints,
+                                        );
+                                        pack_weights_and_decomp(
+                                            &mut candidate,
+                                            &md,
+                                            &transcode_endpoints,
+                                            use_orig_behavior,
+                                        );
+                                        if !validate_log_blk(&candidate.decomp_log_blk) {
+                                            return false;
+                                        }
+                                        if !decode_astc_block(
+                                            &candidate.decomp_log_blk,
+                                            &mut candidate.comp_pixels,
+                                        ) {
+                                            return false;
+                                        }
+                                        candidate.coder.put_bits(BLOCK_CODE, BLOCK_CODE_LEN);
+                                        let cl = candidate.coded_log_blk;
+                                        code_block(
+                                            &mut candidate.coder,
+                                            &cl,
+                                            block_mode_iter as u32,
+                                            em,
+                                            None,
+                                        );
+                                        candidate.encoding_type = ET_BLOCK;
+                                        candidate.endpoint_mode = em as i32;
+                                        candidate.block_mode = block_mode_iter as i32;
+                                        candidates.push(candidate);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //------------------------------------------------
+                for candidate in candidates.iter_mut() {
+                    for i in 0..36 {
+                        candidate.comp_pixels_itp[i] =
+                            linear_rgb_to_itp(candidate.comp_pixels[i], global_cfg);
+                    }
+                }
+
+                // Find best overall candidate
+                let mut best_t = f64::MAX;
+                let mut best_candidate_index: i32 = -1;
+                let mut best_d_ssim = BIG_FLOAT_VAL;
+
+                let candidate_mse_of = |candidate: &CandidateEncoding,
+                                        best_d_ssim: &mut f32|
+                 -> f32 {
+                    let mut d_ssim = 1.0
+                        - compute_block_ssim_itp(
+                            &bp.block_pixels_as_itp,
+                            &candidate.comp_pixels_itp,
+                        );
+                    if d_ssim < *best_d_ssim {
+                        *best_d_ssim = d_ssim;
+                    }
+                    d_ssim *= SSIM_WEIGHT;
+                    let mut candidate_mse = MSE_WEIGHT
+                        * compute_block_mse_itp(
+                            &bp.block_pixels_as_itp,
+                            &candidate.comp_pixels_itp,
+                            global_cfg.delta_itp_dark_adjustment,
+                        );
+                    candidate_mse += d_ssim;
+                    let mut total_deblock_penalty = 0f32;
+                    if global_cfg.deblocking_flag {
+                        total_deblock_penalty = calc_deblocking_penalty_itp(
+                            bx,
+                            by,
+                            width,
+                            height,
+                            pass_src_img_itp,
+                            &candidate.comp_pixels_itp,
+                        ) * global_cfg.deblock_penalty_weight;
+                    }
+                    candidate_mse += total_deblock_penalty * SSIM_WEIGHT;
+                    if (candidate.encoding_type == ET_BLOCK || candidate.encoding_type == ET_REUSE)
+                        && complex_block
+                    {
+                        // Bias the encoder away from 2 level blocks and small grids on complex blocks
+                        if candidate.coded_log_blk.weight_ise_range as u32 == ah::BISE_2_LEVELS {
+                            candidate_mse *= TWO_LEVEL_PENALTY;
+                        }
+                        let (gw, gh) = (
+                            candidate.coded_log_blk.grid_width,
+                            candidate.coded_log_blk.grid_height,
+                        );
+                        if gw == 2 && gh == 2 {
+                            candidate_mse *= COMPLEX_BLOCK_WEIGHT_GRID_2X2_MSE_PENALTY;
+                        } else if gw.min(gh) <= 3 {
+                            candidate_mse *= COMPLEX_BLOCK_WEIGHT_GRID_3X3_MSE_PENALTY;
+                        } else if gw.min(gh) <= 4 {
+                            candidate_mse *= COMPLEX_BLOCK_WEIGHT_GRID_4X4_MSE_PENALTY;
+                        }
+                    }
+                    candidate_mse
+                };
+
+                let block_y_contrast_ratio = block_hy / (block_ly + 0.00000125);
+                let gaussian1 = |best_d_ssim: f32| {
+                    global_cfg.gaussian1_fallback
+                        && outer_pass == 0
+                        && very_complex_block
+                        && best_d_ssim > SWITCH_TO_GAUSSIAN_FILTERED_THRESH1_D_SSIM
+                };
+                let gaussian2 = |best_d_ssim: f32| {
+                    global_cfg.gaussian2_fallback
+                        && comp_level >= 1
+                        && outer_pass == 1
+                        && very_complex_block
+                        && best_d_ssim > SWITCH_TO_GAUSSIAN_FILTERED_THRESH2_D_SSIM
+                        && block_hy >= 18.0
+                        && block_y_contrast_ratio > 150.0
+                        && block_avg_y >= 1.5
+                };
+
+                if global_cfg.lambda == 0.0 {
+                    for (ci, candidate) in candidates.iter().enumerate() {
+                        let candidate_t = candidate_mse_of(candidate, &mut best_d_ssim);
+                        if (candidate_t as f64) < best_t {
+                            best_t = candidate_t as f64;
+                            best_candidate_index = ci as i32;
+                        }
+                    }
+                    if gaussian1(best_d_ssim) || gaussian2(best_d_ssim) {
+                        outer_pass += 1;
+                        continue;
+                    }
+                } else {
+                    // Compute block's perceptual weighting
+                    let mut perceptual_scale = 0f32;
+                    for y in 0..6 {
+                        for x in 0..6 {
+                            let sx = (bx * 6 + x).min(width - 1);
+                            let sy = (by * 6 + y).min(height - 1);
+                            let v = enc_state.smooth_block_mse_scales[(sx + sy * width) as usize];
+                            perceptual_scale = if perceptual_scale > v {
+                                perceptual_scale
+                            } else {
+                                v
+                            };
+                        }
+                    }
+                    // Very roughly normalize the computed distortion vs. bits.
+                    perceptual_scale *= 10.0;
+                    let mut tdb: Vec<(f64, f64, f32)> = Vec::with_capacity(candidates.len());
+                    for (ci, candidate) in candidates.iter().enumerate() {
+                        let candidate_mse = candidate_mse_of(candidate, &mut best_d_ssim);
+                        let mut mode_penalty = 1.0f32;
+                        if candidate.encoding_type == ET_SOLID {
+                            mode_penalty *= SOLID_PENALTY;
+                        } else if candidate.encoding_type == ET_REUSE {
+                            mode_penalty *= REUSE_PENALTY;
+                        } else if candidate.encoding_type == ET_RUN {
+                            mode_penalty *= if complex_block {
+                                RUN_PENALTY * 2.0
+                            } else {
+                                RUN_PENALTY
+                            };
+                        }
+                        let candidate_bits = candidate.coder.get_total_bits() as f32;
+                        let candidate_d = candidate_mse as f64 * mode_penalty as f64;
+                        // pow(d, 2.0) is a multiply (both compilers fold it).
+                        let candidate_t = perceptual_scale as f64 * (candidate_d * candidate_d)
+                            + (candidate_bits * (global_cfg.lambda * 1000.0)) as f64;
+                        tdb.push((candidate_t, candidate_d, candidate_bits));
+                        if candidate_t < best_t {
+                            best_t = candidate_t;
+                            best_candidate_index = ci as i32;
+                        }
+                    }
+                    for (c, v) in candidates.iter_mut().zip(tdb) {
+                        c.t = v.0;
+                        c.d = v.1;
+                        c.bits = v.2;
+                    }
+                    if best_candidate_index < 0 {
+                        // Should never happen
+                        best_candidate_index = 0;
+                    }
+                    if gaussian1(best_d_ssim) || gaussian2(best_d_ssim) {
+                        outer_pass += 1;
+                        continue;
+                    }
+                    if global_cfg.rdo_candidate_diversity_boost {
+                        // consider candidates along/near the Pareto front
+                        let comp_bits = candidates[best_candidate_index as usize].bits;
+                        let mut best_d = f64::MAX;
+                        for (ci, candidate) in candidates.iter().enumerate() {
+                            if candidate.bits
+                                <= comp_bits
+                                    * global_cfg.rdo_candidate_diversity_boost_bit_window_weight
+                                && candidate.d < best_d
+                            {
+                                best_d = candidate.d;
+                                best_candidate_index = ci as i32;
+                            }
+                        }
+                    }
+                    if global_cfg.jnd_optimization {
+                        // a cheaper to code candidate that is nearly equivalent visually
+                        let cur = &candidates[best_candidate_index as usize];
+                        let mut new_best_candidate_bits = BIG_FLOAT_VAL;
+                        let mut new_best_candidate_index: i32 = -1;
+                        for (ci, candidate) in candidates.iter().enumerate() {
+                            if ci as i32 == best_candidate_index || candidate.bits >= cur.bits {
+                                continue;
+                            }
+                            let mut max_delta_itp = 0f32;
+                            for i in 0..36 {
+                                let delta_itp = compute_pixel_delta_itp(
+                                    cur.comp_pixels_itp[i],
+                                    candidate.comp_pixels_itp[i],
+                                    bp.block_pixels_as_itp[i],
+                                    global_cfg.delta_itp_dark_adjustment,
+                                );
+                                max_delta_itp = maxf(max_delta_itp, delta_itp);
+                                if max_delta_itp >= global_cfg.jnd_delta_itp_thresh {
+                                    break;
+                                }
+                            }
+                            if max_delta_itp >= global_cfg.jnd_delta_itp_thresh {
+                                continue;
+                            }
+                            if candidate.bits < new_best_candidate_bits {
+                                new_best_candidate_bits = candidate.bits;
+                                new_best_candidate_index = ci as i32;
+                            }
+                        }
+                        if new_best_candidate_index != -1 {
+                            best_candidate_index = new_best_candidate_index;
+                        }
+                    }
+                }
+
+                if best_candidate_index < 0 {
+                    return false;
+                }
+                let best_candidate = &candidates[best_candidate_index as usize];
+                if best_candidate.encoding_type == ET_RUN {
+                    if prev_run_len == 0 {
+                        if prev_encoding.get_total_bits() != 0 {
+                            strip_coded_bits.append(&prev_encoding);
+                        }
+                        prev_encoding = best_candidate.coder.clone();
+                        prev_run_len = 1;
+                    } else {
+                        prev_run_len += 1;
+                        // Rewrite the previous encoding to extend the run length.
+                        prev_encoding.restart();
+                        prev_encoding.put_bits(RUN_CODE, RUN_CODE_LEN);
+                        prev_encoding.put_vlc(prev_run_len - 1, 5);
+                    }
+                } else {
+                    if prev_encoding.get_total_bits() != 0 {
+                        strip_coded_bits.append(&prev_encoding);
+                    }
+                    prev_encoding = best_candidate.coder.clone();
+                    prev_run_len = 0;
+                }
+                prev_comp_pixels = best_candidate.comp_pixels;
+                if best_candidate.encoding_type != ET_RUN {
+                    prev_non_run_candidate_encoding = best_candidate.clone();
+                }
+                let bi = bx as usize + by as usize * nbx;
+                enc_state.coded_blocks[bi] = prev_non_run_candidate_encoding.clone();
+                if !pack_astc_block(
+                    &mut enc_state.final_astc_blocks[bi],
+                    &best_candidate.decomp_log_blk,
+                ) {
+                    return false;
+                }
+                break;
+            }
+        }
+    }
+    if prev_encoding.get_total_bits() != 0 {
+        strip_coded_bits.append(&prev_encoding);
+    }
+    enc_state.strip_bits[strip_index] = strip_coded_bits;
+    true
+}
+
+#[inline]
+fn minf32(a: f32, b: f32) -> f32 {
+    if a < b { a } else { b }
+}
+
+/// `compress_photo`: encodes an HDR image to the UASTC HDR 6x6 intermediate format. Returns
+/// (intermediate data, ASTC 6x6 blocks), or `None` on failure. `total_threads` is the job pool
+/// size, which sets the strip count at lambda 0 (strips are encoded in order here; they are
+/// independent, so the output only depends on the count). Image statistics are not ported.
+pub fn compress_photo(
+    orig_src_img: &ImageF,
+    orig_global_cfg: &AstcHdr6x6GlobalConfig,
+    total_threads: u32,
+) -> Option<(Vec<u8>, Vec<u8>)> {
+    let (width, height) = (orig_src_img.get_width(), orig_src_img.get_height());
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let mut global_cfg = *orig_global_cfg;
+    let mut src_img = orig_src_img.clone();
+    for p in src_img.get_pixels_mut() {
+        for f in p.iter_mut().take(3) {
+            if f.is_infinite() || f.is_nan() || *f < 0.0 {
+                *f = 0.0;
+            } else if *f > ASTC_HDR_MAX_VAL {
+                *f = ASTC_HDR_MAX_VAL;
+            }
+        }
+    }
+    let num_blocks_x = width.div_ceil(6);
+    let num_blocks_y = height.div_ceil(6);
+    let total_blocks = (num_blocks_x * num_blocks_y) as usize;
+
+    let mut smooth_block_mse_scales = Vec::new();
+    if global_cfg.lambda != 0.0 {
+        let (src_img_compressed, _) = tonemap_image_compressive2(&src_img);
+        smooth_block_mse_scales =
+            create_smooth_maps2(&src_img_compressed, &SmoothMapParams::default());
+    }
+    let mut src_img_filtered1 = ImageF::with_size(width, height);
+    image_resample_f(
+        &src_img,
+        &mut src_img_filtered1,
+        "gaussian",
+        global_cfg.gaussian1_strength,
+    );
+    let mut src_img_filtered2 = ImageF::with_size(width, height);
+    image_resample_f(
+        &src_img,
+        &mut src_img_filtered2,
+        "gaussian",
+        global_cfg.gaussian2_strength,
+    );
+    let src_img_itp = convert_rgb_image_to_itp(&src_img, &global_cfg);
+    let src_img_filtered1_itp = convert_rgb_image_to_itp(&src_img_filtered1, &global_cfg);
+    let src_img_filtered2_itp = convert_rgb_image_to_itp(&src_img_filtered2, &global_cfg);
+    if global_cfg.lambda == 0.0 {
+        global_cfg.favor_higher_compression = false;
+    }
+    let (total_strips, rows_per_strip) = calc_strip_size(
+        global_cfg.lambda,
+        num_blocks_y,
+        total_threads.max(1),
+        global_cfg.force_one_strip,
+    )?;
+
+    let master_coptions = AstcHdrCodecBaseOptions {
+        q_log_bias: Q_LOG_BIAS_6X6,
+        ..Default::default()
+    };
+    let mut enc_state = EncodeState {
+        master_coptions,
+        src_img,
+        src_img_filtered1,
+        src_img_filtered2,
+        src_img_itp,
+        src_img_filtered1_itp,
+        src_img_filtered2_itp,
+        smooth_block_mse_scales,
+        strip_bits: vec![BitwiseCoder::new(); total_strips as usize],
+        final_astc_blocks: vec![[0u8; 16]; total_blocks],
+        coded_blocks: vec![CandidateEncoding::default(); total_blocks],
+    };
+
+    let mut coded_bits = BitwiseCoder::new();
+    // For Basis v1.60 files write the original marker, otherwise write the new marker.
+    coded_bits.put_bits(
+        if global_cfg.write_basisu_1_6_compatible_files {
+            super::astc_6x6_hdr::UASTC_6X6_HDR_SIG0
+        } else {
+            super::astc_6x6_hdr::UASTC_6X6_HDR_SIG1
+        },
+        16,
+    );
+    coded_bits.put_bits(width, 16);
+    coded_bits.put_bits(height, 16);
+
+    for strip_index in 0..total_strips {
+        let strip_first_by = strip_index * rows_per_strip;
+        let mut strip_last_by = (strip_first_by + rows_per_strip - 1).min(num_blocks_y);
+        if strip_index == total_strips - 1 {
+            strip_last_by = num_blocks_y - 1;
+        }
+        if !compress_strip_task(
+            strip_index as usize,
+            strip_first_by,
+            strip_last_by,
+            num_blocks_x,
+            width,
+            height,
+            &global_cfg,
+            &mut enc_state,
+        ) {
+            return None;
+        }
+    }
+    for s in &enc_state.strip_bits {
+        coded_bits.append(s);
+    }
+    coded_bits.put_bits(0xA742, 16);
+    coded_bits.flush();
+    let intermediate = coded_bits.get_bytes().clone();
+
+    // Verify the output decodes to the blocks the encoder chose.
+    let decoded = super::astc_6x6_hdr::decode_6x6_hdr(&intermediate)?;
+    if decoded.blocks != enc_state.final_astc_blocks {
+        return None;
+    }
+    let astc: Vec<u8> = enc_state
+        .final_astc_blocks
+        .iter()
+        .flat_map(|b| b.iter().copied())
+        .collect();
+    Some((intermediate, astc))
 }
