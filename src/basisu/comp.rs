@@ -1,15 +1,16 @@
 //! Port of `encoder/basisu_comp.cpp` (`basis_compressor`) and the parts of `basisu_enc.h`
-//! `image` / `imagef` it needs: ETC1S (frontend + backend), UASTC LDR 4x4 (+ RDO) and UASTC
-//! HDR 4x4 encoding of caller supplied images into a `.basis` file, as driven by libktx
-//! `ktxTexture2_CompressBasisEx`.
+//! `image` / `imagef` it needs: ETC1S (frontend + backend), UASTC LDR 4x4 (+ RDO), UASTC HDR
+//! 4x4 and ASTC HDR 6x6 / UASTC HDR 6x6 intermediate encoding of caller supplied images into a
+//! `.basis` file, as driven by libktx `ktxTexture2_CompressBasisEx`.
 //!
 //! Not ported (unreachable from libktx, which never reads files, writes outputs, generates
 //! mipmaps or asks for statistics): source file / DDS / alpha file loading, resampling, y flip,
 //! normal map renormalization, user mipmap chains, `m_compute_stats` / `m_validate_output_data`
-//! transcode checks, KTX2 output, debug images, OpenCL. The ASTC HDR 6x6 / UASTC HDR 6x6i and
-//! XUASTC / ASTC LDR modes return `FailedEncodeUastc` until their encoders are ported.
+//! transcode checks, KTX2 output, debug images, OpenCL, `m_status_output` prints. The XUASTC /
+//! ASTC LDR modes (never selected by libktx) return `FailedEncodeUastc`.
 
 use super::BasisTexFormat;
+use super::astc_hdr_6x6_enc::{AstcHdr6x6GlobalConfig, compress_photo};
 use super::astc_hdr_enc::{
     ASTC_HDR_MAX_VAL, MAX_HALF_FLOAT, compute_block_error, float_to_half_non_neg_no_nan_inf,
 };
@@ -531,6 +532,7 @@ pub struct BasisCompressorParams {
     pub validate_output_data: bool,
     pub hdr_favor_astc: bool,
     pub uastc_hdr_4x4_options: UastcHdr4x4CodecOptions,
+    pub astc_hdr_6x6_options: AstcHdr6x6GlobalConfig,
     /// `m_pJob_pool->get_total_threads()`; 0 = no job pool (`init` fails like C++).
     pub job_pool_threads: u32,
 }
@@ -610,6 +612,7 @@ impl Default for BasisCompressorParams {
             validate_output_data: false,
             hdr_favor_astc: false,
             uastc_hdr_4x4_options: UastcHdr4x4CodecOptions::default(),
+            astc_hdr_6x6_options: AstcHdr6x6GlobalConfig::default(),
             job_pool_threads: 0,
         }
     }
@@ -790,11 +793,11 @@ impl BasisCompressor {
             return Ec::FailedFrontEnd;
         }
         if self.params.hdr {
-            if self.params.hdr_mode != HdrModes::UastcHdr4x4 {
-                // TODO: ASTC HDR 6x6 / UASTC HDR 6x6i encoder (docs/spec/basis_encode.md stage 6).
-                return Ec::FailedEncodeUastc;
-            }
-            let ec = self.encode_slices_to_uastc_4x4_hdr();
+            let ec = if self.params.hdr_mode == HdrModes::UastcHdr4x4 {
+                self.encode_slices_to_uastc_4x4_hdr()
+            } else {
+                self.encode_slices_to_astc_6x6_hdr()
+            };
             if ec != Ec::Success {
                 return ec;
             }
@@ -1256,6 +1259,42 @@ impl BasisCompressor {
         image_mipmap_levels
             .iter()
             .all(|&l| l == image_mipmap_levels[0])
+    }
+
+    /// `encode_slices_to_astc_6x6_hdr`: ASTC HDR 6x6 and UASTC HDR 6x6 intermediate.
+    fn encode_slices_to_astc_6x6_hdr(&mut self) -> BasisCompressorErrorCode {
+        let out = &mut self.uastc_backend_output;
+        out.tex_format = if self.params.hdr_mode == HdrModes::AstcHdr6x6 {
+            BasisTexFormat::AstcHdr6x6
+        } else {
+            BasisTexFormat::UastcHdr6x6Intermediate
+        };
+        out.etc1s = false;
+        out.srgb = false;
+        out.slice_desc = self.slice_descs.clone();
+        out.slice_image_data = vec![Vec::new(); self.slice_descs.len()];
+        out.slice_image_crcs = vec![0; self.slice_descs.len()];
+        let mut global_cfg = self.params.astc_hdr_6x6_options;
+        global_cfg.image_stats = self.params.compute_stats;
+        global_cfg.debug_images = self.params.debug_images;
+        global_cfg.output_images = self.params.debug_images;
+        global_cfg.debug_output = self.params.debug;
+        global_cfg.status_output = self.params.status_output || self.params.debug;
+        for (slice_index, source_image) in self.slice_images_hdr.iter().enumerate() {
+            let Some((intermediate, astc)) =
+                compress_photo(source_image, &global_cfg, self.params.job_pool_threads)
+            else {
+                return Ec::FailedEncodeUastc;
+            };
+            let dst_buf = if self.params.hdr_mode == HdrModes::AstcHdr6x6 {
+                astc
+            } else {
+                intermediate
+            };
+            out.slice_image_crcs[slice_index] = crc16(&dst_buf, 0);
+            out.slice_image_data[slice_index] = dst_buf;
+        }
+        Ec::Success
     }
 
     /// `encode_slices_to_uastc_4x4_hdr`. The 256 block jobs are independent, so they run in

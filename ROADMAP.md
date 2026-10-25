@@ -52,10 +52,11 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] ETC1S encoder: TSVQ vector quantizer, frontend, Huffman encoder, backend, `basis_compressor`
   + `.basis` writer (bit exact)
 - [x] `ktxTexture2_CompressBasisEx` / `CompressBasis` (`basis_encode.cpp`): ETC1S/BasisLZ, UASTC
-  LDR 4x4 and UASTC HDR 4x4 byte exact vs CTS; todo UASTC HDR 6x6i encoder (plan:
-  docs/spec/basis_encode.md)
+  LDR 4x4, UASTC HDR 4x4 and UASTC HDR 6x6i byte exact vs CTS (docs/spec/basis_encode.md)
 - [x] UASTC HDR 4x4 encoder (`basisu_uastc_hdr_4x4_enc.cpp` + CEM 7/11 parts of
   `basisu_astc_hdr_common.cpp`, bit exact)
+- [x] ASTC HDR 6x6 / UASTC HDR 6x6i encoder (`basisu_astc_hdr_6x6_enc.cpp` + dual plane,
+  downsampled grid and refinement parts of `basisu_astc_hdr_common.cpp`, bit exact incl. RDO)
 - [x] UASTC encoder + RDO: bc7enc color cell compressor, `encode_uastc` block encoder (all
   levels / flags, BC1/ETC1/EAC hints) and `uastc_rdo` post-pass (incl. job split) bit exact
 
@@ -93,11 +94,11 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
 - [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
-  generation, all convertible formats, ASTC, BasisLZ, UASTC LDR and UASTC HDR 4x4 encoding,
-  `--compare-ssim/psnr` metrics (4720 CTS create subcases pass); pending UASTC HDR 6x6i encoder
+  generation, all convertible formats, ASTC and all Basis encoders, `--compare-ssim/psnr`
+  metrics (4746 CTS create subcases pass)
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
-- [~] encode: ASTC, BasisLZ, UASTC LDR, UASTC HDR 4x4 + SSIM / PSNR metrics (1185 CTS encode
-  subcases pass); pending UASTC HDR 6x6i encoder
+- [x] encode: ASTC and all Basis encoders + SSIM / PSNR metrics (all 1213 CTS encode subcases
+  pass)
 
 ## Tests ported
 - [x] unittests: strnstr, test_string_to_vkformat

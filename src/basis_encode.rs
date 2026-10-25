@@ -3,8 +3,8 @@
 //! copied (and swizzled) into compressor images, encoded to a `.basis` file, which is then
 //! unpicked into the KTX2 level data, BasisLZ global data and an ETC1S / UASTC DFD.
 //!
-//! The UASTC HDR 6x6 intermediate codec fails with `UnsupportedFeature` until its encoder is
-//! ported. `noSSE` has no effect: the port has no SIMD kernels and its output
+//! All four codecs are supported: ETC1S (BasisLZ), UASTC LDR 4x4, UASTC HDR 4x4 and UASTC HDR
+//! 6x6 intermediate. `noSSE` has no effect: the port has no SIMD kernels and its output
 //! matches the SSE 4.1 build.
 
 use crate::basis_transcode::{
@@ -265,6 +265,22 @@ impl Texture2 {
         self.p_dfd = ndfd;
     }
 
+    /// `ktxTexture2_rewriteDfd4UastcHDR6x6i`.
+    fn rewrite_dfd4_uastc_hdr_6x6i(&mut self) {
+        let mut ndfd = new_basis_dfd(bdb(&self.p_dfd), KHR_DF_MODEL_UASTC_HDR_6x6, 1, 5, 16);
+        let nbdb = bdb_mut(&mut ndfd);
+        set_sample(
+            nbdb,
+            0,
+            KHR_DF_CHANNEL_UASTC_HDR_6x6_RGB,
+            KHR_DF_SAMPLE_DATATYPE_FLOAT,
+            0,
+            127,
+            0x3F80_0000,
+        );
+        self.p_dfd = ndfd;
+    }
+
     /// `ktxTexture2_rewriteDfd4UastcHDR4x4`.
     fn rewrite_dfd4_uastc_hdr_4x4(&mut self) {
         let mut ndfd = new_basis_dfd(bdb(&self.p_dfd), KHR_DF_MODEL_UASTC_HDR_4x4, 1, 3, 16);
@@ -329,8 +345,9 @@ impl Texture2 {
                 cparams.hdr_mode = HdrModes::UastcHdr4x4;
             }
             KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE => {
-                // TODO: UASTC HDR 6x6i encoder (docs/spec/basis_encode.md stage 6).
-                return Err(ErrorCode::UnsupportedFeature);
+                cparams.uastc = true;
+                cparams.hdr = true;
+                cparams.hdr_mode = HdrModes::UastcHdr6x6Intermediate;
             }
             _ => {}
         }
@@ -521,7 +538,13 @@ impl Texture2 {
                 .set_quality_level(params.uastc_hdr_quality as i32);
             cparams.uastc_hdr_4x4_options.base.allow_uber_mode = params.uastc_hdr_uber_mode;
             cparams.uastc_hdr_4x4_options.base.ultra_quant = params.uastc_hdr_ultra_quant;
+            cparams.astc_hdr_6x6_options.rec2020_bt2100_color_gamut =
+                self.get_primaries_e() == KHR_DF_PRIMARIES_BT2020;
+            cparams
+                .astc_hdr_6x6_options
+                .set_user_level(params.uastc_hdr_level as i32);
             if params.uastc_hdr_lambda > 0.0 {
+                cparams.astc_hdr_6x6_options.lambda = params.uastc_hdr_lambda;
                 cparams
                     .rdo_uastc_ldr_4x4_quality_scalar
                     .set(params.uastc_hdr_lambda);
@@ -603,7 +626,42 @@ impl Texture2 {
         let mut bgd: Vec<u8> = Vec::new();
         let mut slice = 0usize;
 
-        if cparams.uastc {
+        if cparams.uastc && params.codec == KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE {
+            // ktxUASTCHDR6x6IntermediateImageDesc: offset, length, type (profile << 8 | version).
+            for level in 0..num_levels {
+                let depth = self
+                    .base_depth
+                    .checked_shr(level as u32)
+                    .unwrap_or(0)
+                    .max(1);
+                let mut level_byte_length = 0u32;
+                level_file_offsets[level] = slice_at(slice).file_ofs;
+                for _layer in 0..self.num_layers {
+                    let face_slices = if self.num_faces == 1 {
+                        depth
+                    } else {
+                        self.num_faces
+                    };
+                    for _ in 0..face_slices {
+                        let s = slice_at(slice);
+                        level_byte_length += s.file_size;
+                        let version = bf.get(s.file_ofs as usize).copied().unwrap_or(0) as u32;
+                        let profile = bf.get(s.file_ofs as usize + 1).copied().unwrap_or(0) as u32;
+                        for v in [
+                            s.file_ofs.wrapping_sub(level_file_offsets[level]),
+                            s.file_size,
+                            (profile << 8) | version,
+                        ] {
+                            bgd.extend_from_slice(&v.to_le_bytes());
+                        }
+                        slice += 1;
+                    }
+                }
+                level_byte_lengths[level] = level_byte_length;
+                level_uncompressed[level] = 0;
+                image_data_size += level_byte_length;
+            }
+        } else if cparams.uastc {
             for level in 0..num_levels {
                 let depth = self
                     .base_depth
@@ -721,6 +779,10 @@ impl Texture2 {
         } else if params.codec == KTX_BASIS_CODEC_UASTC_HDR_4X4 {
             self.rewrite_dfd4_uastc_hdr_4x4();
             4 * 4
+        } else if params.codec == KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE {
+            self.rewrite_dfd4_uastc_hdr_6x6i();
+            self.supercompression_scheme = SupercmpScheme::UASTC_HDR_6X6_INTERMEDIATE;
+            1
         } else {
             self.rewrite_dfd4_basis_lz_etc1s(alpha_content, is_luminance, swizzle);
             self.supercompression_scheme = SupercmpScheme::BASIS_LZ;
@@ -763,7 +825,7 @@ impl Texture2 {
                 e.uncompressed_byte_length = level_uncompressed[level] as u64;
             }
         }
-        if !cparams.uastc {
+        if !cparams.uastc || params.codec == KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE {
             p.sgd_byte_length = bgd.len() as u64;
             p.supercompression_global_data = bgd;
         }
