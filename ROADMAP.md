@@ -49,8 +49,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] basisu SSIM (`basisu_ssim.cpp`) and 8-bit `image_metrics::calc` (CTS exact output)
 - [x] basisu resampler + 16 filters (`encoder/basisu_resampler`, bit exact vs C++, used by image scaling)
 - [x] ETC1 block encoder `basisu_etc.cpp` (etc_block, etc1_optimizer, solid color, EAC A8; bit exact vs SSE build)
-- [~] ETC1S encoder (`ktxTexture2_CompressBasis`): [x] TSVQ vector quantizer, frontend (bit exact); todo
-  backend, `basis_compressor` (plan: docs/spec/basis_encode.md)
+- [~] ETC1S encoder (`ktxTexture2_CompressBasis`): [x] TSVQ vector quantizer, frontend, Huffman
+  encoder, backend (bit exact); todo `basis_compressor` (plan: docs/spec/basis_encode.md)
 - [x] UASTC encoder + RDO: bc7enc color cell compressor, `encode_uastc` block encoder (all
   levels / flags, BC1/ETC1/EAC hints) and `uastc_rdo` post-pass (incl. job split) bit exact
 

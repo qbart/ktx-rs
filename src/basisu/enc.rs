@@ -308,3 +308,14 @@ fn adjust_heap<T: Copy, F: FnMut(&T, &T) -> bool>(
     }
     v[hole] = value;
 }
+
+/// `basist::crc16`.
+pub fn crc16(buf: &[u8], crc: u16) -> u16 {
+    let mut crc = !crc;
+    for &b in buf {
+        let q = b as u16 ^ (crc >> 8);
+        let k = (q >> 4) ^ q;
+        crc = (((crc << 8) ^ k) ^ (k << 5)) ^ (k << 12);
+    }
+    !crc
+}

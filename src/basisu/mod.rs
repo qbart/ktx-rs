@@ -7,6 +7,7 @@ pub mod astc;
 pub mod astc_6x6_hdr;
 pub mod astc_helpers;
 pub mod atc;
+pub mod backend;
 pub mod bc6h;
 pub mod bc7enc;
 pub mod bc7m5;

@@ -435,6 +435,12 @@ impl ApproxMoveToFront {
         }
     }
 
+    pub fn reset(&mut self) {
+        let n = self.values.len();
+        self.values = vec![0; n];
+        self.rover = n / 2;
+    }
+
     pub fn use_index(&mut self, index: usize) {
         if index != 0 && index < self.values.len() {
             self.values.swap(index / 2, index);

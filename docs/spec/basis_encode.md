@@ -10,10 +10,11 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
 1. [x] `basisu_etc.cpp` ETC1 block encoder (`src/basisu/etc_enc.rs`)
 2. [x] UASTC LDR 4x4: `basisu_bc7enc.cpp` (`src/basisu/bc7enc.rs`), block encoder
    (`basisu_uastc_enc.cpp` `encode_uastc`, `src/basisu/uastc_enc.rs`), RDO (`uastc_rdo`)
-3. [~] ETC1S: [x] vector quantizer (`basisu_enc.h` `tree_vector_quant`, `src/basisu/vq.rs`),
-   [x] frontend (`basisu_frontend.cpp`, `src/basisu/frontend.rs`), [ ] backend (`basisu_frontend.cpp`: VQ, clusterization) + backend (`basisu_backend.cpp`:
-   endpoint/selector palettes, Huffman) + KTX2 BasisLZ global data
-4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`) and libktx `basis_encode.cpp`
+3. [x] ETC1S: vector quantizer (`basisu_enc.h` `tree_vector_quant`, `src/basisu/vq.rs`),
+   frontend (`basisu_frontend.cpp`, `src/basisu/frontend.rs`), Huffman encoder
+   (`src/basisu/huffman_enc.rs`), backend (`basisu_backend.cpp`, `src/basisu/backend.rs`)
+4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`, incl. KTX2 BasisLZ global data) and
+   libktx `basis_encode.cpp`
 5. [ ] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
 6. [ ] UASTC HDR 6x6 intermediate (`basisu_astc_hdr_6x6_enc.cpp`)
 
@@ -129,3 +130,33 @@ perceptual / linear, 16..2000 clusters, video frames, disabled hierarchy, valida
 `reoptimize_remapped_endpoints` with and without final codebook optimization) and libstdc++
 `std::sort` tie order (40 key sets). Unkilled mutations are error ties (`>=` vs `>` in the
 flat selector and step >= 1 endpoint acceptance) and equivalent early outs.
+
+## Huffman encoder (`basisu::huffman_enc`)
+
+`histogram`, `canonical_huffman_*` (radix sort, Moffat-Katajainen in place code lengths, max code
+size enforcement), `huffman_encoding_table` (u16 / u32 frequencies, u32 rescaled to 16 bits),
+`bitwise_coder` (bits, codes, truncated binary, Rice, VLC, append, `emit_huffman_table` with
+zero / repeat run codes), `palette_index_reorderer` (optional distance callback as `&dyn Fn`).
+- `canonical_huffman_radix_sort_syms` returns which of the two buffers holds the result instead
+  of a pointer. `huff2D` is not ported (unused by the libktx paths).
+Tests: `tests/basisu_huffman_enc.rs` vs `scripts/golden/gen_basisu_huffman_enc_golden.sh` (88
+histogram shapes incl. Fibonacci, sparse, > 16 bit and single symbol x max code sizes 7..17;
+200 random coder op sequences; 120 reorder index streams with and without distance weights).
+
+## ETC1S backend (`basisu::backend`)
+
+`basisu_backend` (`init`, `encode`, `get_output`): endpoint / selector palettes, endpoint
+prediction (left, upper, upper left or video CR) with endpoint RDO, palette index reordering and
+`reoptimize_remapped_endpoints`, selector codebook hamming ordering, selector history buffer RDO
+with RLE, slice CRC16s, Huffman coded slice data, endpoint and selector codebooks (raw fallback).
+- `encode(&mut frontend)` takes the frontend instead of storing `m_pFront_end` in `init`.
+- The reference x86 build takes the `g_cpu_supports_sse41` endpoint RDO path: trial endpoints
+  are scored with the block's own selectors (`*_distance_rgb_4_N_sse41`); its early out only fires
+  once the sum reaches the best error, so a full sum is equivalent. The non SSE path is not ported.
+- `BASISU_BACKEND_VERIFY` aborts in C++; here `encode` returns 0. Debug prints / images skipped.
+- `basist::crc16` lives in `basisu::enc`; `approx_move_to_front::reset` added to the transcoder's
+  port.
+Tests: `tests/basisu_backend.rs` vs `scripts/golden/gen_basisu_backend_golden.sh` (12 images of
+8x8..33x20 blocks incl. odd sizes x single slice, two mip slices, three video frames x 13
+configs: levels 0..6, endpoint / selector RDO thresholds 0..10, perceptual / linear, 16..2000
+clusters; 312 cases hashing every output buffer and CRC).
