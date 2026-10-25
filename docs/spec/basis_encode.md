@@ -13,8 +13,8 @@ Port order (each stage bit exact vs. the C++ build before the next one starts):
 3. [x] ETC1S: vector quantizer (`basisu_enc.h` `tree_vector_quant`, `src/basisu/vq.rs`),
    frontend (`basisu_frontend.cpp`, `src/basisu/frontend.rs`), Huffman encoder
    (`src/basisu/huffman_enc.rs`), backend (`basisu_backend.cpp`, `src/basisu/backend.rs`)
-4. [ ] `basis_compressor` pipeline (`basisu_comp.cpp`, incl. KTX2 BasisLZ global data) and
-   libktx `basis_encode.cpp`
+4. [x] `basis_compressor` pipeline (`basisu_comp.cpp`, `basisu_basis_file.cpp`,
+   `src/basisu/comp.rs`, `basis_file.rs`) and libktx `basis_encode.cpp` (`src/basis_encode.rs`)
 5. [ ] UASTC HDR 4x4 (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
 6. [ ] UASTC HDR 6x6 intermediate (`basisu_astc_hdr_6x6_enc.cpp`)
 
@@ -160,3 +160,42 @@ Tests: `tests/basisu_backend.rs` vs `scripts/golden/gen_basisu_backend_golden.sh
 8x8..33x20 blocks incl. odd sizes x single slice, two mip slices, three video frames x 13
 configs: levels 0..6, endpoint / selector RDO thresholds 0..10, perceptual / linear, 16..2000
 clusters; 312 cases hashing every output buffer and CRC).
+
+## basis_compressor (`basisu::comp`, `basisu::basis_file`)
+
+`basis_compressor` (`init`, `process`, `get_output_basis_file`) for caller supplied LDR images:
+swizzle, alpha detection (`m_check_for_alpha` / `m_force_alpha`), ETC1S RGB + alpha slice
+split, block padding (`crop_dup_borders`), slice descriptors and sanity / texture type checks,
+source block extraction, ETC1S quality level -> cluster counts and RDO threshold scaling,
+frontend + backend, UASTC LDR 4x4 block encode + optional RDO; `basisu_file` writes the packed
+77 byte header, 23 byte slice descriptors, codebooks, tables, slice data and CRC16s. Minimal
+`basisu::image` (`Image`), `param<T>` (`Param`: clamped on assignment, `was_changed`).
+- Not ported (unreachable from libktx): file / DDS / alpha file loading, resampling, y flip,
+  renormalization, mipmap generation, user mipmap chains, stats and transcode validation,
+  KTX2 output, debug images, OpenCL. Those options make `process` fail instead.
+- UASTC jobs (256 blocks each, independent) run in order; the RDO job count follows C++
+  (`m_rdo_uastc_ldr_4x4_multithreading ? min(4, pool threads) : 0`).
+- HDR / XUASTC modes return `cECFailedEncodeUASTC` until stages 5 and 6.
+Tests: `tests/basisu_comp.rs` vs `scripts/golden/gen_basisu_comp_golden.sh` (13 inputs: single
+images 1x1..128x96, image arrays of halving sizes, video frames, 2D arrays, alpha in some or all
+images, one 254 alpha pixel x 28 configs: ETC1S quality 1..255 / explicit clusters / levels
+0..6 / RDO flags and thresholds / swizzles / force and no alpha check, UASTC levels and flags,
+RDO lambda, dict size, smooth block params, 1 and 4 threads; 364 cases hashing the error code
+and the .basis file). Unkilled mutations: quality 223 vs 192 RDO scaling (codebooks are
+near-lossless there), the quality 129 boundary (equivalent: the scale is 1.0) and the 64 / 96
+cluster minimums (only reached with fewer blocks than clusters).
+
+## libktx `basis_encode.cpp` (`basis_encode`)
+
+`ktxTexture2_CompressBasisEx` / `ktxTexture2_CompressBasis` (`Texture2::compress_basis_ex`,
+`compress_basis`): parameter checks, default / explicit / `KTXswizzle` pre-swizzle mappings,
+`copy_rgba_to_rgba`, `copy_rgb_to_rgba`, `swizzle_to_rgba` (public for the unit tests),
+compressor parameter mapping (incl. the C++ quirk that `uastcRDONoMultithreading` overwrites
+the favor simpler modes flag), BasisLZ global data (header, image descs with P-frame flags,
+codebooks, tables), level data in smallest first order, ETC1S / UASTC DFD rewrites.
+- UASTC HDR 4x4 / 6x6i codecs return `UnsupportedFeature` (the CLI keeps `NOT_IMPLEMENTED`).
+- `noSSE` and the SSE flag guard are moot (no SIMD kernels; output equals the SSE build).
+- Out of range swizzle reads (C++ UB) read 0; an unset mapping leaves the pixel unchanged.
+Tests: CTS `encode` (1157) and `create` (4696) subcases incl. every vendored `basis-lz` /
+`uastc` LDR case byte exact; texturetests `BasisCompressTest.Compress`, `GetNumComponents`
+BasisLZ / UASTC, `TranscodeBasis.MissingAlphaSlices`; unittests `SwizzleToRGBA*`.
