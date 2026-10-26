@@ -1080,3 +1080,75 @@ mod swizzle_to_rgba_test {
         run_test::<4, GL_RGBA8>([A, R, G, B]);
     }
 }
+
+//////////////////////////////
+// bad_vulkan_alloc (tests/loadtests/common/ltexceptions.h)
+//////////////////////////////
+
+const OUT_OF_HOST_MEMORY: i32 = -1;
+const OUT_OF_DEVICE_MEMORY: i32 = -2;
+const FRAGMENTED_POOL: i32 = -12;
+const OUT_OF_POOL_MEMORY: i32 = -1000069000;
+
+/// Port of the load tests' `bad_vulkan_alloc` exception: a `VkResult` allocation failure
+/// with its `what()` message.
+struct BadVulkanAlloc {
+    what: String,
+}
+
+impl BadVulkanAlloc {
+    fn new(which: i32, message: &str) -> BadVulkanAlloc {
+        let what = if which == FRAGMENTED_POOL {
+            format!("Pool fragmented when allocating for {message}.")
+        } else {
+            let memtype = match which {
+                OUT_OF_HOST_MEMORY => "host",
+                OUT_OF_DEVICE_MEMORY => "device",
+                OUT_OF_POOL_MEMORY => "pool",
+                _ => "",
+            };
+            format!("Out of {memtype} memory for {message}.")
+        };
+        BadVulkanAlloc { what }
+    }
+
+    fn what(&self) -> &str {
+        &self.what
+    }
+}
+
+/// `throw bad_vulkan_alloc(...)` caught by the test.
+fn throw_bad_vulkan_alloc(which: i32, message: &str) -> Result<(), BadVulkanAlloc> {
+    Err(BadVulkanAlloc::new(which, message))
+}
+
+#[test]
+fn bad_vulkan_alloc_exception_test_no_device_memory() {
+    if let Err(e) = throw_bad_vulkan_alloc(OUT_OF_DEVICE_MEMORY, "no device memory test") {
+        assert_eq!(e.what(), "Out of device memory for no device memory test.");
+    }
+}
+
+#[test]
+fn bad_vulkan_alloc_exception_test_no_host_memory() {
+    if let Err(e) = throw_bad_vulkan_alloc(OUT_OF_HOST_MEMORY, "no host memory test") {
+        assert_eq!(e.what(), "Out of host memory for no host memory test.");
+    }
+}
+
+#[test]
+fn bad_vulkan_alloc_exception_test_no_pool_memory() {
+    if let Err(e) = throw_bad_vulkan_alloc(OUT_OF_POOL_MEMORY, "no pool memory test") {
+        assert_eq!(e.what(), "Out of pool memory for no pool memory test.");
+    }
+}
+
+#[test]
+fn bad_vulkan_alloc_exception_test_pool_fragmented() {
+    if let Err(e) = throw_bad_vulkan_alloc(FRAGMENTED_POOL, "fragmented pool memory test") {
+        assert_eq!(
+            e.what(),
+            "Pool fragmented when allocating for fragmented pool memory test."
+        );
+    }
+}
