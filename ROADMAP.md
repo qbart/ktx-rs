@@ -24,7 +24,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 ## Texture core
 - [x] `formatsize` (`ktxFormatSize_initFromDfd`)
 - [x] GL/Vk format tables (`gl_format.h`, `vk_format.h`, generated)
-- [ ] `vkFormat2gl*` tables (vk2gl.h, GL loader only)
+- [x] `vkFormat2gl*` tables (vk2gl.h, generated, all VkFormat values vs C)
 - [x] `ktxTexture` base (texture.c): sizes, offsets, iterate, kv data
 - [x] `ktxTexture1` read/create/write (texture1.c, writer1.c)
 - [x] `ktxTexture2` read/create (texture2.c)

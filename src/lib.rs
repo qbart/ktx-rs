@@ -30,6 +30,7 @@ pub mod texture2;
 pub mod texture_any;
 pub mod tinyexr;
 pub mod version;
+pub mod vk2gl;
 pub mod vk_format;
 pub mod vkformat;
 #[cfg(feature = "vulkan")]
