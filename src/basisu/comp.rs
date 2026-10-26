@@ -26,6 +26,7 @@ use super::frontend::{
     C_BASIS_TEX_TYPE_VIDEO_FRAMES, C_MAX_ENDPOINT_CLUSTERS, C_MAX_SELECTOR_CLUSTERS, PixelBlock,
 };
 use super::gpu_texture::unpack_bc6h;
+use super::job_pool::for_each_chunk_mut;
 use super::uastc_enc::{
     C_PACK_UASTC_FAVOR_SIMPLER_MODES, C_PACK_UASTC_LEVEL_DEFAULT,
     UASTC_RDO_DEFAULT_MAX_ALLOWED_RMS_INCREASE_RATIO, UASTC_RDO_DEFAULT_MAX_SMOOTH_BLOCK_STD_DEV,
@@ -823,8 +824,7 @@ impl BasisCompressor {
         Ec::Success
     }
 
-    /// `encode_slices_to_uastc_4x4_ldr`. The 256 block jobs are independent, so they run in
-    /// order on the calling thread.
+    /// `encode_slices_to_uastc_4x4_ldr`. Blocks are encoded in jobs of 256 on the job pool.
     fn encode_slices_to_uastc_4x4_ldr(&mut self) -> BasisCompressorErrorCode {
         let out = &mut self.uastc_backend_output;
         out.tex_format = BasisTexFormat::UastcLdr4x4;
@@ -849,21 +849,33 @@ impl BasisCompressor {
             let total_blocks = num_blocks_x * num_blocks_y;
             let source_image = &self.slice_images[slice_index];
 
+            const N: usize = 256;
             let mut tex = vec![[0u8; 16]; total_blocks as usize];
-            for (block_index, dest_block) in tex.iter_mut().enumerate() {
-                let block_x = block_index as u32 % num_blocks_x;
-                let block_y = block_index as u32 / num_blocks_x;
-                let mut block_pixels = [[0u8; 4]; 16];
-                source_image.extract_block_clamped(
-                    &mut block_pixels,
-                    block_x * 4,
-                    block_y * 4,
-                    4,
-                    4,
-                );
-                let mut rgba = [0u8; 64];
-                rgba.copy_from_slice(block_pixels.as_flattened());
-                encode_uastc(&rgba, dest_block, uastc_flags);
+            let ok = for_each_chunk_mut(
+                self.params.job_pool_threads,
+                &mut tex,
+                N,
+                |first_index, dest_blocks| {
+                    for (k, dest_block) in dest_blocks.iter_mut().enumerate() {
+                        let block_index = (first_index + k) as u32;
+                        let block_x = block_index % num_blocks_x;
+                        let block_y = block_index / num_blocks_x;
+                        let mut block_pixels = [[0u8; 4]; 16];
+                        source_image.extract_block_clamped(
+                            &mut block_pixels,
+                            block_x * 4,
+                            block_y * 4,
+                            4,
+                            4,
+                        );
+                        let mut rgba = [0u8; 64];
+                        rgba.copy_from_slice(block_pixels.as_flattened());
+                        encode_uastc(&rgba, dest_block, uastc_flags);
+                    }
+                },
+            );
+            if !ok {
+                return Ec::FailedEncodeUastc;
             }
 
             if self.params.rdo_uastc_ldr_4x4 {

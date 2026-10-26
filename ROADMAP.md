@@ -83,6 +83,13 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] OpenGL loader (`glloader.c`, `gl_funcs.c`): opt-in feature `opengl`, desktop + ES context
   capabilities, ETC software fallback, tested on Mesa llvmpipe via EGL (docs/spec/glloader.md)
 
+## Performance (docs/spec/performance.md)
+- [x] benchmark vs the C++ `ktx` (`scripts/bench/bench.sh`, outputs compared byte for byte)
+- [x] basisu job pool (`job_pool.rs`); UASTC LDR block encode threaded
+- [ ] Basis-LZ frontend job sites, KTX2 level supercompression jobs
+- [ ] astcenc worker threads, SIMD `vecmathlib`
+- OpenCL encoding: not ported (C binding)
+
 ## CLI (`ktx` tool)
 - [x] framework: cxxopts port (parsing, errors, help layout), Reporter, option groups
 - [x] validate (validator + text/JSON output, all CTS validate cases pass)

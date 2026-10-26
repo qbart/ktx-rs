@@ -28,6 +28,7 @@ pub mod frontend;
 pub mod gpu_texture;
 pub mod hdr_tables;
 pub mod huffman_enc;
+pub mod job_pool;
 pub mod miniz;
 pub mod pvrtc;
 pub mod pvrtc2;
