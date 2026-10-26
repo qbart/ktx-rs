@@ -106,6 +106,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] unittests: HashList, MemStream, CheckHeader1, createDFD, DFDVkFormatList
 - [x] unittests: WriterTestHelper
 - [x] unittests: Swizzle (`swizzle_to_rgba`)
+- [x] unittests: FragmentURI (`test_fragment_uri.cc`), NormaliseColor + ImagePacking E5B9G9R9
+  (`image_unittests.cc`)
 - [ ] unittests: BadVulkanAlloc (needs Vulkan loader)
 - [~] texturetests: 115 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,

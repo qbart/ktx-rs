@@ -626,7 +626,7 @@ fn vec3_normalize<T: Component>(v: &mut [f32; 3]) {
 }
 
 /// `color<T, N>::normalize`.
-fn color_normalize<T: Component, const N: usize>(c: &mut [T; N]) {
+pub fn color_normalize<T: Component, const N: usize>(c: &mut [T; N]) {
     match N {
         1 => {
             // Normalizing single channel image doesn't make much sense
