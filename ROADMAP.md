@@ -114,6 +114,7 @@ Legend: [x] done, [~] partial, [ ] todo.
   unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode, BasisCompress,
   TranscodeBasis MissingAlphaSlices, GetNumComponents BasisLZ/UASTC).
   Null-pointer tests are not applicable in Rust.
-- [~] transcodetests: Basic (implemented formats, golden SHA-256 from C++ basisu)
+- [x] transcodetests: Basic (all formats, golden SHA-256 from C++ basisu), TranscodeUastcHdr6x6i
+  RoundTrip2D / RoundTrip3DMipLevels
 - [x] CLI tests (tests/cts): runner ported (`tests/cts.rs`), all CTS data vendored, every
   subcase of every command runs (no skips) and passes

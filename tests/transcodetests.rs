@@ -196,3 +196,109 @@ fn bc7_chroma_filter_is_exercised() {
     }
     assert!(differs > 0, "chroma filter never changed any output");
 }
+
+//////////////////////////////
+// UASTC HDR 6x6 intermediate SGD image description indexing
+//////////////////////////////
+
+// The image description table in the supercompression global data is written
+// in level order, level 0 first, each level contributing
+// numLayers * numFaces * depth(level) descriptions. For 3D textures depth
+// halves with each level, so indexing the table with
+// level * levelImageCount selected descriptions belonging to other levels
+// and transcoding failed. The 2D case covers the constant-image-count path.
+
+/// Port of `floatToHalf` (truncating, no denormals).
+fn float_to_half(value: f32) -> u16 {
+    let bits = value.to_bits();
+    let sign = (bits >> 16) & 0x8000;
+    let exponent = ((bits >> 23) & 0xFF) as i32 - 127 + 15;
+    let mantissa = (bits >> 13) & 0x3FF;
+    if exponent <= 0 {
+        return sign as u16;
+    }
+    if exponent >= 31 {
+        return (sign | 0x7C00) as u16;
+    }
+    (sign | ((exponent as u32) << 10) | mantissa) as u16
+}
+
+/// Port of `roundTripUastcHdr6x6i`.
+fn round_trip_uastc_hdr_6x6i(num_dimensions: u32) {
+    use ktx::encode_params::{
+        BasisParams, KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE, KTX_BASIS_PARAMS_SIZE,
+    };
+    use ktx::{SupercmpScheme, TextureCreateInfo, TextureCreateStorage, VkFormat};
+
+    let create_info = TextureCreateInfo {
+        vk_format: VkFormat::R16G16B16A16_SFLOAT,
+        base_width: 24,
+        base_height: 24,
+        base_depth: if num_dimensions == 3 { 8 } else { 1 },
+        num_dimensions,
+        num_levels: 4,
+        num_layers: 1,
+        num_faces: 1,
+        is_array: false,
+        generate_mipmaps: false,
+        ..Default::default()
+    };
+    let mut texture = match Texture2::create(&create_info, TextureCreateStorage::AllocStorage) {
+        Ok(t) => t,
+        Err(e) => panic!("{}", ktx_error_string(e)),
+    };
+
+    for level in 0..create_info.num_levels {
+        let width = (create_info.base_width >> level).max(1);
+        let height = (create_info.base_height >> level).max(1);
+        let depth = (create_info.base_depth >> level).max(1);
+        for slice in 0..depth {
+            let mut pixels = vec![0u16; (width * height * 4) as usize];
+            for y in 0..height {
+                for x in 0..width {
+                    let i = ((y * width + x) * 4) as usize;
+                    pixels[i] = float_to_half(0.1 + 2.0 * x as f32 / width as f32 + level as f32);
+                    pixels[i + 1] =
+                        float_to_half(0.2 + 1.5 * y as f32 / height as f32 + slice as f32);
+                    pixels[i + 2] = float_to_half(0.4 + 0.5 * level as f32);
+                    pixels[i + 3] = float_to_half(1.0);
+                }
+            }
+            let bytes: Vec<u8> = pixels.iter().flat_map(|p| p.to_le_bytes()).collect();
+            if let Err(e) = texture.set_image_from_memory(level, 0, slice, &bytes) {
+                panic!("{}", ktx_error_string(e));
+            }
+        }
+    }
+
+    let cparams = BasisParams {
+        struct_size: KTX_BASIS_PARAMS_SIZE,
+        thread_count: 1,
+        codec: KTX_BASIS_CODEC_UASTC_HDR_6X6_INTERMEDIATE,
+        ..Default::default()
+    };
+    if let Err(e) = texture.compress_basis_ex(&cparams) {
+        panic!("{}", ktx_error_string(e));
+    }
+    assert_eq!(
+        texture.supercompression_scheme,
+        SupercmpScheme::UASTC_HDR_6X6_INTERMEDIATE
+    );
+
+    if let Err(e) = texture.transcode_basis(TranscodeFmt::ASTC_HDR_6x6_RGBA, 0) {
+        panic!("{}", ktx_error_string(e));
+    }
+    assert_eq!(texture.vk_format, VkFormat::ASTC_6x6_SFLOAT_BLOCK);
+    assert_eq!(texture.supercompression_scheme, SupercmpScheme::NONE);
+    assert!(texture.get_data().is_some());
+}
+
+#[test]
+fn transcode_uastc_hdr_6x6i_round_trip_2d() {
+    round_trip_uastc_hdr_6x6i(2);
+}
+
+#[test]
+fn transcode_uastc_hdr_6x6i_round_trip_3d_mip_levels() {
+    round_trip_uastc_hdr_6x6i(3);
+}
