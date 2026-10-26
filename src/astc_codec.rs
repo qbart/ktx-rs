@@ -1,7 +1,6 @@
 //! Port of `lib/src/astc_codec.cpp`: `ktxTexture2_CompressAstcEx`, `ktxTexture2_CompressAstc`
-//! and `ktxTexture2_DecodeAstc` on top of the pure Rust astcenc port. Worker threads are not
-//! used: the context is created for `threadCount` threads and the calling thread compresses
-//! every block, which gives the same output.
+//! and `ktxTexture2_DecodeAstc` on top of the pure Rust astcenc port. Each image is
+//! compressed by `threadCount` threads sharing one context (`launchThreads`).
 
 use crate::astcenc::{
     self, AstcencError, AstcencImage, AstcencImageData, AstcencProfile, AstcencSwizzle, AstcencSwz,
@@ -21,6 +20,35 @@ use crate::texture2::Texture2;
 use crate::vkformat::VkFormat;
 
 /// `mapAstcError`. The C++ asserts on libktx misuse; those cases map to the same codes.
+/// `launchThreads` + `compressionWorkloadRunner`: runs `func(thread_id)` on `thread_count`
+/// threads (directly on this thread when single threaded) and returns an error if any thread
+/// reported one.
+fn launch_threads(
+    thread_count: u32,
+    func: impl Fn(u32) -> Result<(), astcenc::AstcencError> + Sync,
+) -> Result<(), astcenc::AstcencError> {
+    if thread_count <= 1 {
+        return func(0);
+    }
+    std::thread::scope(|s| {
+        let handles: Vec<_> = (0..thread_count)
+            .map(|thread_id| {
+                let func = &func;
+                s.spawn(move || func(thread_id))
+            })
+            .collect();
+        let mut result = Ok(());
+        for h in handles {
+            match h.join() {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => result = Err(e),
+                Err(_) => result = Err(astcenc::AstcencError::BadContext),
+            }
+        }
+        result
+    })
+}
+
 fn map_astc_error(astc_error: AstcencError) -> ErrorCode {
     match astc_error {
         AstcencError::OutOfMem => ErrorCode::OutOfMemory,
@@ -435,13 +463,16 @@ impl Texture2 {
                 else {
                     return Err(ErrorCode::OutOfMemory);
                 };
-                let result = astcenc::astcenc_compress_image(
-                    &mut astc_context,
-                    &input_image,
-                    &swizzle,
-                    out,
-                    0,
-                );
+                let work = std::sync::Mutex::new(out);
+                let result = launch_threads(thread_count, |thread_id| {
+                    astcenc::astcenc_compress_image(
+                        &astc_context,
+                        &input_image,
+                        &swizzle,
+                        &work,
+                        thread_id,
+                    )
+                });
                 buffer_out += level_image_size_out;
 
                 // Reset ASTC context for next image

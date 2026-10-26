@@ -128,7 +128,9 @@ fn compress_matches_astcenc() {
                     let Ok(c) = astcenc_config_init(prof, s[0], s[1], s[2], q, flags) else {
                         panic!("config_init")
                     };
-                    let Ok(mut ctx) = astcenc_context_alloc(&c, 1) else {
+                    // 1..=4 threads sharing the context; the output must not depend on it.
+                    let threads = (n % 4) as u32 + 1;
+                    let Ok(ctx) = astcenc_context_alloc(&c, threads) else {
                         panic!("context_alloc")
                     };
                     let dx = s[0] * 2 + 1;
@@ -173,9 +175,21 @@ fn compress_matches_astcenc() {
                     };
                     let blocks = dx.div_ceil(s[0]) * dy.div_ceil(s[1]) * dz.div_ceil(s[2]);
                     let mut out = vec![0u8; blocks as usize * 16];
-                    if let Err(e) = astcenc_compress_image(&mut ctx, &img, &swz, &mut out, 0) {
-                        panic!("compress: {e:?}");
-                    }
+                    let shared = std::sync::Mutex::new(out.as_mut_slice());
+                    std::thread::scope(|sc| {
+                        let hs: Vec<_> = (0..threads)
+                            .map(|t| {
+                                let (ctx, img, swz, shared) = (&ctx, &img, &swz, &shared);
+                                sc.spawn(move || astcenc_compress_image(ctx, img, swz, shared, t))
+                            })
+                            .collect();
+                        for h in hs {
+                            match h.join() {
+                                Ok(Ok(())) => {}
+                                other => panic!("compress: {other:?}"),
+                            }
+                        }
+                    });
                     n += 1;
                     let key = format!("s{si} p{pi} q{qi} f{fi}");
                     let got = format!("{:016x}", fnv(&out));

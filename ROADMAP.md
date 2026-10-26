@@ -88,7 +88,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] basisu job pool (`job_pool.rs`); UASTC LDR block encode threaded
 - [x] Basis-LZ frontend job sites
 - [ ] KTX2 level supercompression jobs, basisu SSE kernels
-- [ ] astcenc worker threads, SIMD `vecmathlib`
+- [x] astcenc worker threads (`ParallelManager`, shared context)
+- [ ] astcenc SIMD `vecmathlib`
 - OpenCL encoding: not ported (C binding)
 
 ## CLI (`ktx` tool)

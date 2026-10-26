@@ -21,6 +21,14 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
   (256). Not threaded (cheap): `init_endpoint_training_vectors`, `init_global_codebooks`
   (unused by libktx).
 
+## astcenc threads
+- `ParallelManager` ported for compression (`init` by the first thread, `get_task_assignment`
+  batches of 16 blocks, `reset`, `cancel`; no progress callback / `wait` / `term`).
+- `astcenc_compress_image(&ctx, .., data_out: &AstcencOutput, thread_index)`: the context is
+  shared (`&`), each thread locks its own working buffers, compresses a batch locally and copies
+  it into the shared output (`Mutex<&mut [u8]>`; a batch is contiguous in the output).
+- `astc_codec.rs` `launch_threads` = `launchThreads` + `compressionWorkloadRunner`.
+
 ## Status (24 threads, kodim17 512x768 / FlightHelmet 2048², Rust/C++ time)
 | case | before | now |
 |---|---|---|
@@ -28,8 +36,8 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
 | UASTC 2 | 5.3 | 0.8 |
 | UASTC 4 + RDO | 10.4 | 1.1 |
 | Basis-LZ (q128 / clevel 5, 2048²) | 1.6 / 4.2 | 1.1 / 1.4 |
-| ASTC 4x4 thorough | 21.6 | |
+| ASTC 4x4 thorough / 6x6 medium | 21.6 / 7.7 | 2.6 / 1.9 |
 
 Single-threaded, UASTC is at parity and Basis-LZ clevel 5 is 1.35x slower (C++ uses the SSE
 `find_lowest_error` kernels); ASTC is ~3.5x slower (scalar emulation of
-the AVX2 `vecmathlib`) and astcenc worker threads are not used yet.
+the AVX2 `vecmathlib`).

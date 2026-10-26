@@ -1027,6 +1027,68 @@ impl BlockSizeDescriptor {
     }
 }
 
+/// Port of `ParallelManager` (`astcenc_internal_entry.h`) as used for compression: threads
+/// take batches of task indices from a shared counter. The progress callback, `wait` and
+/// `term` are not ported (libktx uses none of them).
+#[derive(Debug, Default)]
+pub struct ParallelManager {
+    /// `m_lock` guarded state: `(m_init_done, m_task_count, m_done_count)`.
+    state: std::sync::Mutex<(bool, usize, usize)>,
+    is_cancelled: std::sync::atomic::AtomicBool,
+    start_count: std::sync::atomic::AtomicUsize,
+    /// `m_task_count` once initialized (read lock free by `get_task_assignment`).
+    task_count: std::sync::atomic::AtomicUsize,
+}
+
+impl ParallelManager {
+    /// `reset`.
+    pub fn reset(&self) {
+        use std::sync::atomic::Ordering::Relaxed;
+        if let Ok(mut st) = self.state.lock() {
+            *st = (false, 0, 0);
+        }
+        self.is_cancelled.store(false, Relaxed);
+        self.start_count.store(0, Relaxed);
+        self.task_count.store(0, Relaxed);
+    }
+
+    /// `cancel`.
+    pub fn cancel(&self) {
+        self.is_cancelled
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// `init(task_count, callback)`: only the first caller sets the task count.
+    pub fn init(&self, task_count: usize) {
+        if let Ok(mut st) = self.state.lock()
+            && !st.0
+        {
+            st.1 = task_count;
+            st.0 = true;
+            self.task_count
+                .store(task_count, std::sync::atomic::Ordering::Release);
+        }
+    }
+
+    /// `get_task_assignment`: `(base, count)`, `count == 0` when no work is left.
+    pub fn get_task_assignment(&self, granule: usize) -> (usize, usize) {
+        use std::sync::atomic::Ordering::{Acquire, Relaxed};
+        let base = self.start_count.fetch_add(granule, Relaxed);
+        let task_count = self.task_count.load(Acquire);
+        if self.is_cancelled.load(Relaxed) || base >= task_count {
+            return (0, 0);
+        }
+        (base, (task_count - base).min(granule))
+    }
+
+    /// `complete_task_assignment`.
+    pub fn complete_task_assignment(&self, count: usize) {
+        if let Ok(mut st) = self.state.lock() {
+            st.2 += count;
+        }
+    }
+}
+
 /// Port of `astcenc_context`.
 pub struct AstcencContext {
     pub config: AstcencConfig,
@@ -1035,10 +1097,10 @@ pub struct AstcencContext {
     bsd: BlockSizeDescriptor,
     /// The compressor's block size descriptor (absent for DECOMPRESS_ONLY contexts).
     pub(crate) cbsd: Option<Box<internal::BlockSizeDescriptor>>,
-    /// Per thread compressor scratch buffers (`working_buffers`).
-    working_buffers: Vec<internal::CompressionWorkingBuffers>,
-    /// `manage_compress`: set once the image's blocks have been handed out.
-    compress_assigned: bool,
+    /// Per thread compressor scratch buffers (`working_buffers`), one per `thread_index`.
+    working_buffers: Vec<std::sync::Mutex<internal::CompressionWorkingBuffers>>,
+    /// `manage_compress`.
+    manage_compress: ParallelManager,
 }
 
 impl std::fmt::Debug for AstcencContext {
@@ -1083,7 +1145,7 @@ pub fn astcenc_context_alloc(
         );
         cbsd = Some(bsd);
         working_buffers = (0..thread_count)
-            .map(|_| internal::CompressionWorkingBuffers::default())
+            .map(|_| std::sync::Mutex::new(internal::CompressionWorkingBuffers::default()))
             .collect();
         // Turn a dB limit into a per-texel error for faster use later
         if matches!(cfg.profile, AstcencProfile::Ldr | AstcencProfile::LdrSrgb) {
@@ -1099,7 +1161,7 @@ pub fn astcenc_context_alloc(
         bsd: BlockSizeDescriptor::new(cfg.block_x, cfg.block_y, cfg.block_z),
         cbsd,
         working_buffers,
-        compress_assigned: false,
+        manage_compress: ParallelManager::default(),
     }))
 }
 
@@ -1121,26 +1183,30 @@ fn validate_compression_swizzle(swizzle: &AstcencSwizzle) -> Result<(), AstcencE
     Ok(())
 }
 
-/// `compress_image`: compresses every block of the image (this thread takes all the
-/// work the task manager hands out).
+/// The compressed output shared by the threads of one `astcenc_compress_image` call (the C++
+/// `data_out` pointer); finished batches of blocks are copied in under the lock.
+pub type AstcencOutput<'a> = std::sync::Mutex<&'a mut [u8]>;
+
+/// `compress_image`: compresses the batches of 16 blocks the task manager hands to this
+/// thread. Each batch is compressed locally and copied into the shared output.
 fn compress_image(
-    context: &mut AstcencContext,
+    context: &AstcencContext,
     thread_index: usize,
     image: &AstcencImage,
     swizzle: &AstcencSwizzle,
-    buffer: &mut [u8],
+    buffer: &AstcencOutput,
 ) -> Result<(), AstcencError> {
     let config = context.config;
-    let AstcencContext {
-        cbsd,
-        working_buffers,
-        compress_assigned,
-        ..
-    } = context;
-    let (Some(bsd), Some(temp_buffers)) = (cbsd.as_deref(), working_buffers.get_mut(thread_index))
-    else {
+    let (Some(bsd), Some(temp_buffers)) = (
+        context.cbsd.as_deref(),
+        context.working_buffers.get(thread_index),
+    ) else {
         return Err(AstcencError::BadContext);
     };
+    let Ok(mut temp_buffers) = temp_buffers.lock() else {
+        return Err(AstcencError::BadContext);
+    };
+    let temp_buffers = &mut *temp_buffers;
     let decode_mode = config.profile;
     let mut blk = internal::ImageBlock::default();
 
@@ -1180,65 +1246,85 @@ fn compress_image(
     let use_fast_load =
         !needs_swz && !needs_hdr && block_z == 1 && matches!(image.data, AstcencImageData::U8(_));
 
+    // Only the first thread actually runs the initializer
+    context.manage_compress.init(block_count);
+
     // All threads run this processing loop until there is no work remaining
-    if *compress_assigned {
-        return Ok(());
-    }
-    *compress_assigned = true;
-    for i in 0..block_count {
-        // Decode i into x, y, z block indices
-        let z = i / plane_blocks;
-        let rem = i - (z * plane_blocks);
-        let y = rem / row_blocks;
-        let x = rem - (y * row_blocks);
-
-        // Fetch the full block for compression
-        if use_fast_load {
-            image::load_image_block_fast_ldr(image, &mut blk, bsd, x * block_x, y * block_y);
-        } else {
-            image::load_image_block(
-                decode_mode,
-                image,
-                &mut blk,
-                bsd,
-                x * block_x,
-                y * block_y,
-                z * block_z,
-                swizzle,
-            );
+    const GRANULE: usize = 16;
+    let mut local = [0u8; GRANULE * 16];
+    loop {
+        let (base, count) = context.manage_compress.get_task_assignment(GRANULE);
+        if count == 0 {
+            break;
         }
 
-        // Scale RGB error contribution by the maximum alpha in the block. This encourages
-        // preserving alpha accuracy in regions with high transparency.
-        if config.flags & ASTCENC_FLG_USE_ALPHA_WEIGHT != 0 {
-            let alpha_scale = blk.data_max.lane(3) * (1.0 / 65535.0);
-            blk.channel_weight = vecmath::Vfloat4::new(
-                config.cw_r_weight * alpha_scale,
-                config.cw_g_weight * alpha_scale,
-                config.cw_b_weight * alpha_scale,
-                config.cw_a_weight,
-            );
+        for i in base..base + count {
+            // Decode i into x, y, z block indices
+            let z = i / plane_blocks;
+            let rem = i - (z * plane_blocks);
+            let y = rem / row_blocks;
+            let x = rem - (y * row_blocks);
+
+            // Fetch the full block for compression
+            if use_fast_load {
+                image::load_image_block_fast_ldr(image, &mut blk, bsd, x * block_x, y * block_y);
+            } else {
+                image::load_image_block(
+                    decode_mode,
+                    image,
+                    &mut blk,
+                    bsd,
+                    x * block_x,
+                    y * block_y,
+                    z * block_z,
+                    swizzle,
+                );
+            }
+
+            // Scale RGB error contribution by the maximum alpha in the block. This encourages
+            // preserving alpha accuracy in regions with high transparency.
+            if config.flags & ASTCENC_FLG_USE_ALPHA_WEIGHT != 0 {
+                let alpha_scale = blk.data_max.lane(3) * (1.0 / 65535.0);
+                blk.channel_weight = vecmath::Vfloat4::new(
+                    config.cw_r_weight * alpha_scale,
+                    config.cw_g_weight * alpha_scale,
+                    config.cw_b_weight * alpha_scale,
+                    config.cw_a_weight,
+                );
+            }
+
+            // ((z * blocks_y + y) * blocks_x + x) * 16 == i * 16: a batch is contiguous
+            let Some(bp) = local
+                .get_mut((i - base) * 16..(i - base) * 16 + 16)
+                .and_then(|b| <&mut [u8; 16]>::try_from(b).ok())
+            else {
+                return Err(AstcencError::OutOfMem);
+            };
+            compress_symbolic::compress_block(&config, bsd, &blk, bp, temp_buffers);
         }
 
-        let offset = ((z * blocks_y + y) * blocks_x + x) * 16;
-        let Some(bp) = buffer
-            .get_mut(offset..offset + 16)
-            .and_then(|b| <&mut [u8; 16]>::try_from(b).ok())
-        else {
+        let Ok(mut out) = buffer.lock() else {
+            return Err(AstcencError::BadContext);
+        };
+        let Some(dst) = out.get_mut(base * 16..(base + count) * 16) else {
             return Err(AstcencError::OutOfMem);
         };
-        compress_symbolic::compress_block(&config, bsd, &blk, bp, temp_buffers);
+        dst.copy_from_slice(&local[..count * 16]);
+        drop(out);
+        context.manage_compress.complete_task_assignment(count);
     }
     Ok(())
 }
 
-/// Port of `astcenc_compress_image`. Alpha scale RDO (`a_scale_radius`, the
-/// `compute_variance.cpp` averages) is not ported and fails with `NotImplemented`.
+/// Port of `astcenc_compress_image`. As in C++, every thread of a multi-threaded context
+/// calls it with its own `thread_index` and the same `data_out`; the threads share the
+/// blocks. Alpha scale RDO (`a_scale_radius`, the `compute_variance.cpp` averages) is not
+/// ported and fails with `NotImplemented`.
 pub fn astcenc_compress_image(
-    context: &mut AstcencContext,
+    context: &AstcencContext,
     image: &AstcencImage,
     swizzle: &AstcencSwizzle,
-    data_out: &mut [u8],
+    data_out: &AstcencOutput,
     thread_index: u32,
 ) -> Result<(), AstcencError> {
     if context.config.flags & ASTCENC_FLG_DECOMPRESS_ONLY != 0 {
@@ -1274,13 +1360,14 @@ pub fn astcenc_compress_image(
     };
 
     // Check we have enough output space
-    if data_out.len() < size_needed {
+    let data_len = data_out.lock().map_or(0, |d| d.len());
+    if data_len < size_needed {
         return Err(AstcencError::OutOfMem);
     }
 
     // If context thread count is one then implicitly reset
     if context.thread_count == 1 {
-        astcenc_compress_reset(context)?;
+        context.manage_compress.reset();
     }
 
     if context.config.a_scale_radius != 0 {
@@ -1295,16 +1382,16 @@ pub fn astcenc_compress_reset(context: &mut AstcencContext) -> Result<(), Astcen
     if context.config.flags & ASTCENC_FLG_DECOMPRESS_ONLY != 0 {
         return Err(AstcencError::BadContext);
     }
-    context.compress_assigned = false;
+    context.manage_compress.reset();
     Ok(())
 }
 
 /// Port of `astcenc_compress_cancel`: no further blocks are handed out.
-pub fn astcenc_compress_cancel(context: &mut AstcencContext) -> Result<(), AstcencError> {
+pub fn astcenc_compress_cancel(context: &AstcencContext) -> Result<(), AstcencError> {
     if context.config.flags & ASTCENC_FLG_DECOMPRESS_ONLY != 0 {
         return Err(AstcencError::BadContext);
     }
-    context.compress_assigned = true;
+    context.manage_compress.cancel();
     Ok(())
 }
 
