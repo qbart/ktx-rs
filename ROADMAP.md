@@ -74,7 +74,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] DEFERRED: ASTC HDR encoding. Upstream is broken (`astcProfile(sRGB, mode)` always yields an LDR
   profile, 8-bit input only, `ktx encode` forces LDR); kept as-is for CTS parity, fix later
 - [x] jpgd JPEG decoder (baseline + progressive, byte exact vs C++, `src/jpgd.rs`)
-- [ ] ETC unpack (etcunpack.cxx)
+- [x] ETC unpack (`etcunpack.cxx`; block decoder written from the spec since etcdec's license
+  forbids modified copies, byte exact vs etcdec)
 
 ## GPU upload
 - [x] Vulkan loader (`vkloader.c`, `vk_funcs.c`): `ash` + `libloading`, feature `vulkan` (default),

@@ -13,6 +13,7 @@ pub mod defs;
 pub mod dfd;
 pub mod encode_params;
 pub mod error;
+pub mod etcunpack;
 pub mod formatsize;
 pub mod gl_format;
 pub mod glformat_str;
