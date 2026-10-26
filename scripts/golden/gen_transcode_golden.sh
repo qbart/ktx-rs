@@ -7,8 +7,9 @@ REF=$ROOT/ref/ktx
 WORK=${WORK:-$(mktemp -d)}
 mkdir -p "$WORK"
 BU=$REF/external/basis_universal
+# BASISD_SUPPORT_FXT1=0 as in lib/CMakeLists.txt.
 g++ -O2 -std=c++17 -w \
-  -DBASISD_SUPPORT_KTX2=0 -DBASISD_SUPPORT_KTX2_ZSTD=0 \
+  -DBASISD_SUPPORT_KTX2=0 -DBASISD_SUPPORT_KTX2_ZSTD=0 -DBASISD_SUPPORT_FXT1=0 \
   -I"$BU" -I"$BU/transcoder" -I"$REF/interface/basisu_c_binding/inc" -I"$REF/lib/src" -I"$REF/lib/include" -I"$REF/other_include" -I"$REF/utils" \
   "$ROOT/scripts/golden/transcode_golden.cpp" \
   "$REF/interface/basisu_c_binding/src/basisu_c_binding.cpp" \

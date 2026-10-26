@@ -31,7 +31,8 @@ int main(int argc, char** argv) {
     basist::basisu_transcoder_init();
     std::string basisDir = argv[1], outDir = argv[2];
     const char* files[] = {"color_grid.basis", "kodim17.basis", "alpha_simple.basis"};
-    const uint32_t formats[] = {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 18, 19, 21, 13, 14, 15, 16};
+    // 11, 12 (ATC) and 17 (FXT1, compiled out like libktx) are only used by tests/transcode_atc.rs.
+    const uint32_t formats[] = {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 18, 19, 21, 13, 14, 15, 16, 11, 12, 17};
     for (const char* name : files) {
         std::vector<uint8_t> data;
         if (!read_file(basisDir + "/" + name, data)) {

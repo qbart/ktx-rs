@@ -38,8 +38,9 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] `info.c` (ktxPrintInfo text + KTX2 JSON, byte exact vs C) + `glformat_str.c`
 
 ## Basis Universal (pure Rust port)
-- [~] BasisLZ/ETC1S transcoder: core + ETC1, ETC2, EAC R11/RG11, BC1, BC3, BC7, BC4, BC5, RGBA32, RGB565, BGR565, RGBA4444, ASTC 4x4, PVRTC1 RGB/RGBA, PVRTC2 RGB/RGBA (byte exact vs C++);
-  all KTX transcode targets done; todo ATC, FXT1 (basisu-only formats)
+- [x] BasisLZ/ETC1S transcoder: core + ETC1, ETC2, EAC R11/RG11, BC1, BC3, BC7, BC4, BC5, RGBA32, RGB565, BGR565, RGBA4444, ASTC 4x4, PVRTC1 RGB/RGBA, PVRTC2 RGB/RGBA (byte exact vs C++);
+  all KTX transcode targets done; ATC RGB/RGBA (basisu-only, byte exact); FXT1 compiled out like
+  libktx (`BASISD_SUPPORT_FXT1=0`)
 - [x] UASTC LDR 4x4 transcoder: all KTX targets (ASTC, BC1/3/4/5/7, ETC1/ETC2, EAC R11/RG11,
   PVRTC1, RGBA32/565/4444) byte exact vs C++ on every level of 4 UASTC files; PVRTC2 rejected like C
 - [x] UASTC HDR 4x4 transcoder: ASTC HDR 4x4, BC6H, RGB/RGBA half, RGB9E5 byte exact vs C++

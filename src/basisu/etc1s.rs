@@ -5,6 +5,7 @@
 //! until their block encoders are ported.
 
 use super::astc::convert_etc1s_to_astc_4x4;
+use super::atc::{AtcBlock, convert_etc1s_to_atc};
 use super::bc7m5::{
     Bc7Mode5, chroma_filter_bc7_mode5, convert_etc1s_to_bc7_m5_alpha, convert_etc1s_to_bc7_m5_color,
 };
@@ -591,6 +592,11 @@ impl LowlevelEtc1sTranscoder {
                         convert_etc1s_to_pvrtc2_rgb(&mut b, ep, sel);
                         dst.write(block_ofs, &b.to_bytes())
                     }
+                    BlockFormat::AtcRgb => {
+                        let mut b = AtcBlock::default();
+                        convert_etc1s_to_atc(&mut b, ep, sel);
+                        dst.write(block_ofs, &b.to_bytes())
+                    }
                     BlockFormat::Pvrtc2_4Rgba => {
                         let start = dst.offset + block_ofs;
                         let mut raw = [0u8; 8];
@@ -774,6 +780,7 @@ impl LowlevelEtc1sTranscoder {
                 | Pvrtc1_4Rgba
                 | Pvrtc2_4Rgb
                 | Pvrtc2_4Rgba
+                | AtcRgb
                 | AstcLdr4x4
                 | Bc7
                 | Bc7M5Color
@@ -1146,6 +1153,51 @@ impl LowlevelEtc1sTranscoder {
                     Some(&temp),
                     0,
                     decode_flags_in,
+                )
+            }
+            F::ATC_RGB => run(
+                output,
+                0,
+                data,
+                BlockFormat::AtcRgb,
+                bytes_per_block_or_pixel,
+                is_alpha_slice,
+                state,
+            ),
+            F::ATC_RGBA => {
+                // First decode the alpha data
+                if basis_file_has_alpha_slices {
+                    let s = run(
+                        output,
+                        0,
+                        alpha_data,
+                        BlockFormat::Bc4,
+                        bytes_per_block_or_pixel,
+                        true,
+                        state,
+                    );
+                    if s != TranscodeStatus::Ok {
+                        return s;
+                    }
+                } else if !write_opaque_alpha_blocks(
+                    num_blocks_x,
+                    num_blocks_y,
+                    output,
+                    0,
+                    BlockFormat::Bc4,
+                    16,
+                    output_row_pitch_in_blocks_or_pixels,
+                ) {
+                    return TranscodeStatus::Failed;
+                }
+                run(
+                    output,
+                    8,
+                    rgb_data,
+                    BlockFormat::AtcRgb,
+                    bytes_per_block_or_pixel,
+                    false,
+                    state,
                 )
             }
             F::PVRTC2_4_RGB => run(
