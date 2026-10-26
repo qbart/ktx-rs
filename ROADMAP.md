@@ -77,7 +77,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [ ] ETC unpack (etcunpack.cxx)
 
 ## GPU upload
-- [ ] Vulkan loader (`vkloader.c`) via Vulkan bindings
+- [x] Vulkan loader (`vkloader.c`, `vk_funcs.c`): `ash` + `libloading`, feature `vulkan` (default),
+  all upload paths incl. suballocator, tested on lavapipe (docs/spec/vkloader.md)
 - [ ] OpenGL loader (out of scope unless requested)
 
 ## CLI (`ktx` tool)
@@ -108,7 +109,7 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] unittests: Swizzle (`swizzle_to_rgba`)
 - [x] unittests: FragmentURI (`test_fragment_uri.cc`), NormaliseColor + ImagePacking E5B9G9R9
   (`image_unittests.cc`)
-- [ ] unittests: BadVulkanAlloc (needs Vulkan loader)
+- [x] unittests: BadVulkanAlloc
 - [~] texturetests: 115 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
   unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode, BasisCompress,

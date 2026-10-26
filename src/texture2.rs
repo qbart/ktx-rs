@@ -946,6 +946,11 @@ impl KtxTexture for Texture2 {
         &self.base
     }
 
+    /// Port of `ktxTexture2_GetVkFormat`.
+    fn get_vk_format(&self) -> VkFormat {
+        self.vk_format
+    }
+
     fn base_mut(&mut self) -> &mut Texture {
         &mut self.base
     }

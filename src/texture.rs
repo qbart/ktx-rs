@@ -377,6 +377,8 @@ pub trait KtxTexture {
     fn load_image_data(&mut self, buffer: Option<&mut [u8]>) -> KtxResult<()>;
     /// Port of `ktxTexture_NeedsTranscoding`.
     fn needs_transcoding(&self) -> bool;
+    /// Port of `ktxTexture_GetVkFormat` (`vkloader.c`).
+    fn get_vk_format(&self) -> crate::vkformat::VkFormat;
 
     /// Port of `ktxTexture_calcDataSizeTexture`.
     fn calc_data_size_texture(&self) -> usize {

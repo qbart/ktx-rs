@@ -185,6 +185,9 @@ impl KtxTexture for AnyTexture {
     fn base_mut(&mut self) -> &mut Texture {
         self.inner_mut().base_mut()
     }
+    fn get_vk_format(&self) -> crate::vkformat::VkFormat {
+        self.inner().get_vk_format()
+    }
     fn calc_data_size_levels(&self, levels: u32) -> usize {
         self.inner().calc_data_size_levels(levels)
     }

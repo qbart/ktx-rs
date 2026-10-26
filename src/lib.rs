@@ -32,6 +32,8 @@ pub mod tinyexr;
 pub mod version;
 pub mod vk_format;
 pub mod vkformat;
+#[cfg(feature = "vulkan")]
+pub mod vkloader;
 pub mod writer1;
 pub mod writer2;
 pub mod zlib;

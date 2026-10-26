@@ -477,6 +477,21 @@ impl KtxTexture for Texture1 {
         &self.base
     }
 
+    /// Port of `ktxTexture1_GetVkFormat`.
+    fn get_vk_format(&self) -> crate::vkformat::VkFormat {
+        let vk_format = crate::vk_format::vk_get_format_from_opengl_internal_format(
+            self.gl_internalformat,
+            self.get_rgba_astc_mapping(),
+        );
+        if vk_format == crate::vkformat::VkFormat::UNDEFINED {
+            return crate::vk_format::vk_get_format_from_opengl_format(
+                self.gl_format,
+                self.gl_type,
+            );
+        }
+        vk_format
+    }
+
     fn base_mut(&mut self) -> &mut Texture {
         &mut self.base
     }
