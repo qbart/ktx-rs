@@ -8,6 +8,7 @@ Library port focues only on two components, rest is ignored:
 
 The only C bindings that are allowed:
 - Vulkan
+- OpenGL {,ES} (only behind the opt-in `opengl` feature, for the GL texture loader)
 
 So it means that external dependencies should be ported as well or rust crates be used instead assuming they:
 - are covering all required features

@@ -17,6 +17,8 @@ pub mod etcunpack;
 pub mod formatsize;
 pub mod gl_format;
 pub mod glformat_str;
+#[cfg(feature = "opengl")]
+pub mod glloader;
 pub mod hashlist;
 pub mod info;
 pub mod jpgd;

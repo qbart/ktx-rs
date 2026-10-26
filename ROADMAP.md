@@ -80,7 +80,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 ## GPU upload
 - [x] Vulkan loader (`vkloader.c`, `vk_funcs.c`): `ash` + `libloading`, feature `vulkan` (default),
   all upload paths incl. suballocator, tested on lavapipe (docs/spec/vkloader.md)
-- [ ] OpenGL loader (out of scope unless requested)
+- [x] OpenGL loader (`glloader.c`, `gl_funcs.c`): opt-in feature `opengl`, desktop + ES context
+  capabilities, ETC software fallback, tested on Mesa llvmpipe via EGL (docs/spec/glloader.md)
 
 ## CLI (`ktx` tool)
 - [x] framework: cxxopts port (parsing, errors, help layout), Reporter, option groups

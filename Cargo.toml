@@ -14,6 +14,9 @@ path = "src/lib.rs"
 # LIBKTX_FEATURE_VK_UPLOAD (ON by default upstream): Vulkan texture upload (vkloader.c).
 default = ["vulkan"]
 vulkan = ["dep:ash", "dep:libloading"]
+# LIBKTX_FEATURE_GL_UPLOAD: OpenGL {,ES} texture upload (glloader.c). Opt-in: OpenGL is the
+# second allowed C binding.
+opengl = ["dep:libloading"]
 
 [dependencies]
 bytemuck = "1.25.2"
@@ -26,7 +29,7 @@ ash = { version = "0.38.0", default-features = false, features = ["std", "debug"
 libloading = { version = "0.8.9", optional = true }
 
 [lints.rust]
-# Denied everywhere except the Vulkan loader (src/vkloader.rs).
+# Denied everywhere except the Vulkan and OpenGL loaders (src/vkloader.rs, src/glloader.rs).
 unsafe_code = "deny"
 
 [lints.clippy]
@@ -39,6 +42,7 @@ unimplemented = "deny"
 [dev-dependencies]
 ash = { version = "0.38.0", features = ["loaded"] }
 libloading = "0.8.9"
+khronos-egl = { version = "6.0.0", features = ["dynamic"] }
 regex = "1.13.1"
 serde_json = "1.0.154"
 sha2 = "0.11.1"
