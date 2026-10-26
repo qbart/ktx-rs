@@ -86,7 +86,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 ## Performance (docs/spec/performance.md)
 - [x] benchmark vs the C++ `ktx` (`scripts/bench/bench.sh`, outputs compared byte for byte)
 - [x] basisu job pool (`job_pool.rs`); UASTC LDR block encode threaded
-- [ ] Basis-LZ frontend job sites, KTX2 level supercompression jobs
+- [x] Basis-LZ frontend job sites
+- [ ] KTX2 level supercompression jobs, basisu SSE kernels
 - [ ] astcenc worker threads, SIMD `vecmathlib`
 - OpenCL encoding: not ported (C binding)
 

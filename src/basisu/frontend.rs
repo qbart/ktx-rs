@@ -14,6 +14,9 @@ use super::etc_enc::{
     BasisEtcQuality, Etc1Optimizer, Etc1OptimizerParams, Etc1OptimizerResults, EtcBlock,
     G_ETC1_PIXEL_COORDS, G_ETC1_PIXEL_INDICES, unpack_etc1,
 };
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use super::job_pool::{for_each_chunk_mut, map_jobs};
 use super::vq::{TreeVectorQuant, generate_hierarchical_codebook_threaded};
 
 /// `pixel_block`: 4x4 pixels, row major.
@@ -608,32 +611,45 @@ impl BasisuFrontend {
             BASISU_MAX_ETC1S_COMPRESSION_LEVEL => BasisEtcQuality::Uber,
             _ => BasisEtcQuality::Slow,
         };
-        let mut optimizer = Etc1Optimizer::new();
-        for block_index in 0..total {
-            let source_blk = &self.params.source_blocks[block_index];
-            let mut p = Etc1OptimizerParams {
-                num_src_pixels: 16,
-                src_pixels: source_blk,
-                ..Default::default()
-            };
-            p.pack.quality = quality;
-            p.pack.perceptual = self.params.perceptual;
-            let mut r = new_optimizer_results(16);
-            optimizer.init(&p);
-            if !optimizer.compute(&p, &mut r) {
-                self.verify_failed = true;
-            }
-            let blk = &mut self.etc1_blocks_etc1s[block_index];
-            *blk = EtcBlock::default();
-            blk.set_block_color5_etc1s(&r.block_color_unscaled);
-            blk.set_inten_tables_etc1s(r.block_inten_table);
-            blk.set_flip_bit(true);
-            for y in 0..4u32 {
-                for x in 0..4u32 {
-                    blk.set_selector(x, y, r.selectors[(x + y * 4) as usize] as u32);
+        const N: usize = 4096;
+        let mut blocks = std::mem::take(&mut self.etc1_blocks_etc1s);
+        let failed = AtomicBool::new(false);
+        let ok = for_each_chunk_mut(
+            self.params.job_pool_threads,
+            &mut blocks,
+            N,
+            |first, chunk| {
+                let mut optimizer = Etc1Optimizer::new();
+                for (k, blk) in chunk.iter_mut().enumerate() {
+                    let source_blk = &self.params.source_blocks[first + k];
+                    let mut p = Etc1OptimizerParams {
+                        num_src_pixels: 16,
+                        src_pixels: source_blk,
+                        ..Default::default()
+                    };
+                    p.pack.quality = quality;
+                    p.pack.perceptual = self.params.perceptual;
+                    let mut r = new_optimizer_results(16);
+                    optimizer.init(&p);
+                    if !optimizer.compute(&p, &mut r) {
+                        failed.store(true, Ordering::Relaxed);
+                    }
+                    *blk = EtcBlock::default();
+                    blk.set_block_color5_etc1s(&r.block_color_unscaled);
+                    blk.set_inten_tables_etc1s(r.block_inten_table);
+                    blk.set_flip_bit(true);
+                    for y in 0..4u32 {
+                        for x in 0..4u32 {
+                            blk.set_selector(x, y, r.selectors[(x + y * 4) as usize] as u32);
+                        }
+                    }
                 }
-            }
+            },
+        );
+        if !ok || failed.into_inner() {
+            self.verify_failed = true;
         }
+        self.etc1_blocks_etc1s = blocks;
     }
 
     fn init_endpoint_training_vectors(&mut self) {
@@ -754,44 +770,58 @@ impl BasisuFrontend {
     }
 
     fn compute_endpoint_subblock_error_vec(&mut self) {
-        self.subblock_endpoint_quant_err_vec.clear();
-        for (cluster_index, cluster_indices) in self.endpoint_clusters.iter().enumerate() {
-            let etc_params = &self.endpoint_cluster_etc_params[cluster_index];
-            for (iter, &t) in cluster_indices.iter().enumerate() {
-                let block_index = t >> 1;
-                let subblock_index = t & 1;
-                let src = &self.params.source_blocks[block_index as usize];
-                let mut block_colors = [[0u8; 4]; 4];
-                // C++ passes scaled = true for the unscaled color here; kept as is.
-                EtcBlock::get_block_colors5(
-                    &mut block_colors,
-                    &etc_params.color_unscaled[0],
-                    etc_params.inten_table[0],
-                    true,
-                );
-                let mut total_err = 0u64;
-                for i in 0..8 {
-                    let c = &src[G_ETC1_PIXEL_INDICES[1][subblock_index as usize][i] as usize];
-                    let mut best_err = u64::MAX;
-                    for s in 0..4 {
-                        let err = color_distance(self.params.perceptual, c, &block_colors[s], false)
-                            as u64;
-                        if err < best_err {
-                            best_err = err;
+        // Jobs of 512 clusters; C++ appends under a lock in any order and then sorts.
+        const N: usize = 512;
+        let num_jobs = self.endpoint_clusters.len().div_ceil(N);
+        let parts = map_jobs(self.params.job_pool_threads, num_jobs, |job| {
+            let mut out = Vec::new();
+            let first = job * N;
+            let last = (first + N).min(self.endpoint_clusters.len());
+            for cluster_index in first..last {
+                let cluster_indices = &self.endpoint_clusters[cluster_index];
+                let etc_params = &self.endpoint_cluster_etc_params[cluster_index];
+                for (iter, &t) in cluster_indices.iter().enumerate() {
+                    let block_index = t >> 1;
+                    let subblock_index = t & 1;
+                    let src = &self.params.source_blocks[block_index as usize];
+                    let mut block_colors = [[0u8; 4]; 4];
+                    // C++ passes scaled = true for the unscaled color here; kept as is.
+                    EtcBlock::get_block_colors5(
+                        &mut block_colors,
+                        &etc_params.color_unscaled[0],
+                        etc_params.inten_table[0],
+                        true,
+                    );
+                    let mut total_err = 0u64;
+                    for i in 0..8 {
+                        let c = &src[G_ETC1_PIXEL_INDICES[1][subblock_index as usize][i] as usize];
+                        let mut best_err = u64::MAX;
+                        for s in 0..4 {
+                            let err =
+                                color_distance(self.params.perceptual, c, &block_colors[s], false)
+                                    as u64;
+                            if err < best_err {
+                                best_err = err;
+                            }
                         }
+                        total_err += best_err;
                     }
-                    total_err += best_err;
-                }
-                self.subblock_endpoint_quant_err_vec
-                    .push(SubblockEndpointQuantErr {
+                    out.push(SubblockEndpointQuantErr {
                         total_err,
                         cluster_index: cluster_index as u32,
                         cluster_subblock_index: iter as u32,
                         block_index,
                         subblock_index,
                     });
+                }
             }
-        }
+            out
+        });
+        let Some(parts) = parts else {
+            self.verify_failed = true;
+            return;
+        };
+        self.subblock_endpoint_quant_err_vec = parts.into_iter().flatten().collect();
         std_sort_by(&mut self.subblock_endpoint_quant_err_vec, |a, b| a.less(b));
     }
 
@@ -869,75 +899,89 @@ impl BasisuFrontend {
             BasisEtcQuality::Slow
         };
         let perceptual = self.params.perceptual;
-        let mut optimizer = Etc1Optimizer::new();
-        let mut ok = true;
-        for cluster_index in 0..self.endpoint_clusters.len() {
-            let cluster_indices = &self.endpoint_clusters[cluster_index];
-            ok &= !cluster_indices.is_empty();
-            let total_pixels = cluster_indices.len() as u32 * 8;
-            let mut cluster_pixels = Vec::with_capacity(total_pixels as usize);
-            for &t in cluster_indices {
-                let src = &self.params.source_blocks[(t >> 1) as usize];
-                for i in 0..8 {
-                    cluster_pixels.push(src[G_ETC1_PIXEL_INDICES[1][(t & 1) as usize][i] as usize]);
-                }
-            }
-
-            let mut new_subblock_params = EndpointClusterEtcParams::default();
-            {
-                let mut p = Etc1OptimizerParams {
-                    num_src_pixels: total_pixels,
-                    src_pixels: &cluster_pixels,
-                    use_color4: false,
-                    ..Default::default()
-                };
-                p.pack.perceptual = perceptual;
-                p.pack.quality = quality;
-                let mut r = new_optimizer_results(total_pixels);
-                optimizer.init(&p);
-                if !optimizer.compute(&p, &mut r) {
-                    ok = false;
-                }
-                new_subblock_params.color_unscaled[0] = r.block_color_unscaled;
-                new_subblock_params.inten_table[0] = r.block_inten_table;
-                new_subblock_params.color_error[0] = r.error;
-            }
-
-            let prev = &mut self.endpoint_cluster_etc_params[cluster_index];
-            let mut use_new_subblock_params = false;
-            if step == 0 || !prev.valid {
-                use_new_subblock_params = true;
-            } else {
-                let mut block_colors = [[0u8; 4]; 4];
-                EtcBlock::get_block_colors5(
-                    &mut block_colors,
-                    &prev.color_unscaled[0],
-                    prev.inten_table[0],
-                    false,
-                );
-                let mut total_prev_err = 0u64;
-                for c in &cluster_pixels {
-                    let mut best_err = u64::MAX;
-                    for s in 0..4 {
-                        let err = color_distance(perceptual, c, &block_colors[s], false) as u64;
-                        if err < best_err {
-                            best_err = err;
+        // Jobs of 128 clusters, each updating only its own clusters' params.
+        const N: usize = 128;
+        let failed = AtomicBool::new(false);
+        let mut etc_params = std::mem::take(&mut self.endpoint_cluster_etc_params);
+        let done = for_each_chunk_mut(
+            self.params.job_pool_threads,
+            &mut etc_params,
+            N,
+            |first, chunk| {
+                let mut optimizer = Etc1Optimizer::new();
+                for (k, prev) in chunk.iter_mut().enumerate() {
+                    let cluster_indices = &self.endpoint_clusters[first + k];
+                    if cluster_indices.is_empty() {
+                        failed.store(true, Ordering::Relaxed);
+                    }
+                    let total_pixels = cluster_indices.len() as u32 * 8;
+                    let mut cluster_pixels = Vec::with_capacity(total_pixels as usize);
+                    for &t in cluster_indices {
+                        let src = &self.params.source_blocks[(t >> 1) as usize];
+                        for i in 0..8 {
+                            cluster_pixels
+                                .push(src[G_ETC1_PIXEL_INDICES[1][(t & 1) as usize][i] as usize]);
                         }
                     }
-                    total_prev_err += best_err;
+
+                    let mut new_subblock_params = EndpointClusterEtcParams::default();
+                    {
+                        let mut p = Etc1OptimizerParams {
+                            num_src_pixels: total_pixels,
+                            src_pixels: &cluster_pixels,
+                            use_color4: false,
+                            ..Default::default()
+                        };
+                        p.pack.perceptual = perceptual;
+                        p.pack.quality = quality;
+                        let mut r = new_optimizer_results(total_pixels);
+                        optimizer.init(&p);
+                        if !optimizer.compute(&p, &mut r) {
+                            failed.store(true, Ordering::Relaxed);
+                        }
+                        new_subblock_params.color_unscaled[0] = r.block_color_unscaled;
+                        new_subblock_params.inten_table[0] = r.block_inten_table;
+                        new_subblock_params.color_error[0] = r.error;
+                    }
+
+                    let mut use_new_subblock_params = false;
+                    if step == 0 || !prev.valid {
+                        use_new_subblock_params = true;
+                    } else {
+                        let mut block_colors = [[0u8; 4]; 4];
+                        EtcBlock::get_block_colors5(
+                            &mut block_colors,
+                            &prev.color_unscaled[0],
+                            prev.inten_table[0],
+                            false,
+                        );
+                        let mut total_prev_err = 0u64;
+                        for c in &cluster_pixels {
+                            let mut best_err = u64::MAX;
+                            for s in 0..4 {
+                                let err =
+                                    color_distance(perceptual, c, &block_colors[s], false) as u64;
+                                if err < best_err {
+                                    best_err = err;
+                                }
+                            }
+                            total_prev_err += best_err;
+                        }
+                        // See if we should update this cluster's endpoints (if the error has actually
+                        // fallen)
+                        if total_prev_err > new_subblock_params.color_error[0] {
+                            use_new_subblock_params = true;
+                        }
+                    }
+                    if use_new_subblock_params {
+                        new_subblock_params.valid = true;
+                        *prev = new_subblock_params;
+                    }
                 }
-                // See if we should update this cluster's endpoints (if the error has actually
-                // fallen)
-                if total_prev_err > new_subblock_params.color_error[0] {
-                    use_new_subblock_params = true;
-                }
-            }
-            if use_new_subblock_params {
-                new_subblock_params.valid = true;
-                *prev = new_subblock_params;
-            }
-        }
-        self.verify(ok);
+            },
+        );
+        self.endpoint_cluster_etc_params = etc_params;
+        self.verify(done && !failed.into_inner());
     }
 
     fn check_etc1s_constraints(&self) -> bool {
@@ -965,85 +1009,98 @@ impl BasisuFrontend {
         }
 
         let perceptual = self.params.perceptual;
+        // Jobs of 1024 blocks.
+        const N: usize = 1024;
         let mut best_cluster_indices = vec![0u32; total];
-        let mut ok = true;
-        for block_index in 0..total {
-            let cluster_index = block_clusters[block_index][0];
-            ok &= cluster_index == block_clusters[block_index][1];
-            let src = &self.params.source_blocks[block_index];
+        let bad = AtomicBool::new(false);
+        let done = for_each_chunk_mut(
+            self.params.job_pool_threads,
+            &mut best_cluster_indices,
+            N,
+            |first, chunk| {
+                for (k, best_out) in chunk.iter_mut().enumerate() {
+                    let block_index = first + k;
+                    let cluster_index = block_clusters[block_index][0];
+                    if cluster_index != block_clusters[block_index][1] {
+                        bad.store(true, Ordering::Relaxed);
+                    }
+                    let src = &self.params.source_blocks[block_index];
 
-            let mut best_cluster_err = i64::MAX as u64;
-            let mut best_cluster_index = 0u32;
+                    let mut best_cluster_err = i64::MAX as u64;
+                    let mut best_cluster_index = 0u32;
 
-            let parent = if self.block_parent_endpoint_cluster.is_empty() {
-                0
-            } else {
-                self.block_parent_endpoint_cluster[block_index] as usize
-            };
-            let cluster_list: Option<&Vec<u32>> = self
-                .endpoint_clusters_within_each_parent_cluster
-                .get(parent);
-            let total_clusters = if self.use_hierarchical_endpoint_codebooks {
-                cluster_list.map_or(0, |c| c.len())
-            } else {
-                self.endpoint_clusters.len()
-            };
-            let cur_inten = self.endpoint_cluster_etc_params[cluster_index as usize].inten_table[0];
+                    let parent = if self.block_parent_endpoint_cluster.is_empty() {
+                        0
+                    } else {
+                        self.block_parent_endpoint_cluster[block_index] as usize
+                    };
+                    let cluster_list: Option<&Vec<u32>> = self
+                        .endpoint_clusters_within_each_parent_cluster
+                        .get(parent);
+                    let total_clusters = if self.use_hierarchical_endpoint_codebooks {
+                        cluster_list.map_or(0, |c| c.len())
+                    } else {
+                        self.endpoint_clusters.len()
+                    };
+                    let cur_inten =
+                        self.endpoint_cluster_etc_params[cluster_index as usize].inten_table[0];
 
-            for i in 0..total_clusters {
-                let cluster_iter = if self.use_hierarchical_endpoint_codebooks {
-                    cluster_list.map_or(0, |c| c[i])
-                } else {
-                    i as u32
-                };
-                let ep = &self.endpoint_cluster_etc_params[cluster_iter as usize];
-                let cluster_etc_inten = ep.inten_table[0];
+                    for i in 0..total_clusters {
+                        let cluster_iter = if self.use_hierarchical_endpoint_codebooks {
+                            cluster_list.map_or(0, |c| c[i])
+                        } else {
+                            i as u32
+                        };
+                        let ep = &self.endpoint_cluster_etc_params[cluster_iter as usize];
+                        let cluster_etc_inten = ep.inten_table[0];
 
-                let total_err = if cluster_etc_inten > cur_inten {
-                    // Can't assign it here - may result in too much error when selector quant
-                    // occurs
-                    i64::MAX as u64
-                } else {
-                    let mut subblock_colors = [[0u8; 4]; 4];
-                    EtcBlock::get_block_colors5(
-                        &mut subblock_colors,
-                        &ep.color_unscaled[0],
-                        cluster_etc_inten,
-                        false,
-                    );
-                    // find_lowest_error_{perceptual,linear}_rgb_4_N (the SSE kernels early out
-                    // the same way: the partial sum exceeds the best error)
-                    let mut total_err = 0u64;
-                    for p in src.iter() {
-                        let mut best_err = u64::MAX;
-                        for c in &subblock_colors {
-                            let err = color_distance(perceptual, p, c, false) as u64;
-                            best_err = best_err.min(err);
-                            if best_err == 0 {
+                        let total_err = if cluster_etc_inten > cur_inten {
+                            // Can't assign it here - may result in too much error when selector quant
+                            // occurs
+                            i64::MAX as u64
+                        } else {
+                            let mut subblock_colors = [[0u8; 4]; 4];
+                            EtcBlock::get_block_colors5(
+                                &mut subblock_colors,
+                                &ep.color_unscaled[0],
+                                cluster_etc_inten,
+                                false,
+                            );
+                            // find_lowest_error_{perceptual,linear}_rgb_4_N (the SSE kernels early out
+                            // the same way: the partial sum exceeds the best error)
+                            let mut total_err = 0u64;
+                            for p in src.iter() {
+                                let mut best_err = u64::MAX;
+                                for c in &subblock_colors {
+                                    let err = color_distance(perceptual, p, c, false) as u64;
+                                    best_err = best_err.min(err);
+                                    if best_err == 0 {
+                                        break;
+                                    }
+                                }
+                                total_err += best_err;
+                                if total_err > best_cluster_err {
+                                    break;
+                                }
+                            }
+                            total_err
+                        };
+
+                        if total_err < best_cluster_err
+                            || (cluster_iter == cluster_index && total_err == best_cluster_err)
+                        {
+                            best_cluster_err = total_err;
+                            best_cluster_index = cluster_iter;
+                            if best_cluster_err == 0 {
                                 break;
                             }
                         }
-                        total_err += best_err;
-                        if total_err > best_cluster_err {
-                            break;
-                        }
                     }
-                    total_err
-                };
-
-                if total_err < best_cluster_err
-                    || (cluster_iter == cluster_index && total_err == best_cluster_err)
-                {
-                    best_cluster_err = total_err;
-                    best_cluster_index = cluster_iter;
-                    if best_cluster_err == 0 {
-                        break;
-                    }
+                    *best_out = best_cluster_index;
                 }
-            }
-            best_cluster_indices[block_index] = best_cluster_index;
-        }
-        self.verify(ok);
+            },
+        );
+        self.verify(done && !bad.into_inner());
 
         let mut optimized_endpoint_clusters = vec![Vec::new(); self.endpoint_clusters.len()];
         let mut total_subblocks_reassigned = 0u32;
@@ -1117,25 +1174,38 @@ impl BasisuFrontend {
     }
 
     fn create_initial_packed_texture(&mut self) {
-        let mut ok = true;
-        for block_index in 0..self.total_blocks as usize {
-            let [cluster0, cluster1] = self.block_endpoint_clusters_indices[block_index];
-            ok &= cluster0 == cluster1;
-            let p0 = &self.endpoint_cluster_etc_params[cluster0 as usize];
-            let p1 = &self.endpoint_cluster_etc_params[cluster1 as usize];
-            let blk = &mut self.encoded_blocks[block_index];
-            blk.set_block_color5(&p0.color_unscaled[0], &p1.color_unscaled[0]);
-            blk.set_flip_bit(true);
-            blk.set_inten_table(0, p0.inten_table[0]);
-            blk.set_inten_table(1, p1.inten_table[0]);
-            blk.determine_selectors(
-                &self.params.source_blocks[block_index],
-                self.params.perceptual,
-                0,
-                2,
-            );
-        }
-        self.verify(ok);
+        // Jobs of 4096 blocks.
+        const N: usize = 4096;
+        let bad = AtomicBool::new(false);
+        let mut encoded = std::mem::take(&mut self.encoded_blocks);
+        let done = for_each_chunk_mut(
+            self.params.job_pool_threads,
+            &mut encoded,
+            N,
+            |first, chunk| {
+                for (k, blk) in chunk.iter_mut().enumerate() {
+                    let block_index = first + k;
+                    let [cluster0, cluster1] = self.block_endpoint_clusters_indices[block_index];
+                    if cluster0 != cluster1 {
+                        bad.store(true, Ordering::Relaxed);
+                    }
+                    let p0 = &self.endpoint_cluster_etc_params[cluster0 as usize];
+                    let p1 = &self.endpoint_cluster_etc_params[cluster1 as usize];
+                    blk.set_block_color5(&p0.color_unscaled[0], &p1.color_unscaled[0]);
+                    blk.set_flip_bit(true);
+                    blk.set_inten_table(0, p0.inten_table[0]);
+                    blk.set_inten_table(1, p1.inten_table[0]);
+                    blk.determine_selectors(
+                        &self.params.source_blocks[block_index],
+                        self.params.perceptual,
+                        0,
+                        2,
+                    );
+                }
+            },
+        );
+        self.encoded_blocks = encoded;
+        self.verify(done && !bad.into_inner());
         self.orig_encoded_blocks = self.encoded_blocks.clone();
     }
 
@@ -1161,31 +1231,50 @@ impl BasisuFrontend {
     }
 
     fn generate_selector_clusters(&mut self) {
+        // Training vectors in jobs of 4096 blocks, added in block order.
+        const N: usize = 4096;
         let mut selector_clusterizer = TreeVectorQuant::<16>::new();
-        for blk in &self.encoded_blocks {
-            let mut v = [0.0f32; 16];
-            for y in 0..4u32 {
-                for x in 0..4u32 {
-                    v[(x + y * 4) as usize] = blk.get_selector(x, y) as f32;
+        let encoded = &self.encoded_blocks;
+        let parts = map_jobs(
+            self.params.job_pool_threads,
+            encoded.len().div_ceil(N),
+            |job| {
+                let last = encoded.len().min(job * N + N);
+                let mut vecs = Vec::with_capacity(last - job * N);
+                for blk in &encoded[job * N..last] {
+                    let mut v = [0.0f32; 16];
+                    for y in 0..4u32 {
+                        for x in 0..4u32 {
+                            v[(x + y * 4) as usize] = blk.get_selector(x, y) as f32;
+                        }
+                    }
+                    let subblock_index = if blk.get_inten_table(0) > blk.get_inten_table(1) {
+                        0
+                    } else {
+                        1
+                    };
+                    let mut block_colors = [[0u8; 4]; 2];
+                    blk.get_block_low_high_colors(&mut block_colors, subblock_index);
+                    let dist = color_distance(
+                        self.params.perceptual,
+                        &block_colors[0],
+                        &block_colors[1],
+                        false,
+                    );
+                    const COLOR_DIST_TO_WEIGHT: u32 = 300;
+                    const MAX_WEIGHT: u32 = 4096;
+                    let weight = (dist / COLOR_DIST_TO_WEIGHT).clamp(1, MAX_WEIGHT);
+                    vecs.push((v, weight as u64));
                 }
-            }
-            let subblock_index = if blk.get_inten_table(0) > blk.get_inten_table(1) {
-                0
-            } else {
-                1
-            };
-            let mut block_colors = [[0u8; 4]; 2];
-            blk.get_block_low_high_colors(&mut block_colors, subblock_index);
-            let dist = color_distance(
-                self.params.perceptual,
-                &block_colors[0],
-                &block_colors[1],
-                false,
-            );
-            const COLOR_DIST_TO_WEIGHT: u32 = 300;
-            const MAX_WEIGHT: u32 = 4096;
-            let weight = (dist / COLOR_DIST_TO_WEIGHT).clamp(1, MAX_WEIGHT);
-            selector_clusterizer.add_training_vec(&v, weight as u64);
+                vecs
+            },
+        );
+        let Some(parts) = parts else {
+            self.verify(false);
+            return;
+        };
+        for (v, weight) in parts.iter().flatten() {
+            selector_clusterizer.add_training_vec(v, *weight);
         }
 
         let selector_parent_codebook_size = if self.params.compression_level <= 1 {
@@ -1255,43 +1344,58 @@ impl BasisuFrontend {
         self.optimized_cluster_selectors
             .resize(total_selector_clusters, EtcBlock::default());
         let perceptual = self.params.perceptual;
-        for cluster_index in 0..total_selector_clusters {
-            let cluster_block_indices = &self.selector_cluster_block_indices[cluster_index];
-            if cluster_block_indices.is_empty() {
-                continue;
-            }
-            let mut total_err = [[[0u64; 4]; 4]; 4];
-            for &block_index in cluster_block_indices {
-                let blk = &self.encoded_blocks[block_index as usize];
-                let mut blk_colors = [[0u8; 4]; 4];
-                blk.get_block_colors(&mut blk_colors, 0);
-                let src = &self.params.source_blocks[block_index as usize];
-                for y in 0..4 {
-                    for x in 0..4 {
-                        let orig_color = &src[x + y * 4];
-                        for s in 0..4 {
-                            total_err[y][x][s] +=
-                                color_distance(perceptual, &blk_colors[s], orig_color, false)
-                                    as u64;
+        // Jobs of 256 clusters.
+        const N: usize = 256;
+        let mut selectors = std::mem::take(&mut self.optimized_cluster_selectors);
+        let done = for_each_chunk_mut(
+            self.params.job_pool_threads,
+            &mut selectors,
+            N,
+            |first, chunk| {
+                for (k, out) in chunk.iter_mut().enumerate() {
+                    let cluster_block_indices = &self.selector_cluster_block_indices[first + k];
+                    if cluster_block_indices.is_empty() {
+                        continue;
+                    }
+                    let mut total_err = [[[0u64; 4]; 4]; 4];
+                    for &block_index in cluster_block_indices {
+                        let blk = &self.encoded_blocks[block_index as usize];
+                        let mut blk_colors = [[0u8; 4]; 4];
+                        blk.get_block_colors(&mut blk_colors, 0);
+                        let src = &self.params.source_blocks[block_index as usize];
+                        for y in 0..4 {
+                            for x in 0..4 {
+                                let orig_color = &src[x + y * 4];
+                                for s in 0..4 {
+                                    total_err[y][x][s] += color_distance(
+                                        perceptual,
+                                        &blk_colors[s],
+                                        orig_color,
+                                        false,
+                                    )
+                                        as u64;
+                                }
+                            }
+                        }
+                    }
+                    for y in 0..4 {
+                        for x in 0..4 {
+                            let mut best_err = total_err[y][x][0];
+                            let mut best_sel = 0u32;
+                            for s in 1..4 {
+                                if total_err[y][x][s] < best_err {
+                                    best_err = total_err[y][x][s];
+                                    best_sel = s as u32;
+                                }
+                            }
+                            out.set_selector(x as u32, y as u32, best_sel);
                         }
                     }
                 }
-            }
-            for y in 0..4 {
-                for x in 0..4 {
-                    let mut best_err = total_err[y][x][0];
-                    let mut best_sel = 0u32;
-                    for s in 1..4 {
-                        if total_err[y][x][s] < best_err {
-                            best_err = total_err[y][x][s];
-                            best_sel = s as u32;
-                        }
-                    }
-                    self.optimized_cluster_selectors[cluster_index]
-                        .set_selector(x as u32, y as u32, best_sel);
-                }
-            }
-        }
+            },
+        );
+        self.optimized_cluster_selectors = selectors;
+        self.verify(done);
     }
 
     /// For each block, determines which quantized selectors best encode it given its quantized
@@ -1333,19 +1437,18 @@ impl BasisuFrontend {
 
         let perceptual = self.params.perceptual;
         const N: usize = 2048;
-        let mut first_index = 0;
-        while first_index < total {
+        // Jobs of 2048 blocks return each block's best cluster; the selectors are applied after.
+        let num_jobs = total.div_ceil(N);
+        let parts = map_jobs(self.params.job_pool_threads, num_jobs, |job| {
+            let first_index = job * N;
             let last_index = total.min(first_index + N);
+            let mut best = Vec::with_capacity(last_index - first_index);
             let mut prev_best_cluster_index = 0u32;
             for block_index in first_index..last_index {
                 let block = &self.params.source_blocks[block_index];
                 if block_index > first_index && *block == self.params.source_blocks[block_index - 1]
                 {
-                    self.encoded_blocks[block_index].set_raw_selector_bits(
-                        self.optimized_cluster_selectors[prev_best_cluster_index as usize]
-                            .get_raw_selector_bits(),
-                    );
-                    self.block_selector_cluster_index[block_index] = prev_best_cluster_index;
+                    best.push(prev_best_cluster_index);
                     continue;
                 }
 
@@ -1420,14 +1523,21 @@ impl BasisuFrontend {
                     }
                 }
 
-                self.encoded_blocks[block_index].set_raw_selector_bits(
-                    self.optimized_cluster_selectors[best_cluster_index as usize]
-                        .get_raw_selector_bits(),
-                );
-                self.block_selector_cluster_index[block_index] = best_cluster_index;
+                best.push(best_cluster_index);
                 prev_best_cluster_index = best_cluster_index;
             }
-            first_index = last_index;
+            best
+        });
+        let Some(parts) = parts else {
+            self.verify(false);
+            return;
+        };
+        for (block_index, best_cluster_index) in parts.into_iter().flatten().enumerate() {
+            self.encoded_blocks[block_index].set_raw_selector_bits(
+                self.optimized_cluster_selectors[best_cluster_index as usize]
+                    .get_raw_selector_bits(),
+            );
+            self.block_selector_cluster_index[block_index] = best_cluster_index;
         }
 
         for v in self.selector_cluster_block_indices.iter_mut() {
@@ -1614,69 +1724,91 @@ impl BasisuFrontend {
         } else {
             BasisEtcQuality::Slow
         };
-        let mut optimizer = Etc1Optimizer::new();
-        let mut ok = true;
-
-        for cluster_index in 0..n_clusters {
-            let cluster_block_indices = &new_endpoint_cluster_block_indices[cluster_index];
-            if cluster_block_indices.is_empty() {
-                continue;
-            }
-            let total_pixels = cluster_block_indices.len() as u32 * 16;
-            let mut cluster_pixels: Vec<ColorRgba> = Vec::with_capacity(total_pixels as usize);
-            let mut force_selectors = vec![0u8; total_pixels as usize];
-
-            let mut blk = EtcBlock::default();
-            blk.set_block_color5_etc1s(
-                self.get_endpoint_cluster_unscaled_color(cluster_index as u32, false),
-            );
-            blk.set_inten_tables_etc1s(
-                self.get_endpoint_cluster_inten_table(cluster_index as u32, false),
-            );
-            blk.set_flip_bit(true);
-
-            let mut cur_err = 0u64;
-            for (k, &block_index) in cluster_block_indices.iter().enumerate() {
-                let src = &self.params.source_blocks[block_index as usize];
-                cluster_pixels.extend_from_slice(src);
-                let selector_cluster_index = match block_selector_indices {
-                    Some(s) => s[block_index as usize],
-                    None => self.get_block_selector_cluster_index(block_index),
-                };
-                let blk_selectors = self.get_selector_cluster_selector_bits(selector_cluster_index);
-                blk.set_raw_selector_bits(blk_selectors.get_raw_selector_bits());
-                cur_err += blk.evaluate_etc1_error(src, perceptual, -1);
-                for y in 0..4u32 {
-                    for x in 0..4u32 {
-                        force_selectors[k * 16 + (x + y * 4) as usize] =
-                            blk_selectors.get_selector(x, y) as u8;
+        // Jobs of 256 clusters; each result is (improved params, optimizer ok), None if empty.
+        const N: usize = 256;
+        let this = &*self;
+        let parts = map_jobs(
+            this.params.job_pool_threads,
+            n_clusters.div_ceil(N),
+            |job| {
+                let mut optimizer = Etc1Optimizer::new();
+                let mut results = Vec::with_capacity(N);
+                for cluster_index in job * N..n_clusters.min(job * N + N) {
+                    let cluster_block_indices = &new_endpoint_cluster_block_indices[cluster_index];
+                    if cluster_block_indices.is_empty() {
+                        results.push(None);
+                        continue;
                     }
-                }
-            }
+                    let mut compute_ok = true;
+                    let total_pixels = cluster_block_indices.len() as u32 * 16;
+                    let mut cluster_pixels: Vec<ColorRgba> =
+                        Vec::with_capacity(total_pixels as usize);
+                    let mut force_selectors = vec![0u8; total_pixels as usize];
 
-            let mut new_params = EndpointClusterEtcParams::default();
-            {
-                let mut p = Etc1OptimizerParams {
-                    num_src_pixels: total_pixels,
-                    src_pixels: &cluster_pixels,
-                    use_color4: false,
-                    force_selectors: Some(&force_selectors),
-                    ..Default::default()
-                };
-                p.pack.perceptual = perceptual;
-                p.pack.quality = quality;
-                let mut r = new_optimizer_results(total_pixels);
-                optimizer.init(&p);
-                if !optimizer.compute(&p, &mut r) {
-                    ok = false;
+                    let mut blk = EtcBlock::default();
+                    blk.set_block_color5_etc1s(
+                        this.get_endpoint_cluster_unscaled_color(cluster_index as u32, false),
+                    );
+                    blk.set_inten_tables_etc1s(
+                        this.get_endpoint_cluster_inten_table(cluster_index as u32, false),
+                    );
+                    blk.set_flip_bit(true);
+
+                    let mut cur_err = 0u64;
+                    for (k, &block_index) in cluster_block_indices.iter().enumerate() {
+                        let src = &this.params.source_blocks[block_index as usize];
+                        cluster_pixels.extend_from_slice(src);
+                        let selector_cluster_index = match block_selector_indices {
+                            Some(s) => s[block_index as usize],
+                            None => this.get_block_selector_cluster_index(block_index),
+                        };
+                        let blk_selectors =
+                            this.get_selector_cluster_selector_bits(selector_cluster_index);
+                        blk.set_raw_selector_bits(blk_selectors.get_raw_selector_bits());
+                        cur_err += blk.evaluate_etc1_error(src, perceptual, -1);
+                        for y in 0..4u32 {
+                            for x in 0..4u32 {
+                                force_selectors[k * 16 + (x + y * 4) as usize] =
+                                    blk_selectors.get_selector(x, y) as u8;
+                            }
+                        }
+                    }
+
+                    let mut new_params = EndpointClusterEtcParams::default();
+                    {
+                        let mut p = Etc1OptimizerParams {
+                            num_src_pixels: total_pixels,
+                            src_pixels: &cluster_pixels,
+                            use_color4: false,
+                            force_selectors: Some(&force_selectors),
+                            ..Default::default()
+                        };
+                        p.pack.perceptual = perceptual;
+                        p.pack.quality = quality;
+                        let mut r = new_optimizer_results(total_pixels);
+                        optimizer.init(&p);
+                        if !optimizer.compute(&p, &mut r) {
+                            compute_ok = false;
+                        }
+                        new_params.color_unscaled[0] = r.block_color_unscaled;
+                        new_params.inten_table[0] = r.block_inten_table;
+                        new_params.color_error[0] = r.error;
+                        new_params.color_used[0] = true;
+                        new_params.valid = true;
+                    }
+                    let improved = (new_params.color_error[0] < cur_err).then_some(new_params);
+                    results.push(Some((improved, compute_ok)));
                 }
-                new_params.color_unscaled[0] = r.block_color_unscaled;
-                new_params.inten_table[0] = r.block_inten_table;
-                new_params.color_error[0] = r.error;
-                new_params.color_used[0] = true;
-                new_params.valid = true;
-            }
-            if new_params.color_error[0] < cur_err {
+                results
+            },
+        );
+        let mut ok = parts.is_some();
+        for (cluster_index, r) in parts.into_iter().flatten().flatten().enumerate() {
+            let Some((improved, compute_ok)) = r else {
+                continue;
+            };
+            ok &= compute_ok;
+            if let Some(new_params) = improved {
                 self.endpoint_cluster_etc_params[cluster_index] = new_params;
                 cluster_improved[cluster_index] = true;
             }
