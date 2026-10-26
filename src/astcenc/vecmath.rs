@@ -27,14 +27,31 @@ pub fn max_ps(a: f32, b: f32) -> f32 {
     if a > b { a } else { b }
 }
 
-/// `cvttss2si` (NaN / out of range → `i32::MIN`).
+/// `cvttss2si` (NaN / out of range → `i32::MIN`). Branch free so lane loops vectorize.
 #[inline]
 pub fn cvtt(f: f32) -> i32 {
-    if f.is_nan() || f >= 2147483648.0 || f < -2147483648.0 {
-        i32::MIN
-    } else {
-        f as i32
-    }
+    let in_range = (-2147483648.0..2147483648.0).contains(&f);
+    let v = f as i32;
+    let keep = -(in_range as i32);
+    (v & keep) | (i32::MIN & !keep)
+}
+
+/// `roundps` nearest (ties to even). `f32::round_ties_even` is a libm call without SSE4.1;
+/// adding and subtracting 2^23 rounds the same way in the default rounding mode, and values
+/// of 2^23 and above (and NaN / infinities) are already integral.
+#[inline]
+pub fn round_even(f: f32) -> f32 {
+    const C: f32 = 8388608.0;
+    let a = f.abs();
+    let r = ((a + C) - C).copysign(f);
+    if a < C { r } else { f }
+}
+
+/// `blendv` lane: `b` where the mask sign bit is set.
+#[inline]
+fn blend_bits(a: u32, b: u32, cond: u32) -> u32 {
+    let m = ((cond as i32) >> 31) as u32;
+    (a & !m) | (b & m)
 }
 
 const TRUE_BITS: u32 = 0xFFFF_FFFF;
@@ -74,6 +91,9 @@ macro_rules! vtypes {
             /// Unaligned / aligned load (`vfloatN(const float*)`, `loada`).
             #[inline]
             pub fn load(p: &[f32]) -> Self {
+                if let Some(a) = p.first_chunk::<$n>() {
+                    return Self { m: *a };
+                }
                 let mut m = [0.0; $n];
                 for (d, s) in m.iter_mut().zip(p) {
                     *d = *s;
@@ -90,6 +110,10 @@ macro_rules! vtypes {
             }
             #[inline]
             pub fn store(self, p: &mut [f32]) {
+                if let Some(a) = p.first_chunk_mut::<$n>() {
+                    *a = self.m;
+                    return;
+                }
                 for (d, s) in p.iter_mut().zip(self.m) {
                     *d = s;
                 }
@@ -231,6 +255,9 @@ macro_rules! vtypes {
             }
             #[inline]
             pub fn load(p: &[i32]) -> Self {
+                if let Some(a) = p.first_chunk::<$n>() {
+                    return Self { m: *a };
+                }
                 let mut m = [0; $n];
                 for (d, s) in m.iter_mut().zip(p) {
                     *d = *s;
@@ -550,7 +577,7 @@ macro_rules! common_fns {
             }
             /// `round` (nearest, ties to even).
             pub fn round(self) -> Self {
-                self.map(f32::round_ties_even)
+                self.map(round_even)
             }
             pub fn sqrt(self) -> Self {
                 self.map(f32::sqrt)
@@ -559,9 +586,8 @@ macro_rules! common_fns {
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
                 let mut m = a.m;
                 for i in 0..$n {
-                    if cond.m[i] & 0x8000_0000 != 0 {
-                        m[i] = b.m[i];
-                    }
+                    m[i] =
+                        f32::from_bits(blend_bits(a.m[i].to_bits(), b.m[i].to_bits(), cond.m[i]));
                 }
                 Self { m }
             }
@@ -573,6 +599,18 @@ macro_rules! common_fns {
             }
             /// `gatherf_byte_inds`.
             pub fn gatherf_byte_inds(base: &[f32], idx: &[u8]) -> Self {
+                // Full vector of indices: clamped (provably in bounds, no per lane branch) and
+                // out of range lanes zeroed with a select.
+                if let (Some(ix), Some(last)) = (idx.first_chunk::<$n>(), base.len().checked_sub(1))
+                {
+                    let mut m = [0.0; $n];
+                    for k in 0..$n {
+                        let i = ix[k] as usize;
+                        let v = base[i.min(last)];
+                        m[k] = if i <= last { v } else { 0.0 };
+                    }
+                    return Self { m };
+                }
                 let mut m = [0.0; $n];
                 for (d, i) in m.iter_mut().zip(idx) {
                     *d = base.get(*i as usize).copied().unwrap_or(0.0);
@@ -618,9 +656,7 @@ macro_rules! common_fns {
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
                 let mut m = a.m;
                 for i in 0..$n {
-                    if cond.m[i] & 0x8000_0000 != 0 {
-                        m[i] = b.m[i];
-                    }
+                    m[i] = blend_bits(a.m[i] as u32, b.m[i] as u32, cond.m[i]) as i32;
                 }
                 Self { m }
             }
@@ -1055,5 +1091,63 @@ pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
 pub fn float_to_float16_v(a: Vfloat4) -> Vint4 {
     Vint4 {
         m: a.m.map(|f| super::float_to_float16(f) as i32),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_even_matches_round_ties_even() {
+        let mut x = 0x1234_5678u32;
+        let mut values = vec![
+            0.5f32,
+            1.5,
+            2.5,
+            -0.5,
+            -1.5,
+            -2.5,
+            -0.0,
+            0.0,
+            0.49999997,
+            8388607.5,
+            -8388607.5,
+            8388608.0,
+            16777217.0,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::MAX,
+            f32::MIN,
+            f32::NAN,
+        ];
+        for _ in 0..1_000_000 {
+            x = x.wrapping_mul(1664525).wrapping_add(1013904223);
+            values.push(f32::from_bits(x));
+        }
+        for f in values {
+            let (a, b) = (round_even(f), f.round_ties_even());
+            assert!(
+                a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan()),
+                "{f}: {a} {b}"
+            );
+        }
+    }
+
+    #[test]
+    fn cvtt_matches_cvttss2si() {
+        for (f, want) in [
+            (1.9f32, 1),
+            (-1.9, -1),
+            (2147483520.0, 2147483520),
+            (2147483648.0, i32::MIN),
+            (-2147483648.0, i32::MIN),
+            (-2147483904.0, i32::MIN),
+            (f32::NAN, i32::MIN),
+            (f32::INFINITY, i32::MIN),
+            (f32::NEG_INFINITY, i32::MIN),
+        ] {
+            assert_eq!(cvtt(f), want, "{f}");
+        }
     }
 }

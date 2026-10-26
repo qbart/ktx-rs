@@ -29,15 +29,24 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
   it into the shared output (`Mutex<&mut [u8]>`; a batch is contiguous in the output).
 - `astc_codec.rs` `launch_threads` = `launchThreads` + `compressionWorkloadRunner`.
 
-## Status (24 threads, kodim17 512x768 / FlightHelmet 2048², Rust/C++ time)
+## astcenc vecmath (safe Rust)
+- `round` uses the add/subtract 2^23 trick (`f32::round_ties_even` is a libm call without
+  SSE4.1); `select` and `cvtt` are branch free; `load` / `store` / `gatherf_byte_inds` have a
+  full-vector fast path without per-lane bounds branches. Unit tests check `round_even` against
+  `round_ties_even` (1M values) and `cvtt` edge cases.
+- Building with `-C target-cpu=x86-64-v3` does not help (the lane loops barely vectorize).
+- Real SIMD (`std::arch`, as upstream's `astcenc_vecmathlib_sse_4.h` / `avx2_8.h`) needs
+  `unsafe` at the intrinsic call boundary, even for baseline SSE2; not done (crate denies
+  `unsafe` outside the GPU loaders).
+
+## Status (24 threads, `scripts/bench/bench.sh`, Rust time / C++ time)
 | case | before | now |
 |---|---|---|
-| rgba8 + mipmaps / zstd 20 | 1.0 / 1.2 | |
-| UASTC 2 | 5.3 | 0.8 |
-| UASTC 4 + RDO | 10.4 | 1.1 |
-| Basis-LZ (q128 / clevel 5, 2048²) | 1.6 / 4.2 | 1.1 / 1.4 |
-| ASTC 4x4 thorough / 6x6 medium | 21.6 / 7.7 | 2.6 / 1.9 |
+| rgba8 + mipmaps / zstd 20 | 1.0 / 1.2 | 1.05 / 1.16 |
+| UASTC 2 / UASTC 4 + RDO | 5.3 / 10.4 | 0.76 / 1.10 |
+| Basis-LZ / q255 + mips | 1.4 / 1.6 | 0.69 / 0.96 |
+| Basis-LZ clevel 5 (2048²) | 4.2 | 1.4 |
+| ASTC 4x4 thorough / 6x6 medium / 6x6 2048² | 21.6 / 7.7 / 6.3 | 1.84 / 1.34 / 1.46 |
 
-Single-threaded, UASTC is at parity and Basis-LZ clevel 5 is 1.35x slower (C++ uses the SSE
-`find_lowest_error` kernels); ASTC is ~3.5x slower (scalar emulation of
-the AVX2 `vecmathlib`).
+Single threaded: UASTC at parity, Basis-LZ clevel 5 1.35x (C++ SSE `find_lowest_error`
+kernels), ASTC 4x4 thorough 2.4x (1.45 s vs 0.60 s; scalar vecmath).

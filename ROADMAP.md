@@ -89,7 +89,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] Basis-LZ frontend job sites
 - [ ] KTX2 level supercompression jobs, basisu SSE kernels
 - [x] astcenc worker threads (`ParallelManager`, shared context)
-- [ ] astcenc SIMD `vecmathlib`
+- [~] astcenc `vecmathlib`: branch-free safe Rust (rounding, select, gathers); real SIMD needs
+  `unsafe` intrinsics (pending decision)
 - OpenCL encoding: not ported (C binding)
 
 ## CLI (`ktx` tool)
