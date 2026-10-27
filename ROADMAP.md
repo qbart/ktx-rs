@@ -3,6 +3,12 @@
 Pure Rust port of KTX-Software (`libktx` + `ktx` CLI). Reference: `./ref/ktx` (not versioned).
 Legend: [x] done, [~] partial, [ ] todo.
 
+## Status
+Feature complete for the scope (libktx, `ktx` CLI, Basis Universal): every CTS subcase passes,
+codecs are byte exact vs the C++ originals, upstream unit / texture / transcode tests are ported.
+Open: ASTC HDR encoding (deferred, see below), optional performance work, and the gaps under
+"Not covered".
+
 ## Foundation
 - [x] Crate scaffold, no-panic lints (`unwrap`/`expect`/`panic` denied)
 - [x] Error codes + `ktxErrorString` (`error.rs`)
@@ -87,7 +93,8 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] benchmark vs the C++ `ktx` (`scripts/bench/bench.sh`, outputs compared byte for byte)
 - [x] basisu job pool (`job_pool.rs`); UASTC LDR block encode threaded
 - [x] Basis-LZ frontend job sites
-- [ ] KTX2 level supercompression jobs, basisu SSE kernels
+- [ ] optional: KTX2 level supercompression jobs (zstd 20 is 1.18x C++), basisu SSE
+  `find_lowest_error` kernels (Basis-LZ `--clevel 5` 1.4x), AVX2 hardware gathers in astcenc
 - [x] astcenc worker threads (`ParallelManager`, shared context)
 - [x] astcenc SIMD: SSE2/SSE4.1/AVX2 kernels, compressor compiled per instruction set with
   runtime CPU dispatch (`#[isa]`, `ktx-macros`), scalar on other targets
@@ -107,7 +114,7 @@ Legend: [x] done, [~] partial, [ ] todo.
   readers (netpbm reader and output plugins intentionally not ported)
 - [x] imageio `image.hpp`: transfer functions, primaries, `ImageT<T, N>` conversions, color space
   transform, resample, swizzle/copy/normalize/premultiply (bit exact vs C++, 5677 cases)
-- [~] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
+- [x] create: all options, raw + PNG/EXR/JPEG input, color space conversion, resize, mipmap
   generation, all convertible formats, ASTC and all Basis encoders, `--compare-ssim/psnr`
   metrics (all 4784 CTS create subcases pass)
 - [x] convert (KTX1 → KTX2, all CTS convert cases pass)
@@ -122,12 +129,19 @@ Legend: [x] done, [~] partial, [ ] todo.
 - [x] unittests: FragmentURI (`test_fragment_uri.cc`), NormaliseColor + ImagePacking E5B9G9R9
   (`image_unittests.cc`)
 - [x] unittests: BadVulkanAlloc
-- [~] texturetests: 115 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
+- [x] texturetests: 115 ported (create, KV data, iterate, load, sizes/offsets, image offsets,
   KTX1 write, KTX1->KTX2 write, KTX2 read, deflate, GetNumComponents uncompressed, metadata,
   unicode, supercompressed iterate, ASTC LDR encode/decode, ASTC decode, BasisCompress,
   TranscodeBasis MissingAlphaSlices, GetNumComponents BasisLZ/UASTC).
-  Null-pointer tests are not applicable in Rust.
+  Null-pointer tests are not applicable in Rust (references cannot be null), so not ported.
 - [x] transcodetests: Basic (all formats, golden SHA-256 from C++ basisu), TranscodeUastcHdr6x6i
   RoundTrip2D / RoundTrip3DMipLevels
 - [x] CLI tests (tests/cts): runner ported (`tests/cts.rs`), all CTS data vendored, every
   subcase of every command runs (no skips) and passes
+
+## Not covered
+- Vulkan / OpenGL loaders tested only on Mesa software drivers (lavapipe, llvmpipe), not on GPUs.
+- Tested on Linux x86-64 only (aarch64 compiles); Windows and macOS untested.
+- BasisLZ video (P-frame) transcoding ported but untested: no video files in the test data.
+- No fuzzing of the parsers (KTX1/KTX2, BasisLZ, zstd/zlib, PNG/EXR/JPEG); relevant only for
+  untrusted input.
