@@ -1,0 +1,27 @@
+.TH KTX_TRANSCODE 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx_transcode \- transcode a Basis Universal KTX2 file
+.SH SYNOPSIS
+.B ktx
+transcode [OPTION...] <input\-file> <output\-file>
+.SH DESCRIPTION
+Transcodes a KTX2 file holding Basis\-LZ, UASTC or UASTC HDR data to a GPU block format or to
+uncompressed pixels.
+.SH OPTIONS
+.TP
+.B \-\-target <target>
+Target such as etc\-rgba, bc7, astc, r8 or rgba8.
+.TP
+.B \-\-zstd <level>, \-\-zlib <level>
+Supercompress the result.
+.SH EXAMPLES
+.PP
+.nf
+ktx transcode \-\-target bc7 in.ktx2 out.ktx2
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx transcode \-\-help.
+.SH SEE ALSO
+ktx(1)

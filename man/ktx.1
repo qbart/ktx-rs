@@ -1,0 +1,63 @@
+.TH KTX 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx \- unified tool for KTX2 texture files
+.SH SYNOPSIS
+.B ktx
+[\-\-help | \-\-version] | ktx <command> [OPTION...]
+.SH DESCRIPTION
+.B ktx
+creates, converts, encodes, transcodes, inspects, validates and compares KTX (Khronos
+Texture) files. Each operation is a subcommand with its own options.
+.SH COMMANDS
+.TP
+.B convert
+convert a KTX1 file to KTX2
+.TP
+.B create
+create a KTX2 file from images or raw data
+.TP
+.B deflate
+supercompress a KTX2 file with zstd or zlib
+.TP
+.B encode
+encode a KTX2 file to ASTC, Basis-LZ or UASTC
+.TP
+.B extract
+extract images from a KTX2 file
+.TP
+.B transcode
+transcode a Basis Universal KTX2 file
+.TP
+.B info
+print information about a KTX file
+.TP
+.B validate
+check a KTX2 file against the specification
+.TP
+.B compare
+compare two KTX files
+.TP
+.B help
+show the manual page of a command
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Print usage and exit.
+.TP
+.B \-v, \-\-version
+Print the version and exit.
+.SH EXAMPLES
+.PP
+.nf
+ktx create \-\-format R8G8B8A8_SRGB \-\-generate\-mipmap in.png out.ktx2
+.fi
+.PP
+.nf
+ktx info out.ktx2
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx \-\-help.
+.SH SEE ALSO
+ktx_convert(1), ktx_create(1), ktx_deflate(1), ktx_encode(1), ktx_extract(1), ktx_transcode(1), ktx_info(1), ktx_validate(1), ktx_compare(1), ktx_help(1)

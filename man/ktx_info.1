@@ -1,0 +1,24 @@
+.TH KTX_INFO 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx_info \- print information about a KTX file
+.SH SYNOPSIS
+.B ktx
+info [OPTION...] <input\-file>
+.SH DESCRIPTION
+Prints the header, level index, data format descriptor, key/value data and supercompression
+data of a KTX1 or KTX2 file. KTX2 files are also validated.
+.SH OPTIONS
+.TP
+.B \-f, \-\-format <format>
+text, json or mini\-json (KTX1: text only).
+.SH EXAMPLES
+.PP
+.nf
+ktx info \-\-format json tex.ktx2
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx info \-\-help.
+.SH SEE ALSO
+ktx(1)

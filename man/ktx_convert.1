@@ -1,0 +1,30 @@
+.TH KTX_CONVERT 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx_convert \- convert a KTX1 texture to KTX2
+.SH SYNOPSIS
+.B ktx
+convert [OPTION...] <input\-file> <output\-file>
+.SH DESCRIPTION
+Converts a KTX version 1 file to KTX version 2, keeping the image data and translating the
+metadata.
+.SH OPTIONS
+.TP
+.B \-t, \-\-input\-type <type>
+Type of the input file (ktx).
+.TP
+.B \-l, \-\-map\-astc\-rgba\-to\-ldr
+Map ASTC RGBA formats without an LDR/HDR hint to LDR.
+.TP
+.B \-d, \-\-drop\-bad\-orientation
+Drop invalid orientation metadata instead of failing.
+.SH EXAMPLES
+.PP
+.nf
+ktx convert old.ktx new.ktx2
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx convert \-\-help.
+.SH SEE ALSO
+ktx(1)

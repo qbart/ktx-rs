@@ -1,0 +1,40 @@
+.TH KTX_EXTRACT 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx_extract \- extract images from a KTX2 file
+.SH SYNOPSIS
+.B ktx
+extract [OPTION...] <input\-file> <output>
+.SH DESCRIPTION
+Writes selected images of a KTX2 file as PNG, EXR or raw files. Block compressed and Basis
+Universal data is decoded or transcoded first.
+.SH OPTIONS
+.TP
+.B \-\-level, \-\-layer, \-\-face, \-\-depth
+Select the image to extract.
+.TP
+.B \-\-all
+Extract every image into the output directory.
+.TP
+.B \-\-uri <fragment>
+Select images with a KTX fragment URI.
+.TP
+.B \-\-raw
+Write the raw image data.
+.TP
+.B \-\-transcode <target>
+Transcode Basis Universal data to this target first.
+.SH EXAMPLES
+.PP
+.nf
+ktx extract \-\-level 0 tex.ktx2 level0.png
+.fi
+.PP
+.nf
+ktx extract \-\-all tex.ktx2 outdir
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx extract \-\-help.
+.SH SEE ALSO
+ktx(1)

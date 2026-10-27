@@ -1,0 +1,33 @@
+.TH KTX_COMPARE 1 "2026-10-27" "ktx (Rust port)" "User Commands"
+.SH NAME
+ktx_compare \- compare two KTX files
+.SH SYNOPSIS
+.B ktx
+compare [OPTION...] <input\-file1> <input\-file2>
+.SH DESCRIPTION
+Compares the headers, level indices, data format descriptors, metadata, supercompression data
+and image content of two KTX files and prints the differences.
+.SH OPTIONS
+.TP
+.B \-f, \-\-format <format>
+text, json or mini\-json.
+.TP
+.B \-\-content <mode>
+raw, image or ignore.
+.TP
+.B \-\-ignore\-*
+Skip parts of the comparison (e.g. \-\-ignore\-metadata).
+.TP
+.B \-\-per\-pixel\-output all|<n>|none
+Report differing pixels or texel blocks with \-\-content image.
+.SH EXAMPLES
+.PP
+.nf
+ktx compare a.ktx2 b.ktx2
+.fi
+.SH NOTES
+This is an unofficial Rust port of Khronos KTX\-Software (libktx and the ktx CLI); it is not
+the Khronos build of the tool. The complete, current option list is printed by
+.B ktx compare \-\-help.
+.SH SEE ALSO
+ktx(1)
