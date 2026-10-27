@@ -1,6 +1,6 @@
 # ROADMAP
 
-Pure Rust port of KTX-Software (`libktx` + `ktx` CLI). Reference: `./ref/ktx` (not versioned).
+Rust port of KTX-Software (`libktx` + `ktx` CLI). Reference: `./ref/ktx` (not versioned).
 Legend: [x] done, [~] partial, [ ] todo.
 
 ## Status
@@ -8,6 +8,12 @@ Feature complete for the scope (libktx, `ktx` CLI, Basis Universal): every CTS s
 codecs are byte exact vs the C++ originals, upstream unit / texture / transcode tests are ported.
 Open: ASTC HDR encoding (deferred, see below), optional performance work, and the gaps under
 "Not covered".
+
+## Licensing
+- [x] `LICENSE`, `LICENSES/`, `NOTICE.md`, `REUSE.toml`; SPDX headers on every Rust file
+  (`docs/spec/licensing.md`)
+- [x] Non-open HI trademark test images dropped; crates.io package excludes test data
+- [ ] Run `reuse lint` (tool not installed)
 
 ## Foundation
 - [x] Crate scaffold, no-panic lints (`unwrap`/`expect`/`panic` denied)

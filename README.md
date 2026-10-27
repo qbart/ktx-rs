@@ -75,6 +75,12 @@ scripts/bench/bench.sh <path-to-C++-ktx> # speed and output comparison with upst
 Test data under `tests/resources` is copied from KTX-Software and its CTS.
 
 ## License
-The crate is declared Apache-2.0 in `Cargo.toml`. Files under `tests/resources` come from
-KTX-Software and keep their original licenses (see `tests/resources/cts/LICENSE` and the
-`readme.txt` files next to the images).
+Each translated source file keeps the copyright and license of the code it was ported from:
+mostly Apache-2.0 (KTX-Software, Basis Universal, astc-encoder), plus Zlib (LodePNG),
+BSD-3-Clause (tinyexr) and MIT (cxxopts). The crate license is therefore
+`Apache-2.0 AND BSD-3-Clause AND MIT AND Zlib`. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE),
+[LICENSES/](LICENSES) and [REUSE.toml](REUSE.toml).
+
+Test data under `tests/resources` comes from KTX-Software and keeps its original licenses
+(recorded in `REUSE.toml`); it is not part of the published crate. The HI Corporation trademark
+images (`hi_mark*.ktx`) that upstream ships under a non-open license are left out.

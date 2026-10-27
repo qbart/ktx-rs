@@ -3,8 +3,9 @@ name = "ktx"
 version = "0.1.0"
 edition = "2024"
 description = "Rust port of Khronos KTX-Software (libktx and ktx CLI)"
-license = "Apache-2.0"
-repository = "https://github.com/KhronosGroup/KTX-Software"
+license = "Apache-2.0 AND BSD-3-Clause AND MIT AND Zlib"
+# The published crate leaves out the test data, which has its own licenses (see NOTICE.md).
+include = ["/src/**", "/man/**", "/Cargo.toml", "/LICENSE", "/LICENSES/**", "/NOTICE.md", "/README.md"]
 
 [lib]
 name = "ktx"

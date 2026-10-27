@@ -1,0 +1,92 @@
+# SPDX-FileCopyrightText: 2026 KTX Rust port contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# REUSE (https://reuse.software) annotations for files without an SPDX header. Rust sources
+# carry their own headers; these entries cover everything else and act as a fallback for
+# generated sources. The last matching annotation wins.
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["src/astcenc/**", "scripts/gen_astcenc_*.py"]
+precedence = "closest"
+SPDX-FileCopyrightText = "2011-2026 Arm Limited"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["src/basisu/**", "src/jpgd.rs"]
+precedence = "closest"
+SPDX-FileCopyrightText = "2019-2026 Binomial LLC"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "src/lodepng/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2005-2025 Lode Vandevenne"
+SPDX-License-Identifier = "Zlib"
+
+[[annotations]]
+path = "src/tinyexr/**"
+precedence = "closest"
+SPDX-FileCopyrightText = ["2014-2021 Syoyo Fujita and many contributors", "2002 Industrial Light & Magic, a division of Lucas Digital Ltd. LLC"]
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "src/cli/options.rs"
+precedence = "closest"
+SPDX-FileCopyrightText = "2014-2022 Jarryd Beck"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "src/dfd/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2019-2020 The Khronos Group Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# Test data, mirroring KTX-Software's REUSE.toml.
+[[annotations]]
+path = ["tests/resources/input/exr/Desk.exr", "tests/resources/ktx2/Desk_*.ktx2"]
+precedence = "override"
+SPDX-FileCopyrightText = "Copyright (c) 2004, Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd."
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = ["tests/resources/input/png/kodim17.png", "tests/resources/basis/kodim17.basis", "tests/resources/ktx2/kodim17*.ktx2"]
+precedence = "override"
+SPDX-FileCopyrightText = "Eastman Kodak Company"
+SPDX-License-Identifier = "LicenseRef-Kodak"
+
+[[annotations]]
+path = "tests/resources/input/png/color_grid.png"
+precedence = "override"
+SPDX-FileCopyrightText = "Unknown"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "tests/resources/input/png/FlightHelmet_baseColor.png"
+precedence = "override"
+SPDX-FileCopyrightText = "Microsoft"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["tests/resources/input/jpg/Iron_Bars/**", "tests/resources/input/jpg/Iron_Bars_*.jpg"]
+precedence = "override"
+SPDX-FileCopyrightText = "Katsuagi https://3dtextures.me"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["tests/resources/input/jpg/GoldenGateBridge3/**", "tests/resources/input/jpg/Yokohama3/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "Emil Persson http://www.humus.name"
+SPDX-License-Identifier = "CC-BY-3.0"
+
+[[annotations]]
+path = "tests/resources/ktx2/skybox*.ktx2"
+precedence = "override"
+SPDX-FileCopyrightText = "HDRIHaven"
+SPDX-License-Identifier = "CC0-1.0"
