@@ -2,7 +2,7 @@
 name = "ktx"
 version = "0.1.0"
 edition = "2024"
-description = "Pure Rust port of Khronos KTX-Software (libktx and ktx CLI)"
+description = "Rust port of Khronos KTX-Software (libktx and ktx CLI)"
 license = "Apache-2.0"
 repository = "https://github.com/KhronosGroup/KTX-Software"
 
