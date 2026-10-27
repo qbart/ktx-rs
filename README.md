@@ -39,6 +39,13 @@ ktx help create
 
 ## Using the library
 
+The package is `ktx-rs`; the library is imported as `ktx`:
+
+```toml
+[dependencies]
+ktx-rs = "0.1"
+```
+
 ```rust
 use ktx::texture::KtxTexture;
 use ktx::{KtxResult, Texture2, TranscodeFmt};

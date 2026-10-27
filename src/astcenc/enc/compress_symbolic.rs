@@ -18,7 +18,7 @@ use super::tables::QUANT_AND_XFER_TABLES;
 use super::vecmath::*;
 use super::weight_align::{compute_angular_endpoints_1plane, compute_angular_endpoints_2planes};
 use super::{ASTCENC_FLG_MAP_RGBM, AstcencConfig, AstcencProfile};
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `merge_endpoints`: merges two planes of endpoints into a single vector.

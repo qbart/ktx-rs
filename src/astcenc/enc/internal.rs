@@ -9,7 +9,7 @@
 #![allow(clippy::large_stack_arrays)]
 
 use super::vecmath::Vfloat4;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 pub const BLOCK_MAX_TEXELS: usize = 216;
 pub const BLOCK_MAX_COMPONENTS: usize = 4;

@@ -9,7 +9,7 @@
 use super::internal::*;
 use super::vecmath::*;
 use super::{ASTCENC_FLG_MAP_RGBM, AstcencConfig, AstcencProfile};
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `get_u8_component_mask`.

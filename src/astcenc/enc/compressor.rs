@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use super::internal::{BlockSizeDescriptor, CompressionWorkingBuffers, ImageBlock};
 use super::*;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 /// The compressor half of `astcenc_context`.
 pub struct Compressor {

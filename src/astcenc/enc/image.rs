@@ -7,7 +7,7 @@
 use super::internal::{BlockSizeDescriptor, ImageBlock};
 use super::vecmath::{Vfloat4, Vint4, Vmask4, float_to_lns, float16_to_float_v, lns_to_sf16};
 use super::{AstcencImage, AstcencImageData, AstcencProfile, AstcencSwizzle, AstcencSwz};
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// The loader of one texel: RGBA at texel `index` of plane `z`.

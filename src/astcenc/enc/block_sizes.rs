@@ -12,7 +12,7 @@ use super::mathlib::{rand, rand_init};
 use super::partition_tables::init_partition_tables;
 use super::percentile_tables::get_packed_table;
 use super::vecmath::round_up_to_simd_multiple_vla;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 /// Result of `decode_block_mode_2d/3d`: weights (x, y, z), dual plane, quant mode, bits.
 struct DecodedMode {

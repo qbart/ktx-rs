@@ -12,7 +12,7 @@ use super::internal::*;
 use super::mathlib::{clamp, clamp1f, clamp255f, flt2int_rtn};
 use super::tables::COLOR_UNQUANT_TO_UQUANT;
 use super::vecmath::{Vfloat4, Vint4, bit_transfer_signed};
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `get_rgba_encoding_error`.

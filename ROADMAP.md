@@ -103,7 +103,7 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
   `find_lowest_error` kernels (Basis-LZ `--clevel 5` 1.4x), AVX2 hardware gathers in astcenc
 - [x] astcenc worker threads (`ParallelManager`, shared context)
 - [x] astcenc SIMD: SSE2/SSE4.1/AVX2 kernels, compressor compiled per instruction set with
-  runtime CPU dispatch (`#[isa]`, `ktx-macros`), scalar on other targets
+  runtime CPU dispatch (`#[isa]`, `ktx-rs-macros`), scalar on other targets
 - OpenCL encoding: not ported (C binding)
 
 ## CLI (`ktx` tool)

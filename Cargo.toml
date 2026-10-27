@@ -1,5 +1,5 @@
 [package]
-name = "ktx"
+name = "ktx-rs"
 version = "0.1.0"
 edition = "2024"
 description = "Rust port of Khronos KTX-Software (libktx and ktx CLI)"
@@ -24,7 +24,7 @@ members = ["macros"]
 
 [dependencies]
 bytemuck = "1.25.2"
-ktx-macros = { path = "macros", version = "0.1.0" }
+ktx-rs-macros = { path = "macros", version = "0.1.0" }
 miniz_oxide = "0.9.1"
 ruzstd = "0.9.1"
 zstd-pure-rs = "0.2.0"

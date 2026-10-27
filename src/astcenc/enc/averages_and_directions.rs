@@ -9,7 +9,7 @@
 
 use super::internal::*;
 use super::vecmath::*;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// Masked 8-wide accumulation of `data[i..i + 8]` into `acc` (`haccumulate(acc, loada(..), m)`).

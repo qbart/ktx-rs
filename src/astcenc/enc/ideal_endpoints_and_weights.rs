@@ -15,7 +15,7 @@ use super::internal::*;
 use super::mathlib;
 use super::tables::QUANT_AND_XFER_TABLES;
 use super::vecmath::*;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `unit2()`.

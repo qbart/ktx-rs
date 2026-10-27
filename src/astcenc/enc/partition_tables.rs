@@ -9,7 +9,7 @@
 use super::internal::*;
 use super::select_partition;
 use super::vecmath::round_up_to_simd_multiple_vla;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 /// `BIT_PATTERN_WORDS`.
 const BIT_PATTERN_WORDS: usize = (BLOCK_MAX_TEXELS * 2).div_ceil(64);

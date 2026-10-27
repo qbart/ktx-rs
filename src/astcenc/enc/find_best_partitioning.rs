@@ -9,7 +9,7 @@
 use super::averages_and_directions::*;
 use super::internal::*;
 use super::vecmath::*;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `unit3()` / `unit4()`.

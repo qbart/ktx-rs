@@ -108,13 +108,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "ktx"
+name = "ktx-rs"
 version = "0.1.0"
 dependencies = [
  "ash",
  "bytemuck",
  "khronos-egl",
- "ktx-macros",
+ "ktx-rs-macros",
  "libloading",
  "miniz_oxide",
  "regex",
@@ -125,7 +125,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ktx-macros"
+name = "ktx-rs-macros"
 version = "0.1.0"
 
 [[package]]

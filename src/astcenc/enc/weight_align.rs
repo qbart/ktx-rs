@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use super::internal::*;
 use super::vecmath::*;
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 const ANGULAR_STEPS: usize = 32;
 const SINCOS_STEPS: usize = 64;

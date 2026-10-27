@@ -34,7 +34,7 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
   `base.rs` (SSE2 on x86-64 / scalar elsewhere, plus whatever the build enables), `sse41.rs`
   (SSE4.1, SSE4.2, POPCNT) and `avx2.rs` (AVX, AVX2, SSE4.x, POPCNT, F16C = KTX-Software's
   astcenc build). Each copy declares the same `#[path = "enc/..."]` modules.
-- `#[isa]` (`ktx-macros`, a dependency-free proc macro) on each compressor function expands to
+- `#[isa]` (`ktx-rs-macros`, a dependency-free proc macro) on each compressor function expands to
   `isa_fn! { .. }`; every copy defines its own `isa_fn!` that adds its `#[target_feature]`.
   Not annotated: trait impl methods, `const fn`s, tests, and the `vecmath` / `sse` helpers, which
   are `#[inline(always)]` and so compile inside their caller's features.

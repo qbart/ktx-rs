@@ -4,7 +4,7 @@
 //! Port of the scalar helpers of `astcenc_mathlib.h` / `astcenc_mathlib.cpp` used by the
 //! compressor (C++ casts and comparisons as on x86-64).
 
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 #[isa]
 /// `astc::min` (`p < q ? p : q`; NaN gives `q`).

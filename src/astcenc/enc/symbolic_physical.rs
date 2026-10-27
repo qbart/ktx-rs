@@ -10,7 +10,7 @@ use super::internal::*;
 use super::tables::{
     COLOR_UQUANT_TO_SCRAMBLED_PQUANT, INTEGER_OF_QUINTS, INTEGER_OF_TRITS, QUANT_AND_XFER_TABLES,
 };
-use ktx_macros::isa;
+use ktx_rs_macros::isa;
 
 /// `btq_counts`: (bits, trits, quints) per quant level.
 const BTQ_COUNTS: [(u32, bool, bool); 21] = [
