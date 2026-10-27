@@ -10,6 +10,9 @@ When syncing with a newer upstream, port the diff and update the SHAs here.
 
 ## Versioning
 
-The crate version mirrors the upstream KTX-Software release (`version` in `Cargo.toml` and
-`macros/Cargo.toml`); `LIBKTX_VERSION` is `v` + that version (e.g. `v4.4.2`), as upstream's
-`git describe` tag. Bump it together with the upstream release the port tracks.
+- `LIBKTX_VERSION` (`src/version.rs`, shown by `ktx --version` and written to `KTXwriter`)
+  follows upstream: `v4.4.2` for the upstream release, `v4.4.2-1`, `v4.4.2-2`, ... for port
+  patches of the same release.
+- The crate version (`Cargo.toml`, `macros/Cargo.toml`) is plain SemVer for crates.io: it starts
+  at the upstream version (`4.4.2`) and port patches bump the patch number (`4.4.3`, ...).
+  On a new upstream release, reset both to it.
