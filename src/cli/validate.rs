@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/ktx/validate.h and validate.cpp: the KTX2 file validator.
 //!
 //! C++ `fatal` issues throw `FatalValidationError`; here they unwind as

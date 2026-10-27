@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! UASTC HDR transcoding vs the original Basis Universal transcoder.
 //!
 //! Not a C test port (libktx has no UASTC HDR golden test): reference outputs

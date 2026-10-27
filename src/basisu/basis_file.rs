@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_basis_file.cpp` (`basisu_file`): serializes a
 //! `basisu_backend_output` into a `.basis` file (header, slice descriptors, ETC1S codebooks and
 //! Huffman tables, slice data, CRC16s). The packed little endian `basis_file_header` /

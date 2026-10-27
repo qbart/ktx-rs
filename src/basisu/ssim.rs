@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_ssim.cpp` (`compute_ssim`) and `image_metrics::calc` for 8-bit
 //! images from `encoder/basisu_enc.cpp`, with the subset of `image` / `imagef` they use.
 

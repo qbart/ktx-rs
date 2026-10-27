@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! basisu bc7enc (`basisu_bc7enc.cpp`) vs. golden output of the C++ original
 //! (`scripts/golden/gen_basisu_bc7enc_golden.sh`).
 #![allow(clippy::panic, clippy::needless_range_loop)]

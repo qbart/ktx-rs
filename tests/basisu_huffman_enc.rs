@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! basisu encoder Huffman coding (`basisu_enc.cpp`: `huffman_encoding_table`, `bitwise_coder`,
 //! `palette_index_reorderer`) vs. golden output of the C++ original
 //! (`scripts/golden/gen_basisu_huffman_enc_golden.sh`).

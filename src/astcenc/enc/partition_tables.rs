@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_partition_tables.cpp` (compressor build): partitioning tables with
 //! duplicate / degenerate partitioning removal and k-means coverage bitmaps.
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of `tools/imageio/image.hpp`: transfer functions, color primaries,
 //! `color<T, N>` and the `Image` / `ImageT<T, N>` image classes used by
 //! `ktx create` (conversion, color space transforms, scaling, mipmaps).

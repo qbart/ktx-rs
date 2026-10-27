@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `basisu_lowlevel_uastc_hdr_4x4_transcoder` (basisu_transcoder.cpp).
 
 use super::astc_helpers::{self as ah, DecodePixels, LogAstcBlock};

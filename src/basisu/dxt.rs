@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1S -> BC1 (DXT1) and BC4 (DXT5A) block converters and their
 //! init-time tables (basisu_transcoder.cpp).
 

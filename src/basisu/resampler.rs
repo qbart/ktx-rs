@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of basisu `encoder/basisu_resampler.cpp` (separable 2D resampler).
 //!
 //! Contributor lists are reference counted so they can be shared between

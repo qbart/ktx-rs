@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Public definitions from `ktx.h` that are not tied to a specific object.
 
 /// Key string for animation metadata.

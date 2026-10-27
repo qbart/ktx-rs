@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Vulkan loader (`vkloader.c`) tests. Not in the C suite, which only has the interactive
 //! `vkloadtests` app: textures are uploaded with every path of
 //! `ktxTexture_VkUploadEx_WithSuballocator` (optimal tiling fast / padded path, linear fast /

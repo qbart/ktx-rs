@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Minimal `{fmt}` subset used by the tools' messages: `{}`, `{{`, `}}` and
 //! `{:[0][width][d|b|X]}`. Output is bytes because keys and values from files
 //! are printed raw, like the C++ tools do.

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
+
 #![allow(non_upper_case_globals)]
 //! Port of lib/src/basis_transcode.cpp: `ktxTexture2_TranscodeBasis`.
 

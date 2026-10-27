@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the `astc_6x6_hdr` namespace (basisu_transcoder.cpp,
 //! basisu_astc_hdr_core.h): the UASTC HDR 6x6 intermediate decoder
 //! (`decode_6x6_hdr`) and the fast BC6H encoder (`fast_encode_bc6h`).

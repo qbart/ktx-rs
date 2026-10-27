@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2005-2025 Lode Vandevenne
+// SPDX-License-Identifier: Zlib
+// Translated to Rust from LodePNG and modified; see NOTICE.md.
 //! Port of LodePNG (external/lodepng, version 20250506) as used by the ktx
 //! tools: the encoder (`lodepng::encode` with a `State`, `ktx extract`) and the
 //! decoder with KTX-Software's split `lodepng_decode_chunks` /

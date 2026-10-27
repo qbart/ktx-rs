@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the BC6H encoder helpers and `astc_hdr_transcode_to_bc6h` from
 //! basisu_transcoder.cpp (UASTC HDR 4x4 to BC6H).
 #![allow(clippy::needless_range_loop)]

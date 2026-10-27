@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of `lib/src/basis_encode.cpp`: `ktxTexture2_CompressBasisEx` and
 //! `ktxTexture2_CompressBasis` on top of the pure Rust `basis_compressor` port. The images are
 //! copied (and swizzled) into compressor images, encoded to a `.basis` file, which is then

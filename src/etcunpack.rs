@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of `lib/src/etcunpack.cxx` (`_ktxUnpackETC`): software decoding of ETC1, ETC2 and EAC
 //! images for OpenGL contexts without native ETC support (GL loader).
 //!

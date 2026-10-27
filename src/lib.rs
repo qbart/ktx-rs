@@ -1,4 +1,7 @@
-//! Pure Rust port of [KTX-Software](https://github.com/KhronosGroup/KTX-Software) `libktx`.
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
+//! Rust port of [KTX-Software](https://github.com/KhronosGroup/KTX-Software) `libktx`.
 //!
 //! Fallible functions return [`KtxResult`]; `KTX_SUCCESS` maps to `Ok`.
 //! The library never panics on malformed input.

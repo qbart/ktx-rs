@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `basisu_astc_helpers.h`: the ASTC logical block unpacker and texel
 //! decoder (plus the block packer) used by the UASTC HDR transcoders.
 #![allow(clippy::needless_range_loop)]

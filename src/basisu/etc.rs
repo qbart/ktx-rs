@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1 helpers used by the transcoder: `color32`, `endpoint`,
 //! `selector` (basisu_transcoder_internal.h) and `decoder_etc_block`,
 //! `g_etc1_inten_tables` (basisu_transcoder.cpp).

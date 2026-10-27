@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Pure Rust port of the Basis Universal transcoder (`external/basis_universal/transcoder`).
 //!
 //! Only the parts reachable from libktx are ported. Functions keep basisu's

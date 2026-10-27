@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_pick_best_endpoint_format.cpp`: estimates the error of each
 //! endpoint format per quantization level and integer count, then picks the best
 //! format combination for every candidate block mode.

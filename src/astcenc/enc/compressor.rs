@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Per instruction set compressor state (`astcenc_context` block size descriptor and working
 //! buffers) and the `compress_image` block loop.
 

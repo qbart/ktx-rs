@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `transcode_uastc_to_bc7`, `determine_shared/unique_pbits` and
 //! `encode_bc7_block` from basisu_transcoder.cpp. Float math keeps the C++
 //! evaluation order (f32).

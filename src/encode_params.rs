@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! `ktx.h` encoder parameter structs and enums: `ktxBasisParams`,
 //! `ktxAstcParams`, `ktx_basis_codec_e`, `ktx_pack_uastc_flag_bits_e`,
 //! `ktx_pack_astc_*`. Used by `ktxTexture2_CompressBasisEx` /

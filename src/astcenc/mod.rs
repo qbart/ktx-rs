@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of the astc-encoder (astcenc) decompressor: `astcenc_config_init`,
 //! `astcenc_context_alloc`, `astcenc_decompress_image` and the code they use
 //! (block size descriptors, partition tables, integer sequence decoding,

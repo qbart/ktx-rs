@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/ktx/formats.h. The VkFormat switch predicates are generated
 //! into `formats_gen.rs` by `scripts/gen_cli_tables.py`.
 

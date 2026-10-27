@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! ETC1S to ATC RGB / RGBA (`convert_etc1s_to_atc`) vs. the C++ basisu transcoder.
 //!
 //! KTX has no `ktx_transcode_fmt` for ATC (no VkFormat), so the original suite does not cover

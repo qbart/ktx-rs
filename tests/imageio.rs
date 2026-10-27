@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! imageio PNG / EXR reader port vs KTX-Software's tools/imageio.
 //!
 //! Not a C test port: `scripts/golden/gen_imageio_golden.sh` runs

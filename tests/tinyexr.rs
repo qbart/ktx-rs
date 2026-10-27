@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! tinyexr writer port vs the tinyexr bundled with basis_universal.
 //!
 //! Not a C test port: reference sizes and FNV-1a hashes come from

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2014-2021 Syoyo Fujita and many contributors
+// SPDX-FileCopyrightText: 2002 Industrial Light & Magic, a division of Lucas Digital Ltd. LLC
+// SPDX-License-Identifier: BSD-3-Clause
+// Translated to Rust from tinyexr and modified; see NOTICE.md.
 //! tinyexr reader: `ParseEXRVersionFromMemory`, `ParseEXRHeaderFromMemory`,
 //! `LoadEXRImageFromMemory` and the init / free helpers.
 //!

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1S -> PVRTC2 4bpp converters from basisu_transcoder.cpp
 //! (`convert_etc1s_to_pvrtc2_rgb/rgba`, `transcoder_init_pvrtc2`).
 //!

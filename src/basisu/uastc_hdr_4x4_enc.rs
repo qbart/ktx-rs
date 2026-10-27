@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_uastc_hdr_4x4_enc.cpp`: UASTC HDR 4x4 block encoding (solid, CEM 11
 //! and CEM 7 with one or two subsets restricted to the ASTC / BC6H common partitions), the BC6H
 //! transcode of every candidate and the BC6H aware weight refinement.

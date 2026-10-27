@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of the scalar helpers of `astcenc_mathlib.h` / `astcenc_mathlib.cpp` used by the
 //! compressor (C++ casts and comparisons as on x86-64).
 

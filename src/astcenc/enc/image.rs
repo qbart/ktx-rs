@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of the compressor block loaders of `astcenc_image.cpp`
 //! (`load_image_block`, `load_image_block_fast_ldr`).
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_compress_symbolic.cpp`: the per block search over partition counts,
 //! planes and block modes, with weight realignment and refinement.
 

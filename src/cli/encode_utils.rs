@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/ktx/encode_utils_common.h, encode_utils_astc.h and
 //! encode_utils_basis.h: the encoder option groups shared by `ktx create`
 //! and `ktx encode` (parsing, validation and `KTXwriterScParams` capture).

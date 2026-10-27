@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the basisu encoder side canonical Huffman coding (`basisu_enc.h` / `.cpp`):
 //! `histogram`, `canonical_huffman_*`, `huffman_encoding_table`, `bitwise_coder` and
 //! `palette_index_reorderer`.

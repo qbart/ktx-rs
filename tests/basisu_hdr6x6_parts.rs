@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Building blocks of the basisu ASTC HDR 6x6 encoder (`basisu_astc_hdr_6x6_enc.cpp`) vs. golden
 //! output of the C++ original (`scripts/golden/gen_basisu_hdr6x6_parts_golden.sh`).
 #![allow(clippy::panic, clippy::needless_range_loop)]

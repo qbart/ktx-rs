@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Port of tests/unittests/image_unittests.cc (`NormaliseColorTest`, `ImagePackingTest`).
 
 use ktx::cli::imageio::image::{Component, color_normalize, pack_f3x9_e1x5};

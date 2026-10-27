@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! ATC / PVRTC2 shared tables from basisu_transcoder.cpp (`transcoder_init_atc`) and the
 //! ETC1S to ATC block converter (`convert_etc1s_to_atc`).
 

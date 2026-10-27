@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of lib/src/texture.c / texture.h: the `ktxTexture` base class.
 //!
 //! `ktxTexture1` and `ktxTexture2` embed [`Texture`] and deref to it, mirroring the

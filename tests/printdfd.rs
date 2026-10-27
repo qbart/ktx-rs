@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! `printDFD` / `printDFDJSON` vs the original dfdutils printdfd.c.
 //!
 //! Not a C test port (dfdutils has no print test): the reference text comes

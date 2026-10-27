@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of the compressor data structures of `astcenc_internal.h`.
 //!
 //! Arrays keep the C sizes and SIMD padding (AVX2 build: 8 lanes) so that padded table

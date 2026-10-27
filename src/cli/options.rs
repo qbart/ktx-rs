@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2014-2022 Jarryd Beck
+// SPDX-License-Identifier: MIT
+// Translated to Rust from cxxopts and modified; see NOTICE.md.
 //! Port of the parts of cxxopts 3.1.1 (external/cxxopts) the `ktx` tool uses:
 //! option declaration, command line parsing with its error messages, and the
 //! `--help` text layout.

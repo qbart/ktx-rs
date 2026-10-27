@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_block_sizes.cpp` (compressor build): block mode decoding, decimation
 //! tables and the block size descriptor with percentile based mode selection.
 

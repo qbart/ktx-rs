@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_comp.cpp` (`basis_compressor`) and the parts of `basisu_enc.h`
 //! `image` / `imagef` it needs: ETC1S (frontend + backend), UASTC LDR 4x4 (+ RDO), UASTC HDR
 //! 4x4 and ASTC HDR 6x6 / UASTC HDR 6x6 intermediate encoding of caller supplied images into a

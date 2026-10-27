@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Headless EGL (Mesa surfaceless platform) contexts for the GL loader tests.
 #![allow(dead_code, unsafe_code, clippy::panic)]
 

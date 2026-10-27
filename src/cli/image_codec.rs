@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/imageio/imagecodec.hpp (`ImageCodec`) and the parts of
 //! tools/imageio/imagespan.hpp (`ImageSpan`, `TexelBlockPtr`) used by
 //! `ktx compare`. Function pointers become enums; element reads past the end of

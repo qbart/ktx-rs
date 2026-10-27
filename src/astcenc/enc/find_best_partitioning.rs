@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_find_best_partitioning.cpp`: k-means clustering of the block texels, the
 //! partitioning ordering by coverage mismatch and the candidate selection by line errors.
 

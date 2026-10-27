@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Port of tests/texturetests/texturetests.cc (sections are added as the library grows).
 #![allow(clippy::panic, clippy::type_complexity)]
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2005-2025 Lode Vandevenne
+// SPDX-License-Identifier: Zlib
+// Translated to Rust from LodePNG and modified; see NOTICE.md.
 //! Port of the lodepng zlib encoder (external/lodepng/lodepng.cpp,
 //! version 20250506): boundary package-merge Huffman code lengths, hash
 //! chain LZ77 with lazy matching, stored / fixed / dynamic deflate blocks and

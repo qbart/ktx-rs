@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of astcenc's `astcenc_vecmathlib_sse_4.h`, `astcenc_vecmathlib_common_4.h` and
 //! `astcenc_vecmathlib_avx2_8.h` as used by KTX-Software's x86-64 build (AVX2, SSE 4.1,
 //! F16C, invariance on, no FP contraction).

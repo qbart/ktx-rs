@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of the class-agnostic `ktxTexture_CreateFrom*` functions (texture.c).
 //!
 //! C returns a `ktxTexture*` whose `classId` tells KTX 1 from KTX 2; here an enum.

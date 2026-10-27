@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `transcode_uastc_to_pvrtc1_4_rgb/rgba` and their modulation fix-up
 //! passes from basisu_transcoder.cpp (shares the ETC1S PVRTC1 machinery).
 

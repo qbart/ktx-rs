@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! SSE4.1 + POPCNT copy.
 
 // The same `enc/` files are compiled once per instruction set copy on purpose.

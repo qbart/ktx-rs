@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_weight_align.cpp`: the angular-sum weight alignment that picks the
 //! low / high weight bounds per decimation mode and weight quant level.
 

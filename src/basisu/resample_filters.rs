@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of basisu `encoder/basisu_resample_filters.cpp`.
 //!
 //! Mixed float/double evaluation follows the C++ promotions exactly (float

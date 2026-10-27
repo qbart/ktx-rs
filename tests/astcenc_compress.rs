@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! astcenc compressor (`astcenc_compress_image`) vs. golden output of the C++ original
 //! (`scripts/golden/gen_astcenc_compress_golden.sh`): whole images over block sizes,
 //! profiles, qualities, flag sets, swizzles and data types.

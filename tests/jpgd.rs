@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! jpgd port vs basis_universal's jpgd.cpp.
 //!
 //! Not a C test port: `scripts/golden/gen_jpgd_golden.sh` decodes the

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the UASTC -> ETC1 / ETC2 RGBA (EAC A8) converters from
 //! basisu_transcoder.cpp: `apply_etc1_bias`, `etc1_determine_selectors`,
 //! `transcode_uastc_to_etc1` (RGB and single channel), `pack_etc1_y_estimate_flipped`,

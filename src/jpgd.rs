@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal (jpgd) and modified; see NOTICE.md.
 //! Port of basis_universal's jpgd (encoder/jpgd.cpp / jpgd.h, Rich
 //! Geldreich's baseline + progressive JPEG decoder) as used by the `ktx
 //! create` JPEG input.

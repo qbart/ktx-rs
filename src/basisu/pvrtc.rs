@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the PVRTC1 4bpp helpers from basisu_transcoder.cpp: `pvrtc4_block`
 //! endpoint packing, Morton swizzling and the ETC1S modulation fix-up passes
 //! (`fixup_pvrtc1_4_modulation_rgb` / `_rgba`).

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_color_quantize.cpp`: quantization of color endpoints for every LDR and
 //! HDR endpoint format (`pack_color_endpoints`).
 //!

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Baseline copy (SSE2 on x86-64, scalar elsewhere; follows the build's own target features).
 //! The public module paths below re-export it.
 

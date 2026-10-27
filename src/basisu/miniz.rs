@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the deflate half of basisu_miniz.h (miniz 1.x `tdefl` and the
 //! `mz_compress2` / `mz_compressBound` zlib-style wrappers) that libktx uses
 //! for ZLIB supercompression (lib/src/miniz_wrapper.cpp).

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! `ktx validate` validator robustness: corrupted files never panic.
 //!
 //! The CTS (tests/cts.rs) checks the validator output against the original

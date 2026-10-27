@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of lib/src/miniz_wrapper.cpp (deflate: the basisu miniz port in
 //! `basisu::miniz`; inflate: the pure Rust `miniz_oxide`) and
 //! the zstd helpers used by texture2.c (via the pure Rust `ruzstd`).

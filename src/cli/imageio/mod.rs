@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of the parts of tools/imageio that `ktx create` needs for its common
 //! input formats: `ImageSpec`, the `ImageInput` base class (`imageio.h`,
 //! `imageinput.cc`, `imageio.cc`) and the PNG, EXR and JPEG readers. The

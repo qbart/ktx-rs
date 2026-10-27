@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/ktx/ktx_main.cpp: the `ktx` command dispatcher.
 
 use super::command::*;
@@ -16,7 +19,8 @@ use super::options::{OptionSpec, Options};
 /// Shown by `ktx --version`: this is not the Khronos build of the tool.
 const PORT_NAME: &str = "Rust port of KTX-Software";
 /// Shown by `ktx --help` (deliberate difference from upstream, see docs/spec/cli.md).
-const PORT_NOTE: &str = "This is an unofficial Rust port of Khronos KTX-Software (libktx and ktx CLI).";
+const PORT_NOTE: &str =
+    "This is an unofficial Rust port of Khronos KTX-Software (libktx and ktx CLI).";
 
 fn print_usage(options: &Options) -> String {
     let mut s = options.help();

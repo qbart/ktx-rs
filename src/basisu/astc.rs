@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1S -> ASTC LDR 4x4 converter and the ASTC block packing
 //! helpers from basisu_transcoder.cpp (`BASISD_SUPPORT_ASTC`, with
 //! `BASISD_SUPPORT_ASTC_HIGHER_OPAQUE_QUALITY` = 1 as in native builds).

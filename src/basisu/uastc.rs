@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the UASTC LDR 4x4 core from basisu_transcoder.cpp: ASTC endpoint
 //! unquantization tables (`uastc_init`), `unpack_uastc` (block -> ASTC
 //! description and -> pixels), `pack_astc_block` and `transcode_uastc_to_astc`.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2005-2025 Lode Vandevenne
+// SPDX-License-Identifier: Zlib
+// Translated to Rust from LodePNG and modified; see NOTICE.md.
 //! Port of the LodePNG decoder with KTX-Software's split API: `decodeGeneric`
 //! is `lodepng_decode_chunks` (parse all chunks, collect IDAT) followed by
 //! `inflateIdat`, and `lodepng_finish_decode` inflates / converts into a

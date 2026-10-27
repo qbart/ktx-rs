@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the UASTC -> BC1/BC3/BC4/BC5 converters and the real-time BC1/BC4
 //! encoders from basisu_transcoder.cpp (`encode_bc4`, `encode_bc1`,
 //! `encode_bc1_solid_block`, `transcode_uastc_to_bc1_hint0/hint1`, ...).

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Port of tests/ktxdiff/ktxdiff_main.cpp: compares an expected and a received
 //! KTX2 file allowing `tolerance` differences in the image data. Used by the
 //! CTS runner for `outputTolerance` cases, like clitest.py on non-primary

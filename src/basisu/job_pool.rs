@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Stand-in for basisu's `job_pool` (`basisu_enc.h`). C++ queues closures and waits for all of
 //! them; every use in the encoder writes disjoint outputs, so results never depend on the order
 //! jobs run in. Here jobs run on scoped threads pulling indices from a shared counter, and the

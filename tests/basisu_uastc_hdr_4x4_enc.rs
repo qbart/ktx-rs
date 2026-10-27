@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! basisu UASTC HDR 4x4 encoder (`basisu_uastc_hdr_4x4_enc.cpp`, `basisu_astc_hdr_common.cpp`)
 //! and `unpack_bc6h` vs. golden output of the C++ original
 //! (`scripts/golden/gen_basisu_uastc_hdr_4x4_enc_golden.sh`).

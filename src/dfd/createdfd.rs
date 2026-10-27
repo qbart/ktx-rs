@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2020 The Khronos Group Inc.
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software dfdutils and modified; see NOTICE.md.
 //! Port of external/dfdutils/createdfd.c.
 //!
 //! Each function returns the full DFD (`dfd[0]` = total size in bytes) or `None`

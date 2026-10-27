@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Error codes. Port of `ktx_error_code_e` and `ktxErrorString` (lib/src/strings.c).
 //!
 //! The C API returns `KTX_error_code`; here every fallible call returns

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `basisu_lowlevel_uastc_hdr_6x6_intermediate_transcoder`
 //! (basisu_transcoder.cpp).
 

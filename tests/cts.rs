@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! Port of the KTX-Software-CTS runner (tests/cts/clitests/clitest.py).
 //!
 //! Each JSON test case under `tests/resources/cts/tests/<command>/` describes a

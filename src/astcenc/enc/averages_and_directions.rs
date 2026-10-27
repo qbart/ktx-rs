@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_averages_and_directions.cpp`: partition averages, dominant
 //! directions and the squared error against the uncorrelated / same chroma lines.
 //! Loops run 8 lanes wide with 4 lane accumulators like the AVX2 build.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_etc.h` / `basisu_etc.cpp`: the ETC1 block encoder used by the
 //! ETC1S frontend/backend and the UASTC encoder (`etc_block`, `etc1_optimizer`,
 //! `pack_etc1_block_solid_color`, `pack_eac_a8`).

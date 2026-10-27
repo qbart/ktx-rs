@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Kernels of `astcenc_vecmathlib_sse_4.h` / `astcenc_vecmathlib_avx2_8.h` on `std::arch`. The
 //! vector types keep their array storage; each kernel casts to `__m128` / `__m256` (`bytemuck`,
 //! free) and runs the intrinsic. The instruction set copy's `ISA` picks SSE4.1 and AVX2 forms;

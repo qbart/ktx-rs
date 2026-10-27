@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `huffman_decoding_table`, `bitwise_decoder` and `approx_move_to_front`
 //! from basisu_transcoder_internal.h, plus the Huffman constants of basisu.h.
 //!

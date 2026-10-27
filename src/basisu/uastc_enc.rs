@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_uastc_enc.h` / `basisu_uastc_enc.cpp`: the UASTC LDR 4x4 block
 //! encoder (`encode_uastc`, `pack_uastc`) with its BC1, ETC1 and ETC2 EAC A8 hint search.
 

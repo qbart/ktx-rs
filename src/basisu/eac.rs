@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1S -> ETC2 EAC A8 / EAC R11 block converters (basisu_transcoder.cpp).
 
 use super::etc::{ETC1_INTEN_TABLES, Endpoint, Selector, clamp255};

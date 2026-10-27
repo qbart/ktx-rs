@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Subset of `encoder/basisu_gpu_texture.cpp` used by the encoders: `unpack_bc1` and the
 //! `basist::bc7u::unpack_bc7` BC7 decoder behind `unpack_block(cBC1 / cBC7)`.
 

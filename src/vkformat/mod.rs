@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Vulkan format enum and helpers. Port of `vkformat_enum.h`, `vkformat_str.c`,
 //! `vkformat_check.c`, `vkformat_check_variant.c` and `vkformat_typesize.c`.
 

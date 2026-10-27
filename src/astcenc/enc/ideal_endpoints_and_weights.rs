@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Port of `astcenc_ideal_endpoints_and_weights.cpp`: ideal endpoints and weights per
 //! partition, weight decimation, weight quantization, weight set errors and the
 //! least squares endpoint recomputation.

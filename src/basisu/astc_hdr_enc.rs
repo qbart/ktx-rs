@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the CEM 7 / CEM 11 single plane parts of `encoder/basisu_astc_hdr_common.cpp` used by
 //! the UASTC HDR 4x4 encoder: codec base options, qlog tables, PCA / least squares endpoint
 //! fitting, selector evaluation, mode 7 / mode 11 endpoint packing and the

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of tools/ktx/format_descriptor.h (`createFormatDescriptor`) and the
 //! parts of tools/imageio/formatdesc.h (`FormatDescriptor`) used by the
 //! commands, plus imageio_utility.h bit helpers.

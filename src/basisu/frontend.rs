@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_frontend.cpp`: the ETC1S frontend (endpoint / selector vector
 //! quantization and refinement) of the BasisLZ encoder.
 //!

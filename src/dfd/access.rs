@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2020 The Khronos Group Inc.
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software dfdutils and modified; see NOTICE.md.
 //! Port of the `KHR_DFDVAL`, `KHR_DFDSETVAL`, `KHR_DFDSVAL`, `KHR_DFDSETSVAL`,
 //! `KHR_DFDSAMPLECOUNT` and `KHR_DFDSIZEWORDS` macros from `khr_df.h`.
 //!

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! basisu ETC1 encoder (`basisu_etc.cpp`) vs. golden output of the C++ original
 //! (`scripts/golden/gen_basisu_etc_golden.sh`, SSE 4.1 build like libktx).
 #![allow(clippy::panic, clippy::needless_range_loop)]

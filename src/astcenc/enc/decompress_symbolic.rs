@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2011-2026 Arm Limited
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from astc-encoder and modified; see NOTICE.md.
 //! Compressor side of `astcenc_decompress_symbolic.cpp`: weight unpacking with the
 //! compressor's block size descriptor and the symbolic block error metrics.
 

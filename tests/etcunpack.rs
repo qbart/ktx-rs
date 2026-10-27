@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Part of the Rust port of KTX-Software; see NOTICE.md.
 //! `_ktxUnpackETC` vs. the C++ original with etcdec on random ETC1 / ETC2 / EAC images
 //! (`scripts/golden/gen_etcunpack_golden.sh`): every source format, odd sizes (cropping),
 //! every R16 / sRGB context capability.

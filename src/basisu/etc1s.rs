@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `basisu_lowlevel_etc1s_transcoder` (basisu_transcoder.cpp).
 //!
 //! Implemented targets: ETC1, RGBA32, RGB565, BGR565, RGBA4444 (and the internal

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the vector quantization parts of `encoder/basisu_enc.h`: `priority_queue`,
 //! `tree_vector_quant` (tree structured VQ with PCA splits and k-means refinement),
 //! `compute_pca_from_covar` and `generate_hierarchical_codebook_threaded`.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of the ETC1S -> BC7 mode 5 converters, the adaptive chroma filter and
 //! `bc7_mode_5_encoder` (basisu_transcoder.cpp).
 //!

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_bc7enc.h` / `basisu_bc7enc.cpp`: the BC7/ASTC color cell
 //! compressor used by the UASTC LDR 4x4 encoder (`color_cell_compression`,
 //! `color_cell_compression_est_astc`) and its lookup tables (`bc7enc_compress_block_init`).

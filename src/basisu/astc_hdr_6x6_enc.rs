@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2026 Binomial LLC
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from Basis Universal and modified; see NOTICE.md.
 //! Port of `encoder/basisu_astc_hdr_6x6_enc.cpp`: the ASTC HDR 6x6 / UASTC HDR 6x6 intermediate
 //! encoder (`astc_6x6_hdr::compress_photo`).
 //!

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2010-2026 Mark Callow, The Khronos Group Inc. and KTX-Software contributors
+// SPDX-License-Identifier: Apache-2.0
+// Translated to Rust from KTX-Software and modified; see NOTICE.md.
 //! Port of `lib/src/astc_codec.cpp`: `ktxTexture2_CompressAstcEx`, `ktxTexture2_CompressAstc`
 //! and `ktxTexture2_DecodeAstc` on top of the pure Rust astcenc port. Each image is
 //! compressed by `threadCount` threads sharing one context (`launchThreads`).
