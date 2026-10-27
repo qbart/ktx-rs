@@ -1,4 +1,4 @@
-.PHONY: build install
+.PHONY: build install publish publish-macros publish-ktx
 
 PREFIX ?= $(HOME)
 
@@ -13,3 +13,14 @@ install: build
 	mkdir -p $(PREFIX)/bin $(PREFIX)/share/man/man1
 	cp bin/ktx $(PREFIX)/bin/ktx
 	cp man/*.1 $(PREFIX)/share/man/man1/
+
+# crates.io: ktx-rs depends on ktx-rs-macros, so the macros crate goes first.
+publish:
+	$(MAKE) publish-macros
+	$(MAKE) publish-ktx
+
+publish-macros:
+	cargo publish -p ktx-rs-macros
+
+publish-ktx:
+	cargo publish -p ktx-rs
