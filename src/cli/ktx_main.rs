@@ -13,6 +13,11 @@ use super::command_transcode::CommandTranscode;
 use super::command_validate::CommandValidate;
 use super::options::{OptionSpec, Options};
 
+/// Shown by `ktx --version`: this is not the Khronos build of the tool.
+const PORT_NAME: &str = "Rust port of KTX-Software";
+/// Shown by `ktx --help` (deliberate difference from upstream, see docs/spec/cli.md).
+const PORT_NOTE: &str = "This is an unofficial Rust port of Khronos KTX-Software (libktx and ktx CLI).";
+
 fn print_usage(options: &Options) -> String {
     let mut s = options.help();
     s.push('\n');
@@ -62,7 +67,7 @@ fn tools_main(args: &[String]) -> i32 {
     if parsed.count("help") > 0 {
         print_out(
             format!(
-                "{}: Unified CLI frontend for the KTX-Software library with sub-commands for specific operations.\n",
+                "{}: Unified CLI frontend for the KTX-Software library with sub-commands for specific operations.\n{PORT_NOTE}\n",
                 options.program()
             )
             .as_bytes(),
@@ -71,7 +76,14 @@ fn tools_main(args: &[String]) -> i32 {
         return ReturnCode::Success as i32;
     }
     if parsed.count("version") > 0 {
-        print_out(format!("{} version: {}\n", options.program(), version(testrun)).as_bytes());
+        print_out(
+            format!(
+                "{} version: {} ({PORT_NAME})\n",
+                options.program(),
+                version(testrun)
+            )
+            .as_bytes(),
+        );
         return ReturnCode::Success as i32;
     }
     match parsed.unmatched().first() {

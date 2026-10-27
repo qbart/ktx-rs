@@ -1,4 +1,5 @@
 ktx: Unified CLI frontend for the KTX-Software library with sub-commands for specific operations.
+This is an unofficial Rust port of Khronos KTX-Software (libktx and ktx CLI).
 
 Usage:
   ktx [<command>] [OPTION...]

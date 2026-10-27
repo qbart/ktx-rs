@@ -60,3 +60,10 @@ backtick regex) and runs every validate, info, help, transcode, deflate, extract
 (data in `tests/resources/cts`, every referenced input vendored; no subcase is skipped). `outputs` files must match
 exactly. `scripts/vendor_cts.py <command>` copies a command's cases and every file its runnable subcases
 reference. `tests/validate.rs`: corrupted files never panic.
+
+## Deliberate differences from upstream
+- `ktx --help` adds the line "This is an unofficial Rust port of Khronos KTX-Software (libktx and
+  ktx CLI)." and `ktx --version` appends "(Rust port of KTX-Software)"; the vendored CTS goldens
+  `golden/tools/help/{help,version}.out.txt` are updated to match.
+- `ktx help <command>` opens the man pages like upstream; the upstream man pages (KTX-Software
+  documentation) are not shipped with the port.
