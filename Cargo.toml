@@ -29,7 +29,8 @@ ash = { version = "0.38.0", default-features = false, features = ["std", "debug"
 libloading = { version = "0.8.9", optional = true }
 
 [lints.rust]
-# Denied everywhere except the Vulkan and OpenGL loaders (src/vkloader.rs, src/glloader.rs).
+# Denied everywhere except the Vulkan and OpenGL loaders (src/vkloader.rs, src/glloader.rs) and
+# the astcenc SIMD kernels (src/astcenc/sse.rs).
 unsafe_code = "deny"
 
 [lints.clippy]

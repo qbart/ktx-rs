@@ -22,6 +22,7 @@ pub mod mathlib;
 pub mod partition_tables;
 pub mod percentile_tables;
 pub mod pick_best_endpoint_format;
+mod sse;
 pub mod symbolic_physical;
 pub mod tables;
 pub mod vecmath;

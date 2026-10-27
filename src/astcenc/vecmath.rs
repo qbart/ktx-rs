@@ -10,6 +10,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
+use super::sse::{Lanes, LanesI};
 use std::ops::{Add, AddAssign, BitAnd, BitOr, BitXor, Div, Mul, Not, Sub};
 
 /// AVX2 build width (`ASTCENC_SIMD_WIDTH`).
@@ -45,13 +46,6 @@ pub fn round_even(f: f32) -> f32 {
     let a = f.abs();
     let r = ((a + C) - C).copysign(f);
     if a < C { r } else { f }
-}
-
-/// `blendv` lane: `b` where the mask sign bit is set.
-#[inline]
-fn blend_bits(a: u32, b: u32, cond: u32) -> u32 {
-    let m = ((cond as i32) >> 31) as u32;
-    (a & !m) | (b & m)
 }
 
 const TRUE_BITS: u32 = 0xFFFF_FFFF;
@@ -127,43 +121,41 @@ macro_rules! vtypes {
                 self.m[l] = a;
             }
             #[inline]
-            fn map(self, f: impl Fn(f32) -> f32) -> Self {
-                Self { m: self.m.map(f) }
-            }
-            #[inline]
-            fn zip(self, b: Self, f: impl Fn(f32, f32) -> f32) -> Self {
-                let mut m = [0.0; $n];
-                for i in 0..$n {
-                    m[i] = f(self.m[i], b.m[i]);
-                }
-                Self { m }
-            }
-            #[inline]
-            fn cmp(self, b: Self, f: impl Fn(f32, f32) -> bool) -> $vm {
-                let mut m = [0; $n];
-                for i in 0..$n {
-                    m[i] = bits(f(self.m[i], b.m[i]));
-                }
-                $vm { m }
-            }
             pub fn eq(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x == y)
+                $vm {
+                    m: self.m.cmpeq_ps(b.m),
+                }
             }
             /// Unordered not-equal.
+            #[inline]
             pub fn ne(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x != y)
+                $vm {
+                    m: self.m.cmpneq_ps(b.m),
+                }
             }
+            #[inline]
             pub fn lt(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x < y)
+                $vm {
+                    m: self.m.cmplt_ps(b.m),
+                }
             }
+            #[inline]
             pub fn gt(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x > y)
+                $vm {
+                    m: self.m.cmpgt_ps(b.m),
+                }
             }
+            #[inline]
             pub fn le(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x <= y)
+                $vm {
+                    m: self.m.cmple_ps(b.m),
+                }
             }
+            #[inline]
             pub fn ge(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x >= y)
+                $vm {
+                    m: self.m.cmpge_ps(b.m),
+                }
             }
         }
 
@@ -171,7 +163,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn add(self, b: Self) -> Self {
-                self.zip(b, |x, y| x + y)
+                Self {
+                    m: self.m.add_ps(b.m),
+                }
             }
         }
         impl Add<f32> for $vf {
@@ -191,7 +185,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn sub(self, b: Self) -> Self {
-                self.zip(b, |x, y| x - y)
+                Self {
+                    m: self.m.sub_ps(b.m),
+                }
             }
         }
         impl Sub<f32> for $vf {
@@ -205,7 +201,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn mul(self, b: Self) -> Self {
-                self.zip(b, |x, y| x * y)
+                Self {
+                    m: self.m.mul_ps(b.m),
+                }
             }
         }
         impl Mul<f32> for $vf {
@@ -226,7 +224,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn div(self, b: Self) -> Self {
-                self.zip(b, |x, y| x / y)
+                Self {
+                    m: self.m.div_ps(b.m),
+                }
             }
         }
         impl Div<f32> for $vf {
@@ -310,56 +310,46 @@ macro_rules! vtypes {
                 }
             }
             #[inline]
-            fn zip(self, b: Self, f: impl Fn(i32, i32) -> i32) -> Self {
-                let mut m = [0; $n];
-                for i in 0..$n {
-                    m[i] = f(self.m[i], b.m[i]);
+            pub fn eq(self, b: Self) -> $vm {
+                $vm {
+                    m: self.m.cmpeq_epi32(b.m),
                 }
-                Self { m }
             }
             #[inline]
-            fn cmp(self, b: Self, f: impl Fn(i32, i32) -> bool) -> $vm {
-                let mut m = [0; $n];
-                for i in 0..$n {
-                    m[i] = bits(f(self.m[i], b.m[i]));
-                }
-                $vm { m }
-            }
-            pub fn eq(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x == y)
-            }
             pub fn ne(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x != y)
+                !self.eq(b)
             }
+            #[inline]
             pub fn lt(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x < y)
+                $vm {
+                    m: self.m.cmplt_epi32(b.m),
+                }
             }
+            #[inline]
             pub fn gt(self, b: Self) -> $vm {
-                self.cmp(b, |x, y| x > y)
+                $vm {
+                    m: self.m.cmpgt_epi32(b.m),
+                }
             }
             /// `lsl<s>`.
             #[inline]
             pub fn lsl(self, s: u32) -> Self {
                 Self {
-                    m: self
-                        .m
-                        .map(|x| if s > 31 { 0 } else { ((x as u32) << s) as i32 }),
+                    m: self.m.sll_epi32(s),
                 }
             }
             /// `lsr<s>`.
             #[inline]
             pub fn lsr(self, s: u32) -> Self {
                 Self {
-                    m: self
-                        .m
-                        .map(|x| if s > 31 { 0 } else { ((x as u32) >> s) as i32 }),
+                    m: self.m.srl_epi32(s),
                 }
             }
             /// `asr<s>`.
             #[inline]
             pub fn asr(self, s: u32) -> Self {
                 Self {
-                    m: self.m.map(|x| x >> s.min(31)),
+                    m: self.m.sra_epi32(s),
                 }
             }
         }
@@ -368,7 +358,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn add(self, b: Self) -> Self {
-                self.zip(b, i32::wrapping_add)
+                Self {
+                    m: self.m.add_epi32(b.m),
+                }
             }
         }
         impl Add<i32> for $vi {
@@ -388,7 +380,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn sub(self, b: Self) -> Self {
-                self.zip(b, i32::wrapping_sub)
+                Self {
+                    m: self.m.sub_epi32(b.m),
+                }
             }
         }
         impl Sub<i32> for $vi {
@@ -402,7 +396,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn mul(self, b: Self) -> Self {
-                self.zip(b, i32::wrapping_mul)
+                Self {
+                    m: self.m.mullo_epi32(b.m),
+                }
             }
         }
         impl Mul<i32> for $vi {
@@ -416,7 +412,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn bitand(self, b: Self) -> Self {
-                self.zip(b, |x, y| x & y)
+                Self {
+                    m: self.m.and_si(b.m),
+                }
             }
         }
         impl BitAnd<i32> for $vi {
@@ -430,7 +428,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn bitor(self, b: Self) -> Self {
-                self.zip(b, |x, y| x | y)
+                Self {
+                    m: self.m.or_si(b.m),
+                }
             }
         }
         impl BitOr<i32> for $vi {
@@ -444,7 +444,9 @@ macro_rules! vtypes {
             type Output = Self;
             #[inline]
             fn bitxor(self, b: Self) -> Self {
-                self.zip(b, |x, y| x ^ y)
+                Self {
+                    m: self.m.xor_si(b.m),
+                }
             }
         }
         impl BitXor<i32> for $vi {
@@ -520,6 +522,7 @@ macro_rules! vtypes {
 
         impl From<$vm> for $vi {
             /// The mask lanes as integers (`_mm_castps_si128`).
+            #[inline]
             fn from(v: $vm) -> $vi {
                 $vi {
                     m: v.m.map(|x| x as i32),
@@ -531,9 +534,11 @@ macro_rules! vtypes {
             type I = $vi;
             type M = $vm;
             const N: usize = $n;
+            #[inline]
             fn splat_(a: f32) -> Self {
                 Self::splat(a)
             }
+            #[inline]
             fn lanes(&self) -> &[f32] {
                 &self.m
             }
@@ -556,48 +561,64 @@ vtypes!(Vfloat8, Vint8, Vmask8, 8);
 macro_rules! common_fns {
     ($vf:ident, $vi:ident, $vm:ident, $n:expr) => {
         impl $vf {
+            #[inline]
             pub fn min(self, b: Self) -> Self {
-                self.zip(b, min_ps)
+                Self {
+                    m: self.m.min_ps(b.m),
+                }
             }
+            #[inline]
             pub fn max(self, b: Self) -> Self {
-                self.zip(b, max_ps)
+                Self {
+                    m: self.m.max_ps(b.m),
+                }
             }
+            #[inline]
             pub fn min_s(self, b: f32) -> Self {
                 self.min(Self::splat(b))
             }
+            #[inline]
             pub fn max_s(self, b: f32) -> Self {
                 self.max(Self::splat(b))
             }
             /// `clamp(min, max, a)`: `min(max(a, min), max)`.
+            #[inline]
             pub fn clamp(lo: f32, hi: f32, a: Self) -> Self {
                 a.max_s(lo).min_s(hi)
             }
+            #[inline]
             pub fn clampzo(self) -> Self {
                 Self::clamp(0.0, 1.0, self)
             }
             /// `round` (nearest, ties to even).
+            #[inline]
             pub fn round(self) -> Self {
-                self.map(round_even)
+                Self {
+                    m: self.m.round_ps(),
+                }
             }
+            #[inline]
             pub fn sqrt(self) -> Self {
-                self.map(f32::sqrt)
+                Self {
+                    m: self.m.sqrt_ps(),
+                }
             }
             /// `select(a, b, cond)`: `b` where the mask lane sign bit is set.
+            #[inline]
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
-                let mut m = a.m;
-                for i in 0..$n {
-                    m[i] =
-                        f32::from_bits(blend_bits(a.m[i].to_bits(), b.m[i].to_bits(), cond.m[i]));
+                Self {
+                    m: a.m.blendv_ps(b.m, cond.m),
                 }
-                Self { m }
             }
             /// `gatherf(base, indices)`.
+            #[inline]
             pub fn gatherf(base: &[f32], idx: $vi) -> Self {
                 Self {
                     m: idx.m.map(|i| base.get(i as usize).copied().unwrap_or(0.0)),
                 }
             }
             /// `gatherf_byte_inds`.
+            #[inline]
             pub fn gatherf_byte_inds(base: &[f32], idx: &[u8]) -> Self {
                 // Full vector of indices: clamped (provably in bounds, no per lane branch) and
                 // out of range lanes zeroed with a select.
@@ -617,14 +638,17 @@ macro_rules! common_fns {
                 }
                 Self { m }
             }
+            #[inline]
             pub fn float_to_int(self) -> $vi {
                 $vi {
-                    m: self.m.map(cvtt),
+                    m: self.m.cvttps_epi32(),
                 }
             }
+            #[inline]
             pub fn float_to_int_rtn(self) -> $vi {
                 (self + 0.5).float_to_int()
             }
+            #[inline]
             pub fn float_as_int(self) -> $vi {
                 $vi {
                     m: self.m.map(|f| f.to_bits() as i32),
@@ -632,51 +656,65 @@ macro_rules! common_fns {
             }
         }
         impl $vi {
+            #[inline]
             pub fn min(self, b: Self) -> Self {
-                self.zip(b, i32::min)
+                Self {
+                    m: self.m.min_epi32(b.m),
+                }
             }
+            #[inline]
             pub fn max(self, b: Self) -> Self {
-                self.zip(b, i32::max)
+                Self {
+                    m: self.m.max_epi32(b.m),
+                }
             }
+            #[inline]
             pub fn clamp(lo: i32, hi: i32, a: Self) -> Self {
                 a.max(Self::splat(lo)).min(Self::splat(hi))
             }
+            #[inline]
             pub fn hmin_s(self) -> i32 {
                 self.m.iter().copied().fold(i32::MAX, i32::min)
             }
+            #[inline]
             pub fn hmax_s(self) -> i32 {
                 self.m.iter().copied().fold(i32::MIN, i32::max)
             }
+            #[inline]
             pub fn hmin(self) -> Self {
                 Self::splat(self.hmin_s())
             }
+            #[inline]
             pub fn hmax(self) -> Self {
                 Self::splat(self.hmax_s())
             }
+            #[inline]
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
-                let mut m = a.m;
-                for i in 0..$n {
-                    m[i] = blend_bits(a.m[i] as u32, b.m[i] as u32, cond.m[i]) as i32;
+                Self {
+                    m: a.m.blendv_epi32(b.m, cond.m),
                 }
-                Self { m }
             }
+            #[inline]
             pub fn int_to_float(self) -> $vf {
                 $vf {
-                    m: self.m.map(|i| i as f32),
+                    m: self.m.cvtepi32_ps(),
                 }
             }
+            #[inline]
             pub fn int_as_float(self) -> $vf {
                 $vf {
                     m: self.m.map(|i| f32::from_bits(i as u32)),
                 }
             }
             /// `store_nbytes` of the low lanes' bytes (`pack_and_store_low_bytes`).
+            #[inline]
             pub fn pack_low_bytes(self) -> [u8; $n] {
                 self.m.map(|x| x as u8)
             }
         }
         impl $vm {
             /// `mask()`: the lane sign bits.
+            #[inline]
             pub fn mask(self) -> u32 {
                 let mut r = 0;
                 for i in 0..$n {
@@ -684,9 +722,11 @@ macro_rules! common_fns {
                 }
                 r
             }
+            #[inline]
             pub fn any(self) -> bool {
                 self.mask() != 0
             }
+            #[inline]
             pub fn all(self) -> bool {
                 self.mask() == (1u32 << $n) - 1
             }
@@ -710,69 +750,86 @@ impl Vfloat4 {
         Vfloat4 { m: [a, b, c, 0.0] }
     }
     /// `swz<l0, l1>()` (lanes 2, 3 zero).
+    #[inline]
     pub fn swz2(self, l0: usize, l1: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], 0.0, 0.0)
     }
     /// `swz<l0, l1, l2>()` (lane 3 zero).
+    #[inline]
     pub fn swz3(self, l0: usize, l1: usize, l2: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], self.m[l2], 0.0)
     }
     /// `swz<l0, l1, l2, l3>()`.
+    #[inline]
     pub fn swz4(self, l0: usize, l1: usize, l2: usize, l3: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], self.m[l2], self.m[l3])
     }
     /// `abs`: `max(0 - a, a)` (so `-0` stays `-0`, NaN passes through).
+    #[inline]
     pub fn abs(self) -> Vfloat4 {
         (Vfloat4::zero() - self).max(self)
     }
     /// `hmin` (broadcast).
+    #[inline]
     pub fn hmin(self) -> Vfloat4 {
         Vfloat4::splat(self.hmin_s())
     }
+    #[inline]
     pub fn hmin_s(self) -> f32 {
         let a = self.m;
         min_ps(min_ps(a[0], a[2]), min_ps(a[1], a[3]))
     }
     /// `hmin_rgb_s`: lane 3 replaced by lane 0.
+    #[inline]
     pub fn hmin_rgb_s(self) -> f32 {
         let mut a = self;
         a.m[3] = a.m[0];
         a.hmin_s()
     }
+    #[inline]
     pub fn hmax(self) -> Vfloat4 {
         Vfloat4::splat(self.hmax_s())
     }
+    #[inline]
     pub fn hmax_s(self) -> f32 {
         let a = self.m;
         max_ps(max_ps(a[0], a[2]), max_ps(a[1], a[3]))
     }
     /// `hadd_s`: `(a0 + a2) + (a1 + a3)`.
+    #[inline]
     pub fn hadd_s(self) -> f32 {
         let a = self.m;
         (a[0] + a[2]) + (a[1] + a[3])
     }
     /// `hadd_rgb_s`: `a0 + a1 + a2`.
+    #[inline]
     pub fn hadd_rgb_s(self) -> f32 {
         self.m[0] + self.m[1] + self.m[2]
     }
+    #[inline]
     pub fn dot_s(self, b: Vfloat4) -> f32 {
         (self * b).hadd_s()
     }
+    #[inline]
     pub fn dot(self, b: Vfloat4) -> Vfloat4 {
         Vfloat4::splat(self.dot_s(b))
     }
+    #[inline]
     pub fn dot3_s(self, b: Vfloat4) -> f32 {
         (self * b).hadd_rgb_s()
     }
+    #[inline]
     pub fn dot3(self, b: Vfloat4) -> Vfloat4 {
         let d = self.dot3_s(b);
         Vfloat4::new(d, d, d, 0.0)
     }
     /// `haccumulate(accum, a)`.
+    #[inline]
     pub fn haccumulate(accum: &mut Vfloat4, a: Vfloat4) {
         *accum += a;
     }
     /// `haccumulate(accum, a, m)`.
+    #[inline]
     pub fn haccumulate_masked(accum: &mut Vfloat4, a: Vfloat4, m: Vmask4) {
         Vfloat4::haccumulate(accum, Vfloat4::select(Vfloat4::zero(), a, m));
     }
@@ -784,12 +841,14 @@ impl Vint4 {
         Vint4 { m: [a, b, c, d] }
     }
     /// `hadd_rgb_s`.
+    #[inline]
     pub fn hadd_rgb_s(self) -> i32 {
         self.m[0].wrapping_add(self.m[1]).wrapping_add(self.m[2])
     }
 }
 
 impl Vmask4 {
+    #[inline]
     pub fn new(a: bool, b: bool, c: bool, d: bool) -> Vmask4 {
         Vmask4 {
             m: [bits(a), bits(b), bits(c), bits(d)],
@@ -801,9 +860,13 @@ impl Vmask4 {
 
 impl Vfloat8 {
     /// `abs`: sign bit cleared.
+    #[inline]
     pub fn abs(self) -> Vfloat8 {
-        self.map(|f| f32::from_bits(f.to_bits() & 0x7fff_ffff))
+        Vfloat8 {
+            m: self.m.map(|f| f32::from_bits(f.to_bits() & 0x7fff_ffff)),
+        }
     }
+    #[inline]
     fn halves(self) -> (Vfloat4, Vfloat4) {
         let a = self.m;
         (
@@ -812,35 +875,42 @@ impl Vfloat8 {
         )
     }
     /// `hmin_s`.
+    #[inline]
     pub fn hmin_s(self) -> f32 {
         let (lo, hi) = self.halves();
         let v = lo.min(hi).m;
         min_ps(min_ps(v[0], v[1]), min_ps(v[2], v[3]))
     }
+    #[inline]
     pub fn hmin(self) -> Vfloat8 {
         Vfloat8::splat(self.hmin_s())
     }
     /// `hmax_s`.
+    #[inline]
     pub fn hmax_s(self) -> f32 {
         let (lo, hi) = self.halves();
         let v = lo.max(hi).m;
         max_ps(max_ps(v[0], v[1]), max_ps(v[2], v[3]))
     }
+    #[inline]
     pub fn hmax(self) -> Vfloat8 {
         Vfloat8::splat(self.hmax_s())
     }
     /// `hadd_s`: two sequential 4-wide sums.
+    #[inline]
     pub fn hadd_s(self) -> f32 {
         let (lo, hi) = self.halves();
         lo.hadd_s() + hi.hadd_s()
     }
     /// `haccumulate(vfloat4& accum, vfloat8 a)`.
+    #[inline]
     pub fn haccumulate(accum: &mut Vfloat4, a: Vfloat8) {
         let (lo, hi) = a.halves();
         Vfloat4::haccumulate(accum, lo);
         Vfloat4::haccumulate(accum, hi);
     }
     /// `haccumulate(vfloat4& accum, vfloat8 a, vmask8 m)`.
+    #[inline]
     pub fn haccumulate_masked(accum: &mut Vfloat4, a: Vfloat8, m: Vmask8) {
         Vfloat8::haccumulate(accum, Vfloat8::select(Vfloat8::zero(), a, m));
     }
@@ -852,31 +922,37 @@ pub type Vint = Vint8;
 pub type Vmask = Vmask8;
 
 /// `round_up_to_simd_multiple_vla`.
+#[inline]
 pub const fn round_up_to_simd_multiple_vla(count: usize) -> usize {
     count.div_ceil(SIMD_WIDTH) * SIMD_WIDTH
 }
 
 /// `round_down_to_simd_multiple_vla`.
+#[inline]
 pub const fn round_down_to_simd_multiple_vla(count: usize) -> usize {
     count & !(SIMD_WIDTH - 1)
 }
 
 /// `round_down_to_simd_multiple_4`.
+#[inline]
 pub const fn round_down_to_simd_multiple_4(count: usize) -> usize {
     count & !3
 }
 
 /// `vint_from_size`.
+#[inline]
 pub fn vint_from_size(a: usize) -> Vint {
     Vint::splat(a as i32)
 }
 
 /// `popcount` (64-bit).
+#[inline]
 pub fn popcount(v: u64) -> i32 {
     v.count_ones() as i32
 }
 
 /// `bit_transfer_signed`.
+#[inline]
 pub fn bit_transfer_signed(input0: &mut Vint4, input1: &mut Vint4) {
     *input1 = input1.lsr(1) | (*input0 & 0x80);
     *input0 = input0.lsr(1) & 0x3F;
@@ -890,6 +966,7 @@ pub const PI: f32 = std::f32::consts::PI;
 pub const PI_OVER_TWO: f32 = std::f32::consts::FRAC_PI_2;
 
 /// `change_sign`: `a` with the sign of `b` xored in.
+#[inline]
 pub fn change_sign(a: Vfloat, b: Vfloat) -> Vfloat {
     let ia = a.float_as_int();
     let ib = b.float_as_int();
@@ -898,6 +975,7 @@ pub fn change_sign(a: Vfloat, b: Vfloat) -> Vfloat {
 }
 
 /// `atan` (approximation).
+#[inline]
 pub fn atan(x: Vfloat) -> Vfloat {
     let c = x.abs().gt(Vfloat::splat(1.0));
     let z = change_sign(Vfloat::splat(PI_OVER_TWO), x);
@@ -907,6 +985,7 @@ pub fn atan(x: Vfloat) -> Vfloat {
 }
 
 /// `atan2` (approximation).
+#[inline]
 pub fn atan2(y: Vfloat, x: Vfloat) -> Vfloat {
     let z = atan((y / x).abs());
     let xmask = x.lt(Vfloat::zero());
@@ -914,12 +993,14 @@ pub fn atan2(y: Vfloat, x: Vfloat) -> Vfloat {
 }
 
 /// `normalize`.
+#[inline]
 pub fn normalize(a: Vfloat4) -> Vfloat4 {
     let length = a.dot(a);
     a / length.sqrt()
 }
 
 /// `normalize_safe`.
+#[inline]
 pub fn normalize_safe(a: Vfloat4, safe: Vfloat4) -> Vfloat4 {
     let length = a.dot(a);
     if length.lane(0) != 0.0 {
@@ -929,6 +1010,7 @@ pub fn normalize_safe(a: Vfloat4, safe: Vfloat4) -> Vfloat4 {
 }
 
 /// `POLY` evaluation `((((c5 * x + c4) * x + c3) ...) * x + c0`.
+#[inline]
 fn poly(x: Vfloat4, c: &[f32]) -> Vfloat4 {
     let mut r = Vfloat4::splat(c[c.len() - 1]);
     for &ci in c[..c.len() - 1].iter().rev() {
@@ -939,6 +1021,7 @@ fn poly(x: Vfloat4, c: &[f32]) -> Vfloat4 {
 
 /// `exp2` (approximation).
 #[allow(clippy::excessive_precision)]
+#[inline]
 pub fn exp2(x: Vfloat4) -> Vfloat4 {
     let x = Vfloat4::clamp(-126.99999, 129.0, x);
     let ipart = (x - 0.5).float_to_int();
@@ -962,6 +1045,7 @@ pub fn exp2(x: Vfloat4) -> Vfloat4 {
 
 /// `log2` (approximation).
 #[allow(clippy::excessive_precision)]
+#[inline]
 pub fn log2(x: Vfloat4) -> Vfloat4 {
     let exp = Vint4::splat(0x7F80_0000);
     let mant = Vint4::splat(0x007F_FFFF);
@@ -986,6 +1070,7 @@ pub fn log2(x: Vfloat4) -> Vfloat4 {
 }
 
 /// `pow` (approximation, exact for `y == 0`).
+#[inline]
 pub fn pow(x: Vfloat4, y: Vfloat4) -> Vfloat4 {
     let zero_mask = y.eq(Vfloat4::splat(0.0));
     let estimate = exp2(log2(x) * y);
@@ -993,11 +1078,13 @@ pub fn pow(x: Vfloat4, y: Vfloat4) -> Vfloat4 {
 }
 
 /// `astc::pow`.
+#[inline]
 pub fn pow_s(x: f32, y: f32) -> f32 {
     pow(Vfloat4::splat(x), Vfloat4::splat(y)).lane(0)
 }
 
 /// `frexp`.
+#[inline]
 pub fn frexp(a: Vfloat4, exp: &mut Vint4) -> Vfloat4 {
     let ai = a.float_as_int();
     *exp = (ai.lsr(23) & 0xFF) - 126;
@@ -1006,6 +1093,7 @@ pub fn frexp(a: Vfloat4, exp: &mut Vint4) -> Vfloat4 {
 }
 
 /// `float_to_lns`.
+#[inline]
 pub fn float_to_lns(a: Vfloat4) -> Vfloat4 {
     let mut exp = Vint4::zero();
     let mant = frexp(a, &mut exp);
@@ -1034,6 +1122,7 @@ pub fn float_to_lns(a: Vfloat4) -> Vfloat4 {
 }
 
 /// `clz`.
+#[inline]
 pub fn clz(a: Vint4) -> Vint4 {
     let a = (!a.lsr(8)) & a;
     let a = a.int_to_float().float_as_int();
@@ -1042,12 +1131,14 @@ pub fn clz(a: Vint4) -> Vint4 {
 }
 
 /// `two_to_the_n`.
+#[inline]
 pub fn two_to_the_n(a: Vint4) -> Vint4 {
     let exp = (a + 127).lsl(23);
     exp.int_as_float().float_to_int()
 }
 
 /// `unorm16_to_sf16`.
+#[inline]
 pub fn unorm16_to_sf16(p: Vint4) -> Vint4 {
     let fp16_one = Vint4::splat(0x3C00);
     let fp16_small = p.lsl(8);
@@ -1063,6 +1154,7 @@ pub fn unorm16_to_sf16(p: Vint4) -> Vint4 {
 }
 
 /// `lns_to_sf16`.
+#[inline]
 pub fn lns_to_sf16(p: Vint4) -> Vint4 {
     let mc = p & 0x7FF;
     let ec = p.lsr(11);
@@ -1080,6 +1172,7 @@ pub fn lns_to_sf16(p: Vint4) -> Vint4 {
 
 /// Vector `float16_to_float` (`_mm_packs_epi32` signed saturation, then F16C):
 /// lanes >= 0x8000 become 0x7FFF (NaN).
+#[inline]
 pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
     Vfloat4 {
         m: a.m
@@ -1088,6 +1181,7 @@ pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
 }
 
 /// Vector `float_to_float16` (F16C, round to nearest even).
+#[inline]
 pub fn float_to_float16_v(a: Vfloat4) -> Vint4 {
     Vint4 {
         m: a.m.map(|f| super::float_to_float16(f) as i32),

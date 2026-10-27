@@ -29,15 +29,20 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
   it into the shared output (`Mutex<&mut [u8]>`; a batch is contiguous in the output).
 - `astc_codec.rs` `launch_threads` = `launchThreads` + `compressionWorkloadRunner`.
 
-## astcenc vecmath (safe Rust)
-- `round` uses the add/subtract 2^23 trick (`f32::round_ties_even` is a libm call without
-  SSE4.1); `select` and `cvtt` are branch free; `load` / `store` / `gatherf_byte_inds` have a
-  full-vector fast path without per-lane bounds branches. Unit tests check `round_even` against
-  `round_ties_even` (1M values) and `cvtt` edge cases.
-- Building with `-C target-cpu=x86-64-v3` does not help (the lane loops barely vectorize).
-- Real SIMD (`std::arch`, as upstream's `astcenc_vecmathlib_sse_4.h` / `avx2_8.h`) needs
-  `unsafe` at the intrinsic call boundary, even for baseline SSE2; not done (crate denies
-  `unsafe` outside the GPU loaders).
+## astcenc vecmath / SIMD
+- `src/astcenc/sse.rs` (the only `unsafe` in astcenc) ports the kernels of
+  `astcenc_vecmathlib_sse_4.h` / `avx2_8.h` on `std::arch`; the vector types keep their array
+  storage and cast to `__m128` / `__m256` with `bytemuck`.
+- Widths: `Lanes` / `LanesI` traits on `[_; 4]` (SSE) and `[_; 8]` (AVX2 when compiled with
+  it, else two SSE halves). SSE4.1 ops (`round`, `blendv`, `mullo`, `min/max_epi32`) are used
+  when enabled at compile time, otherwise exact SSE2 sequences (round via ±2^23). Non-x86 builds
+  use scalar lane loops with the same semantics.
+- No runtime CPU dispatch: the ISA is the build's (`-C target-cpu=...`).
+- `round_even`, branch-free `cvtt`, full-vector fast paths in `load` / `store` /
+  `gatherf_byte_inds`, `#[inline]` on every vecmath function (several were out-of-line calls).
+- Tests: `sse::tests::kernels_match_scalar` checks every kernel against scalar semantics
+  (NaN, infinities, out-of-range converts, shift counts ≥ 32); the astcenc goldens pass with
+  SSE2, x86-64-v2 and x86-64-v3 builds.
 
 ## Status (24 threads, `scripts/bench/bench.sh`, Rust time / C++ time)
 | case | before | now |
@@ -46,7 +51,8 @@ checks the outputs are identical. Reference build: `ref/ktx`, Release, AVX2 astc
 | UASTC 2 / UASTC 4 + RDO | 5.3 / 10.4 | 0.76 / 1.10 |
 | Basis-LZ / q255 + mips | 1.4 / 1.6 | 0.69 / 0.96 |
 | Basis-LZ clevel 5 (2048²) | 4.2 | 1.4 |
-| ASTC 4x4 thorough / 6x6 medium / 6x6 2048² | 21.6 / 7.7 / 6.3 | 1.84 / 1.34 / 1.46 |
+| ASTC 4x4 thorough / 6x6 medium / 6x6 2048² | 21.6 / 7.7 / 6.3 | 1.8 / 1.3 / 1.3 |
 
 Single threaded: UASTC at parity, Basis-LZ clevel 5 1.35x (C++ SSE `find_lowest_error`
-kernels), ASTC 4x4 thorough 2.4x (1.45 s vs 0.60 s; scalar vecmath).
+kernels). ASTC 4x4 thorough: 0.96 s default (SSE2), 0.84 s x86-64-v2, 0.75 s x86-64-v3, C++
+(AVX2) 0.59 s; was 2.12 s.
