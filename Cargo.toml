@@ -18,8 +18,12 @@ vulkan = ["dep:ash", "dep:libloading"]
 # second allowed C binding.
 opengl = ["dep:libloading"]
 
+[workspace]
+members = ["macros"]
+
 [dependencies]
 bytemuck = "1.25.2"
+ktx-macros = { path = "macros", version = "0.1.0" }
 miniz_oxide = "0.9.1"
 ruzstd = "0.9.1"
 zstd-pure-rs = "0.2.0"
@@ -30,7 +34,7 @@ libloading = { version = "0.8.9", optional = true }
 
 [lints.rust]
 # Denied everywhere except the Vulkan and OpenGL loaders (src/vkloader.rs, src/glloader.rs) and
-# the astcenc SIMD kernels (src/astcenc/sse.rs).
+# astcenc SIMD (src/astcenc/enc/sse.rs kernels, instruction set dispatch in src/astcenc/mod.rs).
 unsafe_code = "deny"
 
 [lints.clippy]

@@ -257,7 +257,7 @@ fn compressor_setup_matches_astcenc() {
                         Ok(c) => {
                             let mut s = format!("{:016x}", cfg_hash(&c));
                             if full {
-                                match astcenc_context_alloc(&c, 1) {
+                                match astcenc_context_alloc_isa(&c, 1, AstcencIsa::Baseline) {
                                     Err(e) => s += &format!(" E{}", e as i32),
                                     Ok(ctx) => {
                                         let bh = ctx.compress_bsd().map_or(0, bsd_hash);

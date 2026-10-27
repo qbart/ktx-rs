@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 
 use super::internal::*;
 use super::vecmath::*;
+use ktx_macros::isa;
 
 const ANGULAR_STEPS: usize = 32;
 const SINCOS_STEPS: usize = 64;
@@ -17,6 +18,7 @@ struct SinCos {
     cos_table: [[f32; ANGULAR_STEPS]; SINCOS_STEPS],
 }
 
+#[isa]
 /// `prepare_angular_tables` (computed once).
 fn tables() -> &'static SinCos {
     static TABLES: OnceLock<SinCos> = OnceLock::new();
@@ -37,16 +39,19 @@ fn tables() -> &'static SinCos {
     })
 }
 
+#[isa]
 /// `prepare_angular_tables`.
 pub fn prepare_angular_tables() {
     let _ = tables();
 }
 
+#[isa]
 #[inline]
 fn ld(p: &[f32], i: usize) -> Vfloat8 {
     Vfloat8::load(p.get(i..).unwrap_or_default())
 }
 
+#[isa]
 /// `compute_angular_offsets`.
 fn compute_angular_offsets(
     weight_count: usize,
@@ -86,6 +91,7 @@ fn compute_angular_offsets(
     }
 }
 
+#[isa]
 /// `compute_lowest_and_highest_weight`.
 fn compute_lowest_and_highest_weight(
     weight_count: usize,
@@ -171,6 +177,7 @@ fn compute_lowest_and_highest_weight(
     }
 }
 
+#[isa]
 /// `compute_angular_endpoints_for_quant_levels`.
 fn compute_angular_endpoints_for_quant_levels(
     weight_count: usize,
@@ -265,6 +272,7 @@ fn compute_angular_endpoints_for_quant_levels(
     }
 }
 
+#[isa]
 /// `compute_angular_endpoints_1plane`. The ideal decimated weights are read from
 /// `tmpbuf.dec_weights_ideal`, which is what every C++ caller passes.
 pub fn compute_angular_endpoints_1plane(
@@ -326,6 +334,7 @@ pub fn compute_angular_endpoints_1plane(
     }
 }
 
+#[isa]
 /// `compute_angular_endpoints_2planes` (ideal weights from `tmpbuf.dec_weights_ideal`).
 pub fn compute_angular_endpoints_2planes(
     bsd: &BlockSizeDescriptor,

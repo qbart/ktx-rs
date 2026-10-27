@@ -130,9 +130,6 @@ fn compress_matches_astcenc() {
                     };
                     // 1..=4 threads sharing the context; the output must not depend on it.
                     let threads = (n % 4) as u32 + 1;
-                    let Ok(ctx) = astcenc_context_alloc(&c, threads) else {
-                        panic!("context_alloc")
-                    };
                     let dx = s[0] * 2 + 1;
                     let dy = s[1] * 2 - 1;
                     let dz = if s[2] == 1 { 1 } else { s[2] + 1 };
@@ -173,31 +170,43 @@ fn compress_matches_astcenc() {
                     } else {
                         AstcencSwizzle::RGBA
                     };
-                    let blocks = dx.div_ceil(s[0]) * dy.div_ceil(s[1]) * dz.div_ceil(s[2]);
-                    let mut out = vec![0u8; blocks as usize * 16];
-                    let shared = std::sync::Mutex::new(out.as_mut_slice());
-                    std::thread::scope(|sc| {
-                        let hs: Vec<_> = (0..threads)
-                            .map(|t| {
-                                let (ctx, img, swz, shared) = (&ctx, &img, &swz, &shared);
-                                sc.spawn(move || astcenc_compress_image(ctx, img, swz, shared, t))
-                            })
-                            .collect();
-                        for h in hs {
-                            match h.join() {
-                                Ok(Ok(())) => {}
-                                other => panic!("compress: {other:?}"),
-                            }
+                    // Every instruction set copy the CPU runs must give the same output.
+                    for isa in [AstcencIsa::Baseline, AstcencIsa::Sse41, AstcencIsa::Avx2] {
+                        if isa > AstcencIsa::detect() {
+                            continue;
                         }
-                    });
-                    n += 1;
-                    let key = format!("s{si} p{pi} q{qi} f{fi}");
-                    let got = format!("{:016x}", fnv(&out));
-                    match golden.get(&key) {
-                        Some(w) if *w == got => {}
-                        Some(w) => fails.push(format!("{key}: want {w} got {got}")),
-                        None => fails.push(format!("{key}: missing")),
+                        let Ok(ctx) = astcenc_context_alloc_isa(&c, threads, isa) else {
+                            panic!("context_alloc")
+                        };
+                        assert_eq!(ctx.isa(), Some(isa));
+                        let blocks = dx.div_ceil(s[0]) * dy.div_ceil(s[1]) * dz.div_ceil(s[2]);
+                        let mut out = vec![0u8; blocks as usize * 16];
+                        let shared = std::sync::Mutex::new(out.as_mut_slice());
+                        std::thread::scope(|sc| {
+                            let hs: Vec<_> = (0..threads)
+                                .map(|t| {
+                                    let (ctx, img, swz, shared) = (&ctx, &img, &swz, &shared);
+                                    sc.spawn(move || {
+                                        astcenc_compress_image(ctx, img, swz, shared, t)
+                                    })
+                                })
+                                .collect();
+                            for h in hs {
+                                match h.join() {
+                                    Ok(Ok(())) => {}
+                                    other => panic!("compress: {other:?}"),
+                                }
+                            }
+                        });
+                        let key = format!("s{si} p{pi} q{qi} f{fi} {isa:?}");
+                        let got = format!("{:016x}", fnv(&out));
+                        match golden.get(&format!("s{si} p{pi} q{qi} f{fi}")) {
+                            Some(w) if *w == got => {}
+                            Some(w) => fails.push(format!("{key}: want {w} got {got}")),
+                            None => fails.push(format!("{key}: missing")),
+                        }
                     }
+                    n += 1;
                 }
             }
         }

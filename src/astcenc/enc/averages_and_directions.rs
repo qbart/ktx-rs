@@ -6,13 +6,16 @@
 
 use super::internal::*;
 use super::vecmath::*;
+use ktx_macros::isa;
 
+#[isa]
 /// Masked 8-wide accumulation of `data[i..i + 8]` into `acc` (`haccumulate(acc, loada(..), m)`).
 #[inline]
 fn acc_masked(acc: &mut Vfloat4, data: &[f32], i: usize, m: Vmask8) {
     Vfloat8::haccumulate_masked(acc, Vfloat8::loada(&data[i..]), m);
 }
 
+#[isa]
 /// `compute_partition_averages_rgb` / `_rgba` with `comps` components (3 or 4).
 fn compute_partition_averages(
     pi: &PartitionInfo,
@@ -71,6 +74,7 @@ fn compute_partition_averages(
     averages[partition_count - 1] = last / pi.partition_texel_count[partition_count - 1] as f32;
 }
 
+#[isa]
 /// Shared direction search: sum of the positive half spaces per axis, pick the longest.
 fn best_direction(texels: impl Iterator<Item = Vfloat4>, average: Vfloat4, axes: usize) -> Vfloat4 {
     let mut sums = [Vfloat4::zero(); 4];
@@ -95,6 +99,7 @@ fn best_direction(texels: impl Iterator<Item = Vfloat4>, average: Vfloat4, axes:
     best_vector
 }
 
+#[isa]
 /// `compute_avgs_and_dirs_4_comp`.
 pub fn compute_avgs_and_dirs_4_comp(
     pi: &PartitionInfo,
@@ -119,6 +124,7 @@ pub fn compute_avgs_and_dirs_4_comp(
     }
 }
 
+#[isa]
 /// `compute_avgs_and_dirs_3_comp`.
 pub fn compute_avgs_and_dirs_3_comp(
     pi: &PartitionInfo,
@@ -156,6 +162,7 @@ pub fn compute_avgs_and_dirs_3_comp(
     }
 }
 
+#[isa]
 /// `compute_avgs_and_dirs_3_comp_rgb`.
 pub fn compute_avgs_and_dirs_3_comp_rgb(
     pi: &PartitionInfo,
@@ -180,6 +187,7 @@ pub fn compute_avgs_and_dirs_3_comp_rgb(
     }
 }
 
+#[isa]
 /// `compute_avgs_and_dirs_2_comp`.
 pub fn compute_avgs_and_dirs_2_comp(
     pt: &PartitionInfo,
@@ -216,12 +224,14 @@ pub fn compute_avgs_and_dirs_2_comp(
     }
 }
 
+#[isa]
 /// Gathers 8 texels of component plane `c` by byte indices.
 #[inline]
 fn gather(blk: &ImageBlock, c: usize, idx: &[u8]) -> Vfloat8 {
     Vfloat8::gatherf_byte_inds(blk.data(c), idx)
 }
 
+#[isa]
 /// `compute_error_squared_rgba`.
 pub fn compute_error_squared_rgba(
     pi: &PartitionInfo,
@@ -292,6 +302,7 @@ pub fn compute_error_squared_rgba(
     *samec_error = samec_errorsumv.hadd_s();
 }
 
+#[isa]
 /// `compute_error_squared_rgb`.
 pub fn compute_error_squared_rgb(
     pi: &PartitionInfo,

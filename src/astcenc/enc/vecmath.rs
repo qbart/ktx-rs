@@ -17,19 +17,19 @@ use std::ops::{Add, AddAssign, BitAnd, BitOr, BitXor, Div, Mul, Not, Sub};
 pub const SIMD_WIDTH: usize = 8;
 
 /// `_mm_min_ps` lane: `a < b ? a : b`.
-#[inline]
+#[inline(always)]
 pub fn min_ps(a: f32, b: f32) -> f32 {
     if a < b { a } else { b }
 }
 
 /// `_mm_max_ps` lane: `a > b ? a : b`.
-#[inline]
+#[inline(always)]
 pub fn max_ps(a: f32, b: f32) -> f32 {
     if a > b { a } else { b }
 }
 
 /// `cvttss2si` (NaN / out of range → `i32::MIN`). Branch free so lane loops vectorize.
-#[inline]
+#[inline(always)]
 pub fn cvtt(f: f32) -> i32 {
     let in_range = (-2147483648.0..2147483648.0).contains(&f);
     let v = f as i32;
@@ -40,7 +40,7 @@ pub fn cvtt(f: f32) -> i32 {
 /// `roundps` nearest (ties to even). `f32::round_ties_even` is a libm call without SSE4.1;
 /// adding and subtracting 2^23 rounds the same way in the default rounding mode, and values
 /// of 2^23 and above (and NaN / infinities) are already integral.
-#[inline]
+#[inline(always)]
 pub fn round_even(f: f32) -> f32 {
     const C: f32 = 8388608.0;
     let a = f.abs();
@@ -50,7 +50,7 @@ pub fn round_even(f: f32) -> f32 {
 
 const TRUE_BITS: u32 = 0xFFFF_FFFF;
 
-#[inline]
+#[inline(always)]
 fn bits(b: bool) -> u32 {
     if b { TRUE_BITS } else { 0 }
 }
@@ -74,16 +74,16 @@ macro_rules! vtypes {
         }
 
         impl $vf {
-            #[inline]
+            #[inline(always)]
             pub fn splat(a: f32) -> Self {
                 Self { m: [a; $n] }
             }
-            #[inline]
+            #[inline(always)]
             pub fn zero() -> Self {
                 Self { m: [0.0; $n] }
             }
             /// Unaligned / aligned load (`vfloatN(const float*)`, `loada`).
-            #[inline]
+            #[inline(always)]
             pub fn load(p: &[f32]) -> Self {
                 if let Some(a) = p.first_chunk::<$n>() {
                     return Self { m: *a };
@@ -94,15 +94,15 @@ macro_rules! vtypes {
                 }
                 Self { m }
             }
-            #[inline]
+            #[inline(always)]
             pub fn loada(p: &[f32]) -> Self {
                 Self::load(p)
             }
-            #[inline]
+            #[inline(always)]
             pub fn load1(p: &f32) -> Self {
                 Self::splat(*p)
             }
-            #[inline]
+            #[inline(always)]
             pub fn store(self, p: &mut [f32]) {
                 if let Some(a) = p.first_chunk_mut::<$n>() {
                     *a = self.m;
@@ -112,46 +112,46 @@ macro_rules! vtypes {
                     *d = s;
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn lane(&self, l: usize) -> f32 {
                 self.m[l]
             }
-            #[inline]
+            #[inline(always)]
             pub fn set_lane(&mut self, l: usize, a: f32) {
                 self.m[l] = a;
             }
-            #[inline]
+            #[inline(always)]
             pub fn eq(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpeq_ps(b.m),
                 }
             }
             /// Unordered not-equal.
-            #[inline]
+            #[inline(always)]
             pub fn ne(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpneq_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn lt(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmplt_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn gt(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpgt_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn le(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmple_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn ge(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpge_ps(b.m),
@@ -161,7 +161,7 @@ macro_rules! vtypes {
 
         impl Add for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn add(self, b: Self) -> Self {
                 Self {
                     m: self.m.add_ps(b.m),
@@ -170,20 +170,20 @@ macro_rules! vtypes {
         }
         impl Add<f32> for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn add(self, b: f32) -> Self {
                 self + Self::splat(b)
             }
         }
         impl AddAssign for $vf {
-            #[inline]
+            #[inline(always)]
             fn add_assign(&mut self, b: Self) {
                 *self = *self + b;
             }
         }
         impl Sub for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn sub(self, b: Self) -> Self {
                 Self {
                     m: self.m.sub_ps(b.m),
@@ -192,14 +192,14 @@ macro_rules! vtypes {
         }
         impl Sub<f32> for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn sub(self, b: f32) -> Self {
                 self - Self::splat(b)
             }
         }
         impl Mul for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn mul(self, b: Self) -> Self {
                 Self {
                     m: self.m.mul_ps(b.m),
@@ -208,21 +208,21 @@ macro_rules! vtypes {
         }
         impl Mul<f32> for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn mul(self, b: f32) -> Self {
                 self * Self::splat(b)
             }
         }
         impl Mul<$vf> for f32 {
             type Output = $vf;
-            #[inline]
+            #[inline(always)]
             fn mul(self, b: $vf) -> $vf {
                 $vf::splat(self) * b
             }
         }
         impl Div for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn div(self, b: Self) -> Self {
                 Self {
                     m: self.m.div_ps(b.m),
@@ -231,29 +231,29 @@ macro_rules! vtypes {
         }
         impl Div<f32> for $vf {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn div(self, b: f32) -> Self {
                 self / Self::splat(b)
             }
         }
         impl Div<$vf> for f32 {
             type Output = $vf;
-            #[inline]
+            #[inline(always)]
             fn div(self, b: $vf) -> $vf {
                 $vf::splat(self) / b
             }
         }
 
         impl $vi {
-            #[inline]
+            #[inline(always)]
             pub fn splat(a: i32) -> Self {
                 Self { m: [a; $n] }
             }
-            #[inline]
+            #[inline(always)]
             pub fn zero() -> Self {
                 Self { m: [0; $n] }
             }
-            #[inline]
+            #[inline(always)]
             pub fn load(p: &[i32]) -> Self {
                 if let Some(a) = p.first_chunk::<$n>() {
                     return Self { m: *a };
@@ -264,12 +264,12 @@ macro_rules! vtypes {
                 }
                 Self { m }
             }
-            #[inline]
+            #[inline(always)]
             pub fn loada(p: &[i32]) -> Self {
                 Self::load(p)
             }
             /// `vintN(const uint8_t*)`: N bytes zero extended.
-            #[inline]
+            #[inline(always)]
             pub fn from_u8(p: &[u8]) -> Self {
                 let mut m = [0; $n];
                 for (d, s) in m.iter_mut().zip(p) {
@@ -278,7 +278,7 @@ macro_rules! vtypes {
                 Self { m }
             }
             /// `vintN::load(const uint8_t*)`: 4N bytes as little endian i32 lanes.
-            #[inline]
+            #[inline(always)]
             pub fn load_bytes(p: &[u8]) -> Self {
                 let mut m = [0; $n];
                 for (i, d) in m.iter_mut().enumerate() {
@@ -287,7 +287,7 @@ macro_rules! vtypes {
                 }
                 Self { m }
             }
-            #[inline]
+            #[inline(always)]
             pub fn lane_id() -> Self {
                 let mut m = [0; $n];
                 for (i, d) in m.iter_mut().enumerate() {
@@ -295,58 +295,58 @@ macro_rules! vtypes {
                 }
                 Self { m }
             }
-            #[inline]
+            #[inline(always)]
             pub fn lane(&self, l: usize) -> i32 {
                 self.m[l]
             }
-            #[inline]
+            #[inline(always)]
             pub fn set_lane(&mut self, l: usize, a: i32) {
                 self.m[l] = a;
             }
-            #[inline]
+            #[inline(always)]
             pub fn store(self, p: &mut [i32]) {
                 for (d, s) in p.iter_mut().zip(self.m) {
                     *d = s;
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn eq(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpeq_epi32(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn ne(self, b: Self) -> $vm {
                 !self.eq(b)
             }
-            #[inline]
+            #[inline(always)]
             pub fn lt(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmplt_epi32(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn gt(self, b: Self) -> $vm {
                 $vm {
                     m: self.m.cmpgt_epi32(b.m),
                 }
             }
             /// `lsl<s>`.
-            #[inline]
+            #[inline(always)]
             pub fn lsl(self, s: u32) -> Self {
                 Self {
                     m: self.m.sll_epi32(s),
                 }
             }
             /// `lsr<s>`.
-            #[inline]
+            #[inline(always)]
             pub fn lsr(self, s: u32) -> Self {
                 Self {
                     m: self.m.srl_epi32(s),
                 }
             }
             /// `asr<s>`.
-            #[inline]
+            #[inline(always)]
             pub fn asr(self, s: u32) -> Self {
                 Self {
                     m: self.m.sra_epi32(s),
@@ -356,7 +356,7 @@ macro_rules! vtypes {
 
         impl Add for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn add(self, b: Self) -> Self {
                 Self {
                     m: self.m.add_epi32(b.m),
@@ -365,20 +365,20 @@ macro_rules! vtypes {
         }
         impl Add<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn add(self, b: i32) -> Self {
                 self + Self::splat(b)
             }
         }
         impl AddAssign for $vi {
-            #[inline]
+            #[inline(always)]
             fn add_assign(&mut self, b: Self) {
                 *self = *self + b;
             }
         }
         impl Sub for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn sub(self, b: Self) -> Self {
                 Self {
                     m: self.m.sub_epi32(b.m),
@@ -387,14 +387,14 @@ macro_rules! vtypes {
         }
         impl Sub<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn sub(self, b: i32) -> Self {
                 self - Self::splat(b)
             }
         }
         impl Mul for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn mul(self, b: Self) -> Self {
                 Self {
                     m: self.m.mullo_epi32(b.m),
@@ -403,14 +403,14 @@ macro_rules! vtypes {
         }
         impl Mul<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn mul(self, b: i32) -> Self {
                 self * Self::splat(b)
             }
         }
         impl BitAnd for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitand(self, b: Self) -> Self {
                 Self {
                     m: self.m.and_si(b.m),
@@ -419,14 +419,14 @@ macro_rules! vtypes {
         }
         impl BitAnd<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitand(self, b: i32) -> Self {
                 self & Self::splat(b)
             }
         }
         impl BitOr for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitor(self, b: Self) -> Self {
                 Self {
                     m: self.m.or_si(b.m),
@@ -435,14 +435,14 @@ macro_rules! vtypes {
         }
         impl BitOr<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitor(self, b: i32) -> Self {
                 self | Self::splat(b)
             }
         }
         impl BitXor for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitxor(self, b: Self) -> Self {
                 Self {
                     m: self.m.xor_si(b.m),
@@ -451,14 +451,14 @@ macro_rules! vtypes {
         }
         impl BitXor<i32> for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitxor(self, b: i32) -> Self {
                 self ^ Self::splat(b)
             }
         }
         impl Not for $vi {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn not(self) -> Self {
                 Self {
                     m: self.m.map(|x| !x),
@@ -467,19 +467,19 @@ macro_rules! vtypes {
         }
 
         impl $vm {
-            #[inline]
+            #[inline(always)]
             pub fn splat(a: bool) -> Self {
                 Self { m: [bits(a); $n] }
             }
             /// `lane<l>()`: the lane bits read as a float compared with 0.
-            #[inline]
+            #[inline(always)]
             pub fn lane(&self, l: usize) -> bool {
                 f32::from_bits(self.m[l]) != 0.0
             }
         }
         impl BitAnd for $vm {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitand(self, b: Self) -> Self {
                 let mut m = self.m;
                 for i in 0..$n {
@@ -490,7 +490,7 @@ macro_rules! vtypes {
         }
         impl BitOr for $vm {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitor(self, b: Self) -> Self {
                 let mut m = self.m;
                 for i in 0..$n {
@@ -501,7 +501,7 @@ macro_rules! vtypes {
         }
         impl BitXor for $vm {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn bitxor(self, b: Self) -> Self {
                 let mut m = self.m;
                 for i in 0..$n {
@@ -512,7 +512,7 @@ macro_rules! vtypes {
         }
         impl Not for $vm {
             type Output = Self;
-            #[inline]
+            #[inline(always)]
             fn not(self) -> Self {
                 Self {
                     m: self.m.map(|x| !x),
@@ -522,7 +522,7 @@ macro_rules! vtypes {
 
         impl From<$vm> for $vi {
             /// The mask lanes as integers (`_mm_castps_si128`).
-            #[inline]
+            #[inline(always)]
             fn from(v: $vm) -> $vi {
                 $vi {
                     m: v.m.map(|x| x as i32),
@@ -534,11 +534,11 @@ macro_rules! vtypes {
             type I = $vi;
             type M = $vm;
             const N: usize = $n;
-            #[inline]
+            #[inline(always)]
             fn splat_(a: f32) -> Self {
                 Self::splat(a)
             }
-            #[inline]
+            #[inline(always)]
             fn lanes(&self) -> &[f32] {
                 &self.m
             }
@@ -561,64 +561,64 @@ vtypes!(Vfloat8, Vint8, Vmask8, 8);
 macro_rules! common_fns {
     ($vf:ident, $vi:ident, $vm:ident, $n:expr) => {
         impl $vf {
-            #[inline]
+            #[inline(always)]
             pub fn min(self, b: Self) -> Self {
                 Self {
                     m: self.m.min_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn max(self, b: Self) -> Self {
                 Self {
                     m: self.m.max_ps(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn min_s(self, b: f32) -> Self {
                 self.min(Self::splat(b))
             }
-            #[inline]
+            #[inline(always)]
             pub fn max_s(self, b: f32) -> Self {
                 self.max(Self::splat(b))
             }
             /// `clamp(min, max, a)`: `min(max(a, min), max)`.
-            #[inline]
+            #[inline(always)]
             pub fn clamp(lo: f32, hi: f32, a: Self) -> Self {
                 a.max_s(lo).min_s(hi)
             }
-            #[inline]
+            #[inline(always)]
             pub fn clampzo(self) -> Self {
                 Self::clamp(0.0, 1.0, self)
             }
             /// `round` (nearest, ties to even).
-            #[inline]
+            #[inline(always)]
             pub fn round(self) -> Self {
                 Self {
                     m: self.m.round_ps(),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn sqrt(self) -> Self {
                 Self {
                     m: self.m.sqrt_ps(),
                 }
             }
             /// `select(a, b, cond)`: `b` where the mask lane sign bit is set.
-            #[inline]
+            #[inline(always)]
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
                 Self {
                     m: a.m.blendv_ps(b.m, cond.m),
                 }
             }
             /// `gatherf(base, indices)`.
-            #[inline]
+            #[inline(always)]
             pub fn gatherf(base: &[f32], idx: $vi) -> Self {
                 Self {
                     m: idx.m.map(|i| base.get(i as usize).copied().unwrap_or(0.0)),
                 }
             }
             /// `gatherf_byte_inds`.
-            #[inline]
+            #[inline(always)]
             pub fn gatherf_byte_inds(base: &[f32], idx: &[u8]) -> Self {
                 // Full vector of indices: clamped (provably in bounds, no per lane branch) and
                 // out of range lanes zeroed with a select.
@@ -638,17 +638,17 @@ macro_rules! common_fns {
                 }
                 Self { m }
             }
-            #[inline]
+            #[inline(always)]
             pub fn float_to_int(self) -> $vi {
                 $vi {
                     m: self.m.cvttps_epi32(),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn float_to_int_rtn(self) -> $vi {
                 (self + 0.5).float_to_int()
             }
-            #[inline]
+            #[inline(always)]
             pub fn float_as_int(self) -> $vi {
                 $vi {
                     m: self.m.map(|f| f.to_bits() as i32),
@@ -656,65 +656,65 @@ macro_rules! common_fns {
             }
         }
         impl $vi {
-            #[inline]
+            #[inline(always)]
             pub fn min(self, b: Self) -> Self {
                 Self {
                     m: self.m.min_epi32(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn max(self, b: Self) -> Self {
                 Self {
                     m: self.m.max_epi32(b.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn clamp(lo: i32, hi: i32, a: Self) -> Self {
                 a.max(Self::splat(lo)).min(Self::splat(hi))
             }
-            #[inline]
+            #[inline(always)]
             pub fn hmin_s(self) -> i32 {
                 self.m.iter().copied().fold(i32::MAX, i32::min)
             }
-            #[inline]
+            #[inline(always)]
             pub fn hmax_s(self) -> i32 {
                 self.m.iter().copied().fold(i32::MIN, i32::max)
             }
-            #[inline]
+            #[inline(always)]
             pub fn hmin(self) -> Self {
                 Self::splat(self.hmin_s())
             }
-            #[inline]
+            #[inline(always)]
             pub fn hmax(self) -> Self {
                 Self::splat(self.hmax_s())
             }
-            #[inline]
+            #[inline(always)]
             pub fn select(a: Self, b: Self, cond: $vm) -> Self {
                 Self {
                     m: a.m.blendv_epi32(b.m, cond.m),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn int_to_float(self) -> $vf {
                 $vf {
                     m: self.m.cvtepi32_ps(),
                 }
             }
-            #[inline]
+            #[inline(always)]
             pub fn int_as_float(self) -> $vf {
                 $vf {
                     m: self.m.map(|i| f32::from_bits(i as u32)),
                 }
             }
             /// `store_nbytes` of the low lanes' bytes (`pack_and_store_low_bytes`).
-            #[inline]
+            #[inline(always)]
             pub fn pack_low_bytes(self) -> [u8; $n] {
                 self.m.map(|x| x as u8)
             }
         }
         impl $vm {
             /// `mask()`: the lane sign bits.
-            #[inline]
+            #[inline(always)]
             pub fn mask(self) -> u32 {
                 let mut r = 0;
                 for i in 0..$n {
@@ -722,11 +722,11 @@ macro_rules! common_fns {
                 }
                 r
             }
-            #[inline]
+            #[inline(always)]
             pub fn any(self) -> bool {
                 self.mask() != 0
             }
-            #[inline]
+            #[inline(always)]
             pub fn all(self) -> bool {
                 self.mask() == (1u32 << $n) - 1
             }
@@ -740,115 +740,115 @@ common_fns!(Vfloat8, Vint8, Vmask8, 8);
 // ------------------------------------------------------------------- 4-wide specifics
 
 impl Vfloat4 {
-    #[inline]
+    #[inline(always)]
     pub fn new(a: f32, b: f32, c: f32, d: f32) -> Vfloat4 {
         Vfloat4 { m: [a, b, c, d] }
     }
     /// `vfloat3(a, b, c)` (lane 3 zero).
-    #[inline]
+    #[inline(always)]
     pub fn new3(a: f32, b: f32, c: f32) -> Vfloat4 {
         Vfloat4 { m: [a, b, c, 0.0] }
     }
     /// `swz<l0, l1>()` (lanes 2, 3 zero).
-    #[inline]
+    #[inline(always)]
     pub fn swz2(self, l0: usize, l1: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], 0.0, 0.0)
     }
     /// `swz<l0, l1, l2>()` (lane 3 zero).
-    #[inline]
+    #[inline(always)]
     pub fn swz3(self, l0: usize, l1: usize, l2: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], self.m[l2], 0.0)
     }
     /// `swz<l0, l1, l2, l3>()`.
-    #[inline]
+    #[inline(always)]
     pub fn swz4(self, l0: usize, l1: usize, l2: usize, l3: usize) -> Vfloat4 {
         Vfloat4::new(self.m[l0], self.m[l1], self.m[l2], self.m[l3])
     }
     /// `abs`: `max(0 - a, a)` (so `-0` stays `-0`, NaN passes through).
-    #[inline]
+    #[inline(always)]
     pub fn abs(self) -> Vfloat4 {
         (Vfloat4::zero() - self).max(self)
     }
     /// `hmin` (broadcast).
-    #[inline]
+    #[inline(always)]
     pub fn hmin(self) -> Vfloat4 {
         Vfloat4::splat(self.hmin_s())
     }
-    #[inline]
+    #[inline(always)]
     pub fn hmin_s(self) -> f32 {
         let a = self.m;
         min_ps(min_ps(a[0], a[2]), min_ps(a[1], a[3]))
     }
     /// `hmin_rgb_s`: lane 3 replaced by lane 0.
-    #[inline]
+    #[inline(always)]
     pub fn hmin_rgb_s(self) -> f32 {
         let mut a = self;
         a.m[3] = a.m[0];
         a.hmin_s()
     }
-    #[inline]
+    #[inline(always)]
     pub fn hmax(self) -> Vfloat4 {
         Vfloat4::splat(self.hmax_s())
     }
-    #[inline]
+    #[inline(always)]
     pub fn hmax_s(self) -> f32 {
         let a = self.m;
         max_ps(max_ps(a[0], a[2]), max_ps(a[1], a[3]))
     }
     /// `hadd_s`: `(a0 + a2) + (a1 + a3)`.
-    #[inline]
+    #[inline(always)]
     pub fn hadd_s(self) -> f32 {
         let a = self.m;
         (a[0] + a[2]) + (a[1] + a[3])
     }
     /// `hadd_rgb_s`: `a0 + a1 + a2`.
-    #[inline]
+    #[inline(always)]
     pub fn hadd_rgb_s(self) -> f32 {
         self.m[0] + self.m[1] + self.m[2]
     }
-    #[inline]
+    #[inline(always)]
     pub fn dot_s(self, b: Vfloat4) -> f32 {
         (self * b).hadd_s()
     }
-    #[inline]
+    #[inline(always)]
     pub fn dot(self, b: Vfloat4) -> Vfloat4 {
         Vfloat4::splat(self.dot_s(b))
     }
-    #[inline]
+    #[inline(always)]
     pub fn dot3_s(self, b: Vfloat4) -> f32 {
         (self * b).hadd_rgb_s()
     }
-    #[inline]
+    #[inline(always)]
     pub fn dot3(self, b: Vfloat4) -> Vfloat4 {
         let d = self.dot3_s(b);
         Vfloat4::new(d, d, d, 0.0)
     }
     /// `haccumulate(accum, a)`.
-    #[inline]
+    #[inline(always)]
     pub fn haccumulate(accum: &mut Vfloat4, a: Vfloat4) {
         *accum += a;
     }
     /// `haccumulate(accum, a, m)`.
-    #[inline]
+    #[inline(always)]
     pub fn haccumulate_masked(accum: &mut Vfloat4, a: Vfloat4, m: Vmask4) {
         Vfloat4::haccumulate(accum, Vfloat4::select(Vfloat4::zero(), a, m));
     }
 }
 
 impl Vint4 {
-    #[inline]
+    #[inline(always)]
     pub fn new(a: i32, b: i32, c: i32, d: i32) -> Vint4 {
         Vint4 { m: [a, b, c, d] }
     }
     /// `hadd_rgb_s`.
-    #[inline]
+    #[inline(always)]
     pub fn hadd_rgb_s(self) -> i32 {
         self.m[0].wrapping_add(self.m[1]).wrapping_add(self.m[2])
     }
 }
 
 impl Vmask4 {
-    #[inline]
+    #[inline(always)]
     pub fn new(a: bool, b: bool, c: bool, d: bool) -> Vmask4 {
         Vmask4 {
             m: [bits(a), bits(b), bits(c), bits(d)],
@@ -860,13 +860,13 @@ impl Vmask4 {
 
 impl Vfloat8 {
     /// `abs`: sign bit cleared.
-    #[inline]
+    #[inline(always)]
     pub fn abs(self) -> Vfloat8 {
         Vfloat8 {
             m: self.m.map(|f| f32::from_bits(f.to_bits() & 0x7fff_ffff)),
         }
     }
-    #[inline]
+    #[inline(always)]
     fn halves(self) -> (Vfloat4, Vfloat4) {
         let a = self.m;
         (
@@ -875,42 +875,42 @@ impl Vfloat8 {
         )
     }
     /// `hmin_s`.
-    #[inline]
+    #[inline(always)]
     pub fn hmin_s(self) -> f32 {
         let (lo, hi) = self.halves();
         let v = lo.min(hi).m;
         min_ps(min_ps(v[0], v[1]), min_ps(v[2], v[3]))
     }
-    #[inline]
+    #[inline(always)]
     pub fn hmin(self) -> Vfloat8 {
         Vfloat8::splat(self.hmin_s())
     }
     /// `hmax_s`.
-    #[inline]
+    #[inline(always)]
     pub fn hmax_s(self) -> f32 {
         let (lo, hi) = self.halves();
         let v = lo.max(hi).m;
         max_ps(max_ps(v[0], v[1]), max_ps(v[2], v[3]))
     }
-    #[inline]
+    #[inline(always)]
     pub fn hmax(self) -> Vfloat8 {
         Vfloat8::splat(self.hmax_s())
     }
     /// `hadd_s`: two sequential 4-wide sums.
-    #[inline]
+    #[inline(always)]
     pub fn hadd_s(self) -> f32 {
         let (lo, hi) = self.halves();
         lo.hadd_s() + hi.hadd_s()
     }
     /// `haccumulate(vfloat4& accum, vfloat8 a)`.
-    #[inline]
+    #[inline(always)]
     pub fn haccumulate(accum: &mut Vfloat4, a: Vfloat8) {
         let (lo, hi) = a.halves();
         Vfloat4::haccumulate(accum, lo);
         Vfloat4::haccumulate(accum, hi);
     }
     /// `haccumulate(vfloat4& accum, vfloat8 a, vmask8 m)`.
-    #[inline]
+    #[inline(always)]
     pub fn haccumulate_masked(accum: &mut Vfloat4, a: Vfloat8, m: Vmask8) {
         Vfloat8::haccumulate(accum, Vfloat8::select(Vfloat8::zero(), a, m));
     }
@@ -922,37 +922,37 @@ pub type Vint = Vint8;
 pub type Vmask = Vmask8;
 
 /// `round_up_to_simd_multiple_vla`.
-#[inline]
+#[inline(always)]
 pub const fn round_up_to_simd_multiple_vla(count: usize) -> usize {
     count.div_ceil(SIMD_WIDTH) * SIMD_WIDTH
 }
 
 /// `round_down_to_simd_multiple_vla`.
-#[inline]
+#[inline(always)]
 pub const fn round_down_to_simd_multiple_vla(count: usize) -> usize {
     count & !(SIMD_WIDTH - 1)
 }
 
 /// `round_down_to_simd_multiple_4`.
-#[inline]
+#[inline(always)]
 pub const fn round_down_to_simd_multiple_4(count: usize) -> usize {
     count & !3
 }
 
 /// `vint_from_size`.
-#[inline]
+#[inline(always)]
 pub fn vint_from_size(a: usize) -> Vint {
     Vint::splat(a as i32)
 }
 
 /// `popcount` (64-bit).
-#[inline]
+#[inline(always)]
 pub fn popcount(v: u64) -> i32 {
     v.count_ones() as i32
 }
 
 /// `bit_transfer_signed`.
-#[inline]
+#[inline(always)]
 pub fn bit_transfer_signed(input0: &mut Vint4, input1: &mut Vint4) {
     *input1 = input1.lsr(1) | (*input0 & 0x80);
     *input0 = input0.lsr(1) & 0x3F;
@@ -966,7 +966,7 @@ pub const PI: f32 = std::f32::consts::PI;
 pub const PI_OVER_TWO: f32 = std::f32::consts::FRAC_PI_2;
 
 /// `change_sign`: `a` with the sign of `b` xored in.
-#[inline]
+#[inline(always)]
 pub fn change_sign(a: Vfloat, b: Vfloat) -> Vfloat {
     let ia = a.float_as_int();
     let ib = b.float_as_int();
@@ -975,7 +975,7 @@ pub fn change_sign(a: Vfloat, b: Vfloat) -> Vfloat {
 }
 
 /// `atan` (approximation).
-#[inline]
+#[inline(always)]
 pub fn atan(x: Vfloat) -> Vfloat {
     let c = x.abs().gt(Vfloat::splat(1.0));
     let z = change_sign(Vfloat::splat(PI_OVER_TWO), x);
@@ -985,7 +985,7 @@ pub fn atan(x: Vfloat) -> Vfloat {
 }
 
 /// `atan2` (approximation).
-#[inline]
+#[inline(always)]
 pub fn atan2(y: Vfloat, x: Vfloat) -> Vfloat {
     let z = atan((y / x).abs());
     let xmask = x.lt(Vfloat::zero());
@@ -993,14 +993,14 @@ pub fn atan2(y: Vfloat, x: Vfloat) -> Vfloat {
 }
 
 /// `normalize`.
-#[inline]
+#[inline(always)]
 pub fn normalize(a: Vfloat4) -> Vfloat4 {
     let length = a.dot(a);
     a / length.sqrt()
 }
 
 /// `normalize_safe`.
-#[inline]
+#[inline(always)]
 pub fn normalize_safe(a: Vfloat4, safe: Vfloat4) -> Vfloat4 {
     let length = a.dot(a);
     if length.lane(0) != 0.0 {
@@ -1010,7 +1010,7 @@ pub fn normalize_safe(a: Vfloat4, safe: Vfloat4) -> Vfloat4 {
 }
 
 /// `POLY` evaluation `((((c5 * x + c4) * x + c3) ...) * x + c0`.
-#[inline]
+#[inline(always)]
 fn poly(x: Vfloat4, c: &[f32]) -> Vfloat4 {
     let mut r = Vfloat4::splat(c[c.len() - 1]);
     for &ci in c[..c.len() - 1].iter().rev() {
@@ -1021,7 +1021,7 @@ fn poly(x: Vfloat4, c: &[f32]) -> Vfloat4 {
 
 /// `exp2` (approximation).
 #[allow(clippy::excessive_precision)]
-#[inline]
+#[inline(always)]
 pub fn exp2(x: Vfloat4) -> Vfloat4 {
     let x = Vfloat4::clamp(-126.99999, 129.0, x);
     let ipart = (x - 0.5).float_to_int();
@@ -1045,7 +1045,7 @@ pub fn exp2(x: Vfloat4) -> Vfloat4 {
 
 /// `log2` (approximation).
 #[allow(clippy::excessive_precision)]
-#[inline]
+#[inline(always)]
 pub fn log2(x: Vfloat4) -> Vfloat4 {
     let exp = Vint4::splat(0x7F80_0000);
     let mant = Vint4::splat(0x007F_FFFF);
@@ -1070,7 +1070,7 @@ pub fn log2(x: Vfloat4) -> Vfloat4 {
 }
 
 /// `pow` (approximation, exact for `y == 0`).
-#[inline]
+#[inline(always)]
 pub fn pow(x: Vfloat4, y: Vfloat4) -> Vfloat4 {
     let zero_mask = y.eq(Vfloat4::splat(0.0));
     let estimate = exp2(log2(x) * y);
@@ -1078,13 +1078,13 @@ pub fn pow(x: Vfloat4, y: Vfloat4) -> Vfloat4 {
 }
 
 /// `astc::pow`.
-#[inline]
+#[inline(always)]
 pub fn pow_s(x: f32, y: f32) -> f32 {
     pow(Vfloat4::splat(x), Vfloat4::splat(y)).lane(0)
 }
 
 /// `frexp`.
-#[inline]
+#[inline(always)]
 pub fn frexp(a: Vfloat4, exp: &mut Vint4) -> Vfloat4 {
     let ai = a.float_as_int();
     *exp = (ai.lsr(23) & 0xFF) - 126;
@@ -1093,7 +1093,7 @@ pub fn frexp(a: Vfloat4, exp: &mut Vint4) -> Vfloat4 {
 }
 
 /// `float_to_lns`.
-#[inline]
+#[inline(always)]
 pub fn float_to_lns(a: Vfloat4) -> Vfloat4 {
     let mut exp = Vint4::zero();
     let mant = frexp(a, &mut exp);
@@ -1122,7 +1122,7 @@ pub fn float_to_lns(a: Vfloat4) -> Vfloat4 {
 }
 
 /// `clz`.
-#[inline]
+#[inline(always)]
 pub fn clz(a: Vint4) -> Vint4 {
     let a = (!a.lsr(8)) & a;
     let a = a.int_to_float().float_as_int();
@@ -1131,14 +1131,14 @@ pub fn clz(a: Vint4) -> Vint4 {
 }
 
 /// `two_to_the_n`.
-#[inline]
+#[inline(always)]
 pub fn two_to_the_n(a: Vint4) -> Vint4 {
     let exp = (a + 127).lsl(23);
     exp.int_as_float().float_to_int()
 }
 
 /// `unorm16_to_sf16`.
-#[inline]
+#[inline(always)]
 pub fn unorm16_to_sf16(p: Vint4) -> Vint4 {
     let fp16_one = Vint4::splat(0x3C00);
     let fp16_small = p.lsl(8);
@@ -1154,7 +1154,7 @@ pub fn unorm16_to_sf16(p: Vint4) -> Vint4 {
 }
 
 /// `lns_to_sf16`.
-#[inline]
+#[inline(always)]
 pub fn lns_to_sf16(p: Vint4) -> Vint4 {
     let mc = p & 0x7FF;
     let ec = p.lsr(11);
@@ -1172,7 +1172,7 @@ pub fn lns_to_sf16(p: Vint4) -> Vint4 {
 
 /// Vector `float16_to_float` (`_mm_packs_epi32` signed saturation, then F16C):
 /// lanes >= 0x8000 become 0x7FFF (NaN).
-#[inline]
+#[inline(always)]
 pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
     Vfloat4 {
         m: a.m
@@ -1181,7 +1181,7 @@ pub fn float16_to_float_v(a: Vint4) -> Vfloat4 {
 }
 
 /// Vector `float_to_float16` (F16C, round to nearest even).
-#[inline]
+#[inline(always)]
 pub fn float_to_float16_v(a: Vfloat4) -> Vint4 {
     Vint4 {
         m: a.m.map(|f| super::float_to_float16(f) as i32),

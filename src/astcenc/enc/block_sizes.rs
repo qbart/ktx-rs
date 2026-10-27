@@ -9,6 +9,7 @@ use super::mathlib::{rand, rand_init};
 use super::partition_tables::init_partition_tables;
 use super::percentile_tables::get_packed_table;
 use super::vecmath::round_up_to_simd_multiple_vla;
+use ktx_macros::isa;
 
 /// Result of `decode_block_mode_2d/3d`: weights (x, y, z), dual plane, quant mode, bits.
 struct DecodedMode {
@@ -20,6 +21,7 @@ struct DecodedMode {
     bits: u32,
 }
 
+#[isa]
 fn finish(x: u32, y: u32, z: u32, d: u32, h: u32, base_quant_mode: u32) -> Option<DecodedMode> {
     let weight_count = x * y * z * (d + 1);
     let quant = (base_quant_mode.wrapping_sub(2)).wrapping_add(6 * h);
@@ -36,6 +38,7 @@ fn finish(x: u32, y: u32, z: u32, d: u32, h: u32, base_quant_mode: u32) -> Optio
     })
 }
 
+#[isa]
 /// `decode_block_mode_2d`.
 fn decode_block_mode_2d(block_mode: u32) -> Option<DecodedMode> {
     let mut base_quant_mode = (block_mode >> 4) & 1;
@@ -107,6 +110,7 @@ fn decode_block_mode_2d(block_mode: u32) -> Option<DecodedMode> {
     finish(wx, wy, 1, d, h, base_quant_mode)
 }
 
+#[isa]
 /// `decode_block_mode_3d`.
 fn decode_block_mode_3d(block_mode: u32) -> Option<DecodedMode> {
     let mut base_quant_mode = (block_mode >> 4) & 1;
@@ -174,6 +178,7 @@ struct DtInitWorkingBuffers {
 }
 
 impl DtInitWorkingBuffers {
+    #[isa]
     fn new() -> Box<DtInitWorkingBuffers> {
         Box::new(DtInitWorkingBuffers {
             weight_count_of_texel: [0; BLOCK_MAX_TEXELS],
@@ -185,6 +190,7 @@ impl DtInitWorkingBuffers {
         })
     }
 
+    #[isa]
     /// Records the (weight, contribution) pairs of one texel.
     fn add(&mut self, texel: usize, qweight: &[u32; 4], weight: &[u32; 4], max_tcw: &mut u8) {
         for i in 0..4 {
@@ -204,6 +210,7 @@ impl DtInitWorkingBuffers {
     }
 }
 
+#[isa]
 /// Common tail of `init_decimation_info_2d/3d`. `zero_first` selects the 3D order of the
 /// per texel loops (zero all 4 then fill) vs the 2D order (fill then zero the rest).
 fn finish_decimation_info(
@@ -298,6 +305,7 @@ fn finish_decimation_info(
     }
 }
 
+#[isa]
 /// `init_decimation_info_2d`.
 fn init_decimation_info_2d(
     texels_x: u32,
@@ -357,6 +365,7 @@ fn init_decimation_info_2d(
     di.weight_z = 1;
 }
 
+#[isa]
 /// `init_decimation_info_3d`.
 fn init_decimation_info_3d(
     texels: (u32, u32, u32),
@@ -437,6 +446,7 @@ fn init_decimation_info_3d(
     di.weight_z = weights_z as u8;
 }
 
+#[isa]
 /// `assign_kmeans_texels`.
 fn assign_kmeans_texels(bsd: &mut BlockSizeDescriptor) {
     // Use all texels for kmeans on a small block
@@ -463,6 +473,7 @@ fn assign_kmeans_texels(bsd: &mut BlockSizeDescriptor) {
     }
 }
 
+#[isa]
 /// `maxprec` values of a decimation entry.
 fn maxprecs(weight_count: u32, try_2planes: bool) -> (i32, i32) {
     let mut maxprec_1plane = -1;
@@ -482,6 +493,7 @@ fn maxprecs(weight_count: u32, try_2planes: bool) -> (i32, i32) {
     (maxprec_1plane, maxprec_2planes)
 }
 
+#[isa]
 /// `construct_dt_entry_2d`.
 fn construct_dt_entry_2d(
     texels_x: u32,
@@ -510,6 +522,7 @@ fn construct_dt_entry_2d(
     dm.refprec_2planes = 0;
 }
 
+#[isa]
 /// `get_2d_percentile_table`.
 pub fn get_2d_percentile_table(dim_x: u32, dim_y: u32) -> Vec<f32> {
     let mut unpacked = vec![1.0f32; WEIGHTS_MAX_BLOCK_MODES];
@@ -530,6 +543,7 @@ pub fn get_2d_percentile_table(dim_x: u32, dim_y: u32) -> Vec<f32> {
     unpacked
 }
 
+#[isa]
 /// `construct_block_size_descriptor_2d`.
 fn construct_block_size_descriptor_2d(
     texels_x: u32,
@@ -650,6 +664,7 @@ fn construct_block_size_descriptor_2d(
     assign_kmeans_texels(bsd);
 }
 
+#[isa]
 /// `construct_block_size_descriptor_3d`.
 fn construct_block_size_descriptor_3d(
     texels_x: u32,
@@ -767,6 +782,7 @@ fn construct_block_size_descriptor_3d(
     assign_kmeans_texels(bsd);
 }
 
+#[isa]
 /// `init_block_size_descriptor`.
 pub fn init_block_size_descriptor(
     texels_x: u32,

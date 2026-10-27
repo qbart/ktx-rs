@@ -6,7 +6,9 @@
 use super::averages_and_directions::*;
 use super::internal::*;
 use super::vecmath::*;
+use ktx_macros::isa;
 
+#[isa]
 /// `unit3()` / `unit4()`.
 #[allow(clippy::excessive_precision)]
 fn unit3() -> Vfloat4 {
@@ -14,10 +16,12 @@ fn unit3() -> Vfloat4 {
     Vfloat4::new(v, v, v, 0.0)
 }
 
+#[isa]
 fn unit4() -> Vfloat4 {
     Vfloat4::splat(0.5)
 }
 
+#[isa]
 /// `kmeans_init`.
 fn kmeans_init(
     blk: &ImageBlock,
@@ -83,6 +87,7 @@ fn kmeans_init(
     }
 }
 
+#[isa]
 /// `kmeans_assign`.
 fn kmeans_assign(
     blk: &ImageBlock,
@@ -131,6 +136,7 @@ fn kmeans_assign(
     }
 }
 
+#[isa]
 /// `kmeans_update`.
 fn kmeans_update(
     blk: &ImageBlock,
@@ -154,6 +160,7 @@ fn kmeans_update(
     }
 }
 
+#[isa]
 /// `partition_mismatch2`.
 fn partition_mismatch2(a: &[u64], b: &[u64; 2]) -> u8 {
     let v1 = popcount(a[0] ^ b[0]) + popcount(a[1] ^ b[1]);
@@ -161,6 +168,7 @@ fn partition_mismatch2(a: &[u64], b: &[u64; 2]) -> u8 {
     (v1.min(v2) / 2) as u8
 }
 
+#[isa]
 /// `partition_mismatch3`.
 fn partition_mismatch3(a: &[u64], b: &[u64; 3]) -> u8 {
     let p = |i: usize, j: usize| popcount(a[i] ^ b[j]);
@@ -170,6 +178,7 @@ fn partition_mismatch3(a: &[u64], b: &[u64; 3]) -> u8 {
     (v0.min(v1).min(v2) / 2) as u8
 }
 
+#[isa]
 /// `partition_mismatch4`.
 fn partition_mismatch4(a: &[u64], b: &[u64; 4]) -> u8 {
     let p = |i: usize, j: usize| popcount(a[i] ^ b[j]);
@@ -186,6 +195,7 @@ fn partition_mismatch4(a: &[u64], b: &[u64; 4]) -> u8 {
     (v0.min(v1).min(v2.min(v3)) / 2) as u8
 }
 
+#[isa]
 /// `count_partition_mismatch_bits`.
 fn count_partition_mismatch_bits(
     bsd: &BlockSizeDescriptor,
@@ -203,6 +213,7 @@ fn count_partition_mismatch_bits(
     }
 }
 
+#[isa]
 /// `get_partition_ordering_by_mismatch_bits` (counting sort by mismatch count).
 fn get_partition_ordering_by_mismatch_bits(
     texel_count: usize,
@@ -237,6 +248,7 @@ fn get_partition_ordering_by_mismatch_bits(
     partitioning_count
 }
 
+#[isa]
 /// `compute_kmeans_partition_ordering`.
 fn compute_kmeans_partition_ordering(
     bsd: &BlockSizeDescriptor,
@@ -291,6 +303,7 @@ fn compute_kmeans_partition_ordering(
     )
 }
 
+#[isa]
 /// `insert_result`.
 fn insert_result(
     max_values: usize,
@@ -323,6 +336,7 @@ fn insert_result(
     }
 }
 
+#[isa]
 /// `find_best_partition_candidates`: returns the number of candidates written to
 /// `best_partitions` (partition indices, not packed indices).
 pub fn find_best_partition_candidates(

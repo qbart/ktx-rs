@@ -114,6 +114,7 @@ dependencies = [
  "ash",
  "bytemuck",
  "khronos-egl",
+ "ktx-macros",
  "libloading",
  "miniz_oxide",
  "regex",
@@ -122,6 +123,10 @@ dependencies = [
  "sha2",
  "zstd-pure-rs",
 ]
+
+[[package]]
+name = "ktx-macros"
+version = "0.1.0"
 
 [[package]]
 name = "libc"

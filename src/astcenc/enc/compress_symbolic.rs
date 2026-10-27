@@ -15,7 +15,9 @@ use super::tables::QUANT_AND_XFER_TABLES;
 use super::vecmath::*;
 use super::weight_align::{compute_angular_endpoints_1plane, compute_angular_endpoints_2planes};
 use super::{ASTCENC_FLG_MAP_RGBM, AstcencConfig, AstcencProfile};
+use ktx_macros::isa;
 
+#[isa]
 /// `merge_endpoints`: merges two planes of endpoints into a single vector.
 fn merge_endpoints(
     ep_plane1: &Endpoints,
@@ -31,6 +33,7 @@ fn merge_endpoints(
     result.endpt1[0] = Vfloat4::select(ep_plane1.endpt1[0], ep_plane2.endpt1[0], sep_mask);
 }
 
+#[isa]
 /// Unpacked endpoints of every partition of `scb`.
 fn unpack_endpoints(
     decode_mode: AstcencProfile,
@@ -50,6 +53,7 @@ fn unpack_endpoints(
     (endpnt0, endpnt1)
 }
 
+#[isa]
 /// Per partition endpoint base and 1/64 step of a plane (`plane_mask` lanes zeroed).
 fn plane_offsets(
     partition_count: usize,
@@ -71,6 +75,7 @@ fn plane_offsets(
     (endpnt0f, offset)
 }
 
+#[isa]
 /// `realign_weights_undecimated`: tries moving each weight of an undecimated grid one
 /// quantization step up or down.
 fn realign_weights_undecimated(
@@ -144,6 +149,7 @@ fn realign_weights_undecimated(
     adjustments
 }
 
+#[isa]
 /// `realign_weights_decimated`: tries moving each weight of a decimated grid one
 /// quantization step up or down.
 fn realign_weights_decimated(
@@ -255,6 +261,7 @@ fn realign_weights_decimated(
     adjustments
 }
 
+#[isa]
 /// `compute_ideal_endpoint_formats` with the weight bit counts and errors of `tmpbuf`.
 fn ideal_endpoint_formats(
     pi: &PartitionInfo,
@@ -295,6 +302,7 @@ fn ideal_endpoint_formats(
 type DifferenceFn =
     fn(&AstcencConfig, &BlockSizeDescriptor, &SymbolicCompressedBlock, &ImageBlock) -> f32;
 
+#[isa]
 /// Smallest weight per lane that results in a color value greater than 1.
 fn min_weight_cutoff(ep: &Endpoints, i: usize, min_ep: Vfloat4) -> Vfloat4 {
     let e = (Vfloat4::splat(1.0) - ep.endpt0[i]) / (ep.endpt1[i] - ep.endpt0[i]);
@@ -310,6 +318,7 @@ enum Trial {
     Done,
 }
 
+#[isa]
 /// Shared pre / post realignment test of the candidate loops.
 fn trial_test(
     errorval: f32,
@@ -349,6 +358,7 @@ fn trial_test(
     Trial::Continue
 }
 
+#[isa]
 /// `compress_symbolic_block_for_partition_1plane`: compresses a block using a chosen
 /// partitioning and 1 plane of weights.
 fn compress_symbolic_block_for_partition_1plane(
@@ -639,6 +649,7 @@ fn compress_symbolic_block_for_partition_1plane(
     best_errorval_in_mode
 }
 
+#[isa]
 /// `compress_symbolic_block_for_partition_2planes`: compresses a block using a single
 /// partition and 2 planes of weights.
 fn compress_symbolic_block_for_partition_2planes(
@@ -908,6 +919,7 @@ fn compress_symbolic_block_for_partition_2planes(
     best_errorval_in_mode
 }
 
+#[isa]
 /// `prepare_block_statistics`: the lowest absolute channel correlation of the block.
 fn prepare_block_statistics(texels_per_block: usize, blk: &ImageBlock) -> f32 {
     // Compute covariance matrix, as a collection of 10 scalars that form the upper-triangular
@@ -987,12 +999,14 @@ fn prepare_block_statistics(texels_per_block: usize, blk: &ImageBlock) -> f32 {
     lowest_correlation
 }
 
+#[isa]
 /// UNORM16 constant color of the block origin texel.
 fn constant_u16(blk: &ImageBlock) -> [i32; 4] {
     let color_f32 = Vfloat4::clamp(0.0, 1.0, blk.origin_texel) * 65535.0;
     color_f32.float_to_int_rtn().m
 }
 
+#[isa]
 /// `compress_block`: compresses one image block into a 16 byte physical ASTC block.
 pub fn compress_block(
     config: &AstcencConfig,

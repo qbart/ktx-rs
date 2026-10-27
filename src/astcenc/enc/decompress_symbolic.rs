@@ -6,13 +6,16 @@
 use super::internal::*;
 use super::vecmath::*;
 use super::{ASTCENC_FLG_MAP_RGBM, AstcencConfig, AstcencProfile};
+use ktx_macros::isa;
 
+#[isa]
 /// `get_u8_component_mask`.
 pub fn get_u8_component_mask(decode_mode: AstcencProfile, blk: &ImageBlock) -> Vmask4 {
     // Decode mode or sRGB forces writing to unorm8 output value
     Vmask4::splat(blk.decode_unorm8 || decode_mode == AstcencProfile::LdrSrgb)
 }
 
+#[isa]
 /// `lerp_color_int`.
 fn lerp_color_int(u8_mask: Vmask4, color0: Vint4, color1: Vint4, weights: Vint4) -> Vint4 {
     let weight1 = weights;
@@ -25,6 +28,7 @@ fn lerp_color_int(u8_mask: Vmask4, color0: Vint4, color1: Vint4, weights: Vint4)
     Vint4::select(color, color_u8, u8_mask)
 }
 
+#[isa]
 /// `unpack_color_endpoints` returning `vint4` endpoints.
 pub fn unpack_color_endpoints(
     decode_mode: AstcencProfile,
@@ -35,6 +39,7 @@ pub fn unpack_color_endpoints(
     (Vint4 { m: e0 }, Vint4 { m: e1 }, rgb_hdr, alpha_hdr)
 }
 
+#[isa]
 /// `unpack_weights`: unquantized, undecimated weights (0..64) for every texel, written
 /// in groups of 8 texels like the SIMD build.
 pub fn unpack_weights(
@@ -79,6 +84,7 @@ pub fn unpack_weights(
     }
 }
 
+#[isa]
 /// Perceptual RGBM error colors; `None` for a zero weight M decode.
 fn rgbm_colors(config: &AstcencConfig, color: Vfloat4, old: Vfloat4) -> Option<(Vfloat4, Vfloat4)> {
     // Fail encodings that result in zero weight M pixels
@@ -101,6 +107,7 @@ fn rgbm_colors(config: &AstcencConfig, color: Vfloat4, old: Vfloat4) -> Option<(
     Some((c, o))
 }
 
+#[isa]
 /// One texel's error term of `compute_symbolic_block_difference_{1,2}plane`.
 fn texel_error(old_color: Vfloat4, color: Vfloat4, channel_weight: Vfloat4) -> Vfloat4 {
     let mut error = old_color - color;
@@ -109,6 +116,7 @@ fn texel_error(old_color: Vfloat4, color: Vfloat4, channel_weight: Vfloat4) -> V
     error.dot(channel_weight).min_s(ERROR_CALC_DEFAULT)
 }
 
+#[isa]
 /// `compute_symbolic_block_difference_2plane`.
 pub fn compute_symbolic_block_difference_2plane(
     config: &AstcencConfig,
@@ -166,6 +174,7 @@ pub fn compute_symbolic_block_difference_2plane(
     summa.lane(0)
 }
 
+#[isa]
 /// `compute_symbolic_block_difference_1plane`.
 pub fn compute_symbolic_block_difference_1plane(
     config: &AstcencConfig,
@@ -224,6 +233,7 @@ pub fn compute_symbolic_block_difference_1plane(
     summa.lane(0)
 }
 
+#[isa]
 /// `compute_symbolic_block_difference_1plane_1partition`.
 pub fn compute_symbolic_block_difference_1plane_1partition(
     config: &AstcencConfig,

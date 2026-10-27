@@ -9,7 +9,9 @@ use super::internal::*;
 use super::mathlib;
 use super::tables::QUANT_MODE_TABLE;
 use super::vecmath::*;
+use ktx_macros::isa;
 
+#[isa]
 /// `unit3()`.
 #[allow(clippy::excessive_precision)]
 fn unit3() -> Vfloat4 {
@@ -17,6 +19,7 @@ fn unit3() -> Vfloat4 {
     Vfloat4::new(v, v, v, 0.0)
 }
 
+#[isa]
 /// `quant_mode_table[integer_count][bits]` (out of range reads -1).
 fn qmt(integer_count: usize, bits: i32) -> i32 {
     usize::try_from(bits)
@@ -41,6 +44,7 @@ pub struct EncodingChoiceErrors {
     pub can_blue_contract: bool,
 }
 
+#[isa]
 /// `compute_error_squared_rgb_single_partition`: errors of the uncorrelated,
 /// same chroma, rgb luma and luminance lines, plus the alpha drop error.
 fn compute_error_squared_rgb_single_partition(
@@ -101,6 +105,7 @@ fn compute_error_squared_rgb_single_partition(
     )
 }
 
+#[isa]
 /// `compute_encoding_choice_errors`.
 pub fn compute_encoding_choice_errors(
     blk: &ImageBlock,
@@ -200,6 +205,7 @@ static BASELINE_QUANT_ERROR: [f32; 21 - Q6] = [
     BQE / (255 * 255) as f32,
 ];
 
+#[isa]
 /// `compute_color_error_for_every_integer_count_and_quant_level`.
 pub fn compute_color_error_for_every_integer_count_and_quant_level(
     encode_hdr_rgb: bool,
@@ -464,6 +470,7 @@ pub fn compute_color_error_for_every_integer_count_and_quant_level(
     }
 }
 
+#[isa]
 /// `one_partition_find_best_combination_for_bitcount`.
 fn one_partition_find_best_combination_for_bitcount(
     best_combined_error: &[[f32; 4]; 21],
@@ -503,6 +510,7 @@ fn one_partition_find_best_combination_for_bitcount(
     best_integer_count_error
 }
 
+#[isa]
 /// `{two,three,four}_partitions_find_best_combination_for_every_quantization_and_integer_count`:
 /// `N` partitions, `C` = 3 * N + 1 combined integer counts.
 fn n_partitions_find_best_combination<const N: usize, const C: usize>(
@@ -554,6 +562,7 @@ fn n_partitions_find_best_combination<const N: usize, const C: usize>(
     }
 }
 
+#[isa]
 /// `{two,three,four}_partitions_find_best_combination_for_bitcount`.
 fn n_partitions_find_best_combination_for_bitcount<const N: usize, const C: usize>(
     best_combined_error: &[[f32; C]; 21],
@@ -602,6 +611,7 @@ fn n_partitions_find_best_combination_for_bitcount<const N: usize, const C: usiz
     best_integer_count_error
 }
 
+#[isa]
 /// Shared mode loop of the 2, 3 and 4 partition cases.
 fn n_partitions_modes<const N: usize, const C: usize>(
     best_error: &[[[f32; 4]; 21]; BLOCK_MAX_PARTITIONS],
@@ -646,11 +656,13 @@ fn n_partitions_modes<const N: usize, const C: usize>(
     }
 }
 
+#[isa]
 /// `round_down_to_simd_multiple_vla`.
 fn round_down_simd(count: usize) -> usize {
     count & !(SIMD_WIDTH - 1)
 }
 
+#[isa]
 /// `compute_ideal_endpoint_formats`: returns the number of candidates found.
 pub fn compute_ideal_endpoint_formats(
     pi: &PartitionInfo,

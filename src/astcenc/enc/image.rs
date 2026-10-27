@@ -4,7 +4,9 @@
 use super::internal::{BlockSizeDescriptor, ImageBlock};
 use super::vecmath::{Vfloat4, Vint4, Vmask4, float_to_lns, float16_to_float_v, lns_to_sf16};
 use super::{AstcencImage, AstcencImageData, AstcencProfile, AstcencSwizzle, AstcencSwz};
+use ktx_macros::isa;
 
+#[isa]
 /// The loader of one texel: RGBA at texel `index` of plane `z`.
 fn load_texel(img: &AstcencImage, z: usize, base_offset: usize) -> Vfloat4 {
     match &img.data {
@@ -24,6 +26,7 @@ fn load_texel(img: &AstcencImage, z: usize, base_offset: usize) -> Vfloat4 {
     }
 }
 
+#[isa]
 /// `swz_texel`.
 fn swz_texel(data: Vfloat4, swz: &AstcencSwizzle) -> Vfloat4 {
     let datas = [data.m[0], data.m[1], data.m[2], data.m[3], 0.0, 1.0];
@@ -31,11 +34,13 @@ fn swz_texel(data: Vfloat4, swz: &AstcencSwizzle) -> Vfloat4 {
     Vfloat4::new(pick(swz.r), pick(swz.g), pick(swz.b), pick(swz.a))
 }
 
+#[isa]
 /// `encode_texel_unorm`.
 fn encode_texel_unorm(data: Vfloat4) -> Vfloat4 {
     Vfloat4::clamp(0.0, 65535.0, data * 65535.0)
 }
 
+#[isa]
 /// `encode_texel_lns`.
 fn encode_texel_lns(data: Vfloat4, lns_mask: Vmask4) -> Vfloat4 {
     let datav_unorm = encode_texel_unorm(data);
@@ -43,11 +48,13 @@ fn encode_texel_lns(data: Vfloat4, lns_mask: Vmask4) -> Vfloat4 {
     Vfloat4::select(datav_unorm, datav_lns, lns_mask)
 }
 
+#[isa]
 /// `grayscalev & (datav.swz<0,0,0,0>() == datav.swz<1,1,2,2>())`.
 fn gray_mask(datav: Vfloat4) -> Vmask4 {
     datav.swz4(0, 0, 0, 0).eq(datav.swz4(1, 1, 2, 2))
 }
 
+#[isa]
 /// `load_image_block`.
 #[allow(clippy::too_many_arguments)]
 pub fn load_image_block(
@@ -135,6 +142,7 @@ pub fn load_image_block(
     blk.grayscale = grayscalev.all();
 }
 
+#[isa]
 /// `load_image_block_fast_ldr` (U8 input, LDR, no swizzle, 2D).
 pub fn load_image_block_fast_ldr(
     img: &AstcencImage,

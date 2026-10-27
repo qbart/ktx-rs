@@ -103,7 +103,7 @@ fn kernels_match_astcenc() {
             Ok(c) => c,
             Err(e) => panic!("{e:?}"),
         };
-        let ctx = match astcenc_context_alloc(&c, 1) {
+        let ctx = match astcenc_context_alloc_isa(&c, 1, AstcencIsa::Baseline) {
             Ok(c) => c,
             Err(e) => panic!("{e:?}"),
         };

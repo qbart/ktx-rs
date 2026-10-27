@@ -106,7 +106,7 @@ pub fn context(sx: u32, sy: u32, sz: u32) -> Box<AstcencContext> {
     let Ok(c) = c else {
         panic!("config_init failed")
     };
-    let Ok(ctx) = astcenc_context_alloc(&c, 1) else {
+    let Ok(ctx) = astcenc_context_alloc_isa(&c, 1, AstcencIsa::Baseline) else {
         panic!("context_alloc failed")
     };
     ctx

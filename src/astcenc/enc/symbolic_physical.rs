@@ -7,6 +7,7 @@ use super::internal::*;
 use super::tables::{
     COLOR_UQUANT_TO_SCRAMBLED_PQUANT, INTEGER_OF_QUINTS, INTEGER_OF_TRITS, QUANT_AND_XFER_TABLES,
 };
+use ktx_macros::isa;
 
 /// `btq_counts`: (bits, trits, quints) per quant level.
 const BTQ_COUNTS: [(u32, bool, bool); 21] = [
@@ -33,6 +34,7 @@ const BTQ_COUNTS: [(u32, bool, bool); 21] = [
     (8, false, false),
 ];
 
+#[isa]
 /// `write_bits` (bytes past the end of `ptr` are not written).
 fn write_bits(value: u32, bitcount: u32, bitoffset: u32, ptr: &mut [u8]) {
     let mut mask: u32 = (1u32 << bitcount) - 1;
@@ -52,6 +54,7 @@ fn write_bits(value: u32, bitcount: u32, bitoffset: u32, ptr: &mut [u8]) {
     }
 }
 
+#[isa]
 /// `encode_ise`: packs `character_count` values of `input_data` at `bit_offset`.
 pub fn encode_ise(
     quant_level: u32,
@@ -187,11 +190,13 @@ pub fn encode_ise(
     }
 }
 
+#[isa]
 /// `bitrev8`.
 fn bitrev8(p: u8) -> u8 {
     p.reverse_bits()
 }
 
+#[isa]
 /// `symbolic_to_physical`.
 pub fn symbolic_to_physical(
     bsd: &BlockSizeDescriptor,

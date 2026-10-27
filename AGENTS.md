@@ -26,7 +26,7 @@ Especially focus on full implementation of Basis Universal integration and trans
 6. Maintain implementation audit logs at `./docs/spec/*.md` First write the spec there but be concise.
 7. Maintain ROADMAP.md that keeps the progress about whole project.
 8. Only use main branch.
-9. `unsafe` is denied except in the GPU loaders (`vkloader`, `glloader`) and the astcenc SIMD kernels (`src/astcenc/sse.rs`).
+9. `unsafe` is denied except in the GPU loaders (`vkloader`, `glloader`) and astcenc SIMD (`src/astcenc/enc/sse.rs` kernels, the instruction set dispatch in `src/astcenc/mod.rs`).
 
 ## Loop iteration
 

@@ -6,27 +6,30 @@
 //!
 //! Matches the x86-64 AVX2 + F16C build KTX-Software uses (fp-contract off):
 //! IEEE float math, `_mm_min_ps` / `_mm_max_ps` NaN rules (second operand
-//! wins), round-to-nearest-even float16 conversion. The compressor is not
-//! ported; `config_init` keeps only the fields the decompressor needs.
+//! wins), round-to-nearest-even float16 conversion. The compressor (`enc/`) is
+//! compiled once per instruction set and picked at context creation.
 
-pub mod averages_and_directions;
-pub mod block_sizes;
-pub mod color_quantize;
-pub mod compress_symbolic;
-pub mod decompress_symbolic;
-pub mod find_best_partitioning;
-pub mod ideal_endpoints_and_weights;
-pub mod image;
-pub mod internal;
-pub mod mathlib;
-pub mod partition_tables;
 pub mod percentile_tables;
-pub mod pick_best_endpoint_format;
-mod sse;
-pub mod symbolic_physical;
 pub mod tables;
-pub mod vecmath;
-pub mod weight_align;
+
+// The compressor (`enc/`) is compiled once per instruction set: `#[isa]` on its functions
+// expands to the `isa_fn!` of the copy, which adds the copy's `#[target_feature]`. The context
+// picks the best copy the CPU supports (`astcenc_context_alloc`). The decompressor below is
+// scalar and shared.
+/// AVX2 + F16C + POPCNT copy (the astcenc build KTX-Software uses by default).
+#[cfg(target_arch = "x86_64")]
+pub mod avx2;
+/// Baseline copy (SSE2 on x86-64, scalar elsewhere; follows the build's own target features).
+/// The public module paths below re-export it.
+pub mod base;
+/// SSE4.1 + POPCNT copy.
+#[cfg(target_arch = "x86_64")]
+pub mod sse41;
+pub use base::{
+    averages_and_directions, block_sizes, color_quantize, compress_symbolic, decompress_symbolic,
+    find_best_partitioning, ideal_endpoints_and_weights, image, internal, mathlib,
+    partition_tables, pick_best_endpoint_format, symbolic_physical, vecmath, weight_align,
+};
 
 use tables::*;
 
@@ -1090,16 +1093,60 @@ impl ParallelManager {
     }
 }
 
+/// Instruction set of a compressor copy. Upstream fixes it at build time
+/// (`ASTCENC_ISA_*`); here every x86-64 build carries all of them and the context picks one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AstcencIsa {
+    /// The baseline copy: SSE2 on x86-64 (or what the build enables), scalar elsewhere.
+    Baseline = 0,
+    /// SSE4.1 + POPCNT.
+    Sse41 = 1,
+    /// AVX2 + F16C + POPCNT.
+    Avx2 = 2,
+}
+
+impl AstcencIsa {
+    /// The best instruction set this CPU supports.
+    pub fn detect() -> AstcencIsa {
+        #[cfg(target_arch = "x86_64")]
+        {
+            let sse41 = std::arch::is_x86_feature_detected!("sse4.1")
+                && std::arch::is_x86_feature_detected!("sse4.2")
+                && std::arch::is_x86_feature_detected!("popcnt");
+            if sse41
+                && std::arch::is_x86_feature_detected!("avx")
+                && std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("f16c")
+            {
+                return AstcencIsa::Avx2;
+            }
+            if sse41 {
+                return AstcencIsa::Sse41;
+            }
+        }
+        AstcencIsa::Baseline
+    }
+}
+
+/// The compressor copy a context uses. The SSE4.1 / AVX2 variants are only constructed after
+/// `AstcencIsa::detect` found the CPU features their code is compiled for.
+enum CompressorCopy {
+    Baseline(base::compressor::Compressor),
+    #[cfg(target_arch = "x86_64")]
+    Sse41(sse41::compressor::Compressor),
+    #[cfg(target_arch = "x86_64")]
+    Avx2(avx2::compressor::Compressor),
+}
+
 /// Port of `astcenc_context`.
 pub struct AstcencContext {
     pub config: AstcencConfig,
     pub thread_count: u32,
     /// Decoding view of the block size descriptor.
     bsd: BlockSizeDescriptor,
-    /// The compressor's block size descriptor (absent for DECOMPRESS_ONLY contexts).
-    pub(crate) cbsd: Option<Box<internal::BlockSizeDescriptor>>,
-    /// Per thread compressor scratch buffers (`working_buffers`), one per `thread_index`.
-    working_buffers: Vec<std::sync::Mutex<internal::CompressionWorkingBuffers>>,
+    /// The compressor (absent for DECOMPRESS_ONLY contexts): block size descriptor and
+    /// per thread working buffers of the selected instruction set copy.
+    compressor: Option<CompressorCopy>,
     /// `manage_compress`.
     manage_compress: ParallelManager,
 }
@@ -1113,41 +1160,73 @@ impl std::fmt::Debug for AstcencContext {
 }
 
 impl AstcencContext {
-    /// The compressor block size descriptor, if this is a compression context.
+    /// The compressor block size descriptor, if this is a compression context using the
+    /// baseline copy (whose types the public module paths name).
     pub fn compress_bsd(&self) -> Option<&internal::BlockSizeDescriptor> {
-        self.cbsd.as_deref()
+        match &self.compressor {
+            Some(CompressorCopy::Baseline(c)) => Some(&c.bsd),
+            _ => None,
+        }
+    }
+
+    /// The instruction set of the compressor copy (`None` for DECOMPRESS_ONLY contexts).
+    pub fn isa(&self) -> Option<AstcencIsa> {
+        match &self.compressor {
+            Some(CompressorCopy::Baseline(_)) => Some(AstcencIsa::Baseline),
+            #[cfg(target_arch = "x86_64")]
+            Some(CompressorCopy::Sse41(_)) => Some(AstcencIsa::Sse41),
+            #[cfg(target_arch = "x86_64")]
+            Some(CompressorCopy::Avx2(_)) => Some(AstcencIsa::Avx2),
+            None => None,
+        }
     }
 }
 
-/// Port of `astcenc_context_alloc` (no parent context).
+/// Port of `astcenc_context_alloc` (no parent context). The compressor uses the best
+/// instruction set the CPU supports.
 pub fn astcenc_context_alloc(
     config: &AstcencConfig,
     thread_count: u32,
 ) -> Result<Box<AstcencContext>, AstcencError> {
+    astcenc_context_alloc_isa(config, thread_count, AstcencIsa::detect())
+}
+
+/// `astcenc_context_alloc` with the compressor's instruction set chosen by the caller; one the
+/// CPU lacks is `BadParam` (upstream has no runtime choice).
+#[allow(unsafe_code)] // calls into the SSE4.1 / AVX2 copies, see `CompressorCopy`
+pub fn astcenc_context_alloc_isa(
+    config: &AstcencConfig,
+    thread_count: u32,
+    isa: AstcencIsa,
+) -> Result<Box<AstcencContext>, AstcencError> {
+    if isa > AstcencIsa::detect() {
+        return Err(AstcencError::BadParam);
+    }
     if thread_count == 0 {
         return Err(AstcencError::BadParam);
     }
     let mut cfg = *config;
     validate_config(&mut cfg)?;
 
-    let mut cbsd = None;
-    let mut working_buffers = Vec::new();
+    let mut compressor = None;
     if cfg.flags & ASTCENC_FLG_DECOMPRESS_ONLY == 0 {
-        let mut bsd = internal::BlockSizeDescriptor::empty();
-        let can_omit_modes = cfg.flags & ASTCENC_FLG_SELF_DECOMPRESS_ONLY != 0;
-        block_sizes::init_block_size_descriptor(
-            cfg.block_x,
-            cfg.block_y,
-            cfg.block_z,
-            can_omit_modes,
-            cfg.tune_partition_count_limit,
-            cfg.tune_block_mode_limit as f32 / 100.0,
-            &mut bsd,
-        );
-        cbsd = Some(bsd);
-        working_buffers = (0..thread_count)
-            .map(|_| std::sync::Mutex::new(internal::CompressionWorkingBuffers::default()))
-            .collect();
+        compressor = Some(match isa {
+            AstcencIsa::Baseline => {
+                CompressorCopy::Baseline(base::compressor::compressor_alloc(&cfg, thread_count))
+            }
+            // SAFETY: `isa <= AstcencIsa::detect()` was checked above, so the CPU has the
+            // features the copy is compiled for.
+            #[cfg(target_arch = "x86_64")]
+            AstcencIsa::Sse41 => CompressorCopy::Sse41(unsafe {
+                sse41::compressor::compressor_alloc(&cfg, thread_count)
+            }),
+            #[cfg(target_arch = "x86_64")]
+            AstcencIsa::Avx2 => CompressorCopy::Avx2(unsafe {
+                avx2::compressor::compressor_alloc(&cfg, thread_count)
+            }),
+            #[cfg(not(target_arch = "x86_64"))]
+            _ => return Err(AstcencError::BadParam),
+        });
         // Turn a dB limit into a per-texel error for faster use later
         if matches!(cfg.profile, AstcencProfile::Ldr | AstcencProfile::LdrSrgb) {
             cfg.tune_db_limit = vecmath::pow_s(0.1, cfg.tune_db_limit * 0.1) * 65535.0 * 65535.0;
@@ -1160,8 +1239,7 @@ pub fn astcenc_context_alloc(
         config: cfg,
         thread_count,
         bsd: BlockSizeDescriptor::new(cfg.block_x, cfg.block_y, cfg.block_z),
-        cbsd,
-        working_buffers,
+        compressor,
         manage_compress: ParallelManager::default(),
     }))
 }
@@ -1188,139 +1266,11 @@ fn validate_compression_swizzle(swizzle: &AstcencSwizzle) -> Result<(), AstcencE
 /// `data_out` pointer); finished batches of blocks are copied in under the lock.
 pub type AstcencOutput<'a> = std::sync::Mutex<&'a mut [u8]>;
 
-/// `compress_image`: compresses the batches of 16 blocks the task manager hands to this
-/// thread. Each batch is compressed locally and copied into the shared output.
-fn compress_image(
-    context: &AstcencContext,
-    thread_index: usize,
-    image: &AstcencImage,
-    swizzle: &AstcencSwizzle,
-    buffer: &AstcencOutput,
-) -> Result<(), AstcencError> {
-    let config = context.config;
-    let (Some(bsd), Some(temp_buffers)) = (
-        context.cbsd.as_deref(),
-        context.working_buffers.get(thread_index),
-    ) else {
-        return Err(AstcencError::BadContext);
-    };
-    let Ok(mut temp_buffers) = temp_buffers.lock() else {
-        return Err(AstcencError::BadContext);
-    };
-    let temp_buffers = &mut *temp_buffers;
-    let decode_mode = config.profile;
-    let mut blk = internal::ImageBlock::default();
-
-    let block_x = bsd.dim_x as usize;
-    let block_y = bsd.dim_y as usize;
-    let block_z = bsd.dim_z as usize;
-    blk.texel_count = (block_x * block_y * block_z) as u8;
-
-    let dim_x = image.dim_x as usize;
-    let dim_y = image.dim_y as usize;
-    let dim_z = image.dim_z as usize;
-
-    let blocks_x = dim_x.div_ceil(block_x);
-    let blocks_y = dim_y.div_ceil(block_y);
-    let blocks_z = dim_z.div_ceil(block_z);
-    let block_count = blocks_x * blocks_y * blocks_z;
-
-    let row_blocks = blocks_x;
-    let plane_blocks = blocks_x * blocks_y;
-
-    blk.decode_unorm8 = config.flags & ASTCENC_FLG_USE_DECODE_UNORM8 != 0;
-
-    // Populate the block channel weights
-    blk.channel_weight = vecmath::Vfloat4::new(
-        config.cw_r_weight,
-        config.cw_g_weight,
-        config.cw_b_weight,
-        config.cw_a_weight,
-    );
-
-    // Determine if we can use an optimized load function
-    let needs_swz = *swizzle != AstcencSwizzle::RGBA;
-    let needs_hdr = matches!(
-        decode_mode,
-        AstcencProfile::Hdr | AstcencProfile::HdrRgbLdrA
-    );
-    let use_fast_load =
-        !needs_swz && !needs_hdr && block_z == 1 && matches!(image.data, AstcencImageData::U8(_));
-
-    // Only the first thread actually runs the initializer
-    context.manage_compress.init(block_count);
-
-    // All threads run this processing loop until there is no work remaining
-    const GRANULE: usize = 16;
-    let mut local = [0u8; GRANULE * 16];
-    loop {
-        let (base, count) = context.manage_compress.get_task_assignment(GRANULE);
-        if count == 0 {
-            break;
-        }
-
-        for i in base..base + count {
-            // Decode i into x, y, z block indices
-            let z = i / plane_blocks;
-            let rem = i - (z * plane_blocks);
-            let y = rem / row_blocks;
-            let x = rem - (y * row_blocks);
-
-            // Fetch the full block for compression
-            if use_fast_load {
-                image::load_image_block_fast_ldr(image, &mut blk, bsd, x * block_x, y * block_y);
-            } else {
-                image::load_image_block(
-                    decode_mode,
-                    image,
-                    &mut blk,
-                    bsd,
-                    x * block_x,
-                    y * block_y,
-                    z * block_z,
-                    swizzle,
-                );
-            }
-
-            // Scale RGB error contribution by the maximum alpha in the block. This encourages
-            // preserving alpha accuracy in regions with high transparency.
-            if config.flags & ASTCENC_FLG_USE_ALPHA_WEIGHT != 0 {
-                let alpha_scale = blk.data_max.lane(3) * (1.0 / 65535.0);
-                blk.channel_weight = vecmath::Vfloat4::new(
-                    config.cw_r_weight * alpha_scale,
-                    config.cw_g_weight * alpha_scale,
-                    config.cw_b_weight * alpha_scale,
-                    config.cw_a_weight,
-                );
-            }
-
-            // ((z * blocks_y + y) * blocks_x + x) * 16 == i * 16: a batch is contiguous
-            let Some(bp) = local
-                .get_mut((i - base) * 16..(i - base) * 16 + 16)
-                .and_then(|b| <&mut [u8; 16]>::try_from(b).ok())
-            else {
-                return Err(AstcencError::OutOfMem);
-            };
-            compress_symbolic::compress_block(&config, bsd, &blk, bp, temp_buffers);
-        }
-
-        let Ok(mut out) = buffer.lock() else {
-            return Err(AstcencError::BadContext);
-        };
-        let Some(dst) = out.get_mut(base * 16..(base + count) * 16) else {
-            return Err(AstcencError::OutOfMem);
-        };
-        dst.copy_from_slice(&local[..count * 16]);
-        drop(out);
-        context.manage_compress.complete_task_assignment(count);
-    }
-    Ok(())
-}
-
 /// Port of `astcenc_compress_image`. As in C++, every thread of a multi-threaded context
 /// calls it with its own `thread_index` and the same `data_out`; the threads share the
 /// blocks. Alpha scale RDO (`a_scale_radius`, the `compute_variance.cpp` averages) is not
 /// ported and fails with `NotImplemented`.
+#[allow(unsafe_code)] // calls into the SSE4.1 / AVX2 copies, see `CompressorCopy`
 pub fn astcenc_compress_image(
     context: &AstcencContext,
     image: &AstcencImage,
@@ -1375,7 +1325,27 @@ pub fn astcenc_compress_image(
         return Err(AstcencError::NotImplemented);
     }
 
-    compress_image(context, thread_index as usize, image, swizzle, data_out)
+    let (config, manage, t) = (
+        &context.config,
+        &context.manage_compress,
+        thread_index as usize,
+    );
+    match &context.compressor {
+        Some(CompressorCopy::Baseline(c)) => {
+            base::compressor::compress_image(c, config, manage, t, image, swizzle, data_out)
+        }
+        // SAFETY: these copies only exist when the CPU has their features (see
+        // `CompressorCopy`).
+        #[cfg(target_arch = "x86_64")]
+        Some(CompressorCopy::Sse41(c)) => unsafe {
+            sse41::compressor::compress_image(c, config, manage, t, image, swizzle, data_out)
+        },
+        #[cfg(target_arch = "x86_64")]
+        Some(CompressorCopy::Avx2(c)) => unsafe {
+            avx2::compressor::compress_image(c, config, manage, t, image, swizzle, data_out)
+        },
+        None => Err(AstcencError::BadContext),
+    }
 }
 
 /// Port of `astcenc_compress_reset`.

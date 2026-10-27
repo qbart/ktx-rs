@@ -6,10 +6,12 @@
 use super::internal::*;
 use super::select_partition;
 use super::vecmath::round_up_to_simd_multiple_vla;
+use ktx_macros::isa;
 
 /// `BIT_PATTERN_WORDS`.
 const BIT_PATTERN_WORDS: usize = (BLOCK_MAX_TEXELS * 2).div_ceil(64);
 
+#[isa]
 /// `generate_canonical_partitioning`.
 fn generate_canonical_partitioning(
     texel_count: usize,
@@ -33,6 +35,7 @@ fn generate_canonical_partitioning(
     }
 }
 
+#[isa]
 /// `generate_one_partition_info_entry`. Returns whether the partitioning has the
 /// requested number of non-empty partitions.
 fn generate_one_partition_info_entry(
@@ -113,6 +116,7 @@ fn generate_one_partition_info_entry(
     valid
 }
 
+#[isa]
 /// `build_partition_table_for_one_partition_count`.
 fn build_partition_table_for_one_partition_count(
     bsd: &mut BlockSizeDescriptor,
@@ -185,6 +189,7 @@ fn build_partition_table_for_one_partition_count(
     }
 }
 
+#[isa]
 /// `init_partition_tables`.
 pub fn init_partition_tables(
     bsd: &mut BlockSizeDescriptor,

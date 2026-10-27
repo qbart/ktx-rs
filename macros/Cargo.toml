@@ -1,0 +1,9 @@
+[package]
+name = "ktx-macros"
+version = "0.1.0"
+edition = "2024"
+description = "Internal proc macros of the ktx crate"
+license = "Apache-2.0"
+
+[lib]
+proc-macro = true

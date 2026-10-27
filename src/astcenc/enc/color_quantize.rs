@@ -9,7 +9,9 @@ use super::internal::*;
 use super::mathlib::{clamp, clamp1f, clamp255f, flt2int_rtn};
 use super::tables::COLOR_UNQUANT_TO_UQUANT;
 use super::vecmath::{Vfloat4, Vint4, bit_transfer_signed};
+use ktx_macros::isa;
 
+#[isa]
 /// `get_rgba_encoding_error`.
 fn get_rgba_encoding_error(
     uquant0: Vfloat4,
@@ -22,6 +24,7 @@ fn get_rgba_encoding_error(
     (error0 * error0 + error1 * error1).hadd_s()
 }
 
+#[isa]
 #[inline]
 fn table(quant_level: u32, index: i32) -> u8 {
     COLOR_UNQUANT_TO_UQUANT
@@ -31,12 +34,14 @@ fn table(quant_level: u32, index: i32) -> u8 {
         .unwrap_or(0)
 }
 
+#[isa]
 /// `quant_color(quant_level, value)`.
 #[inline]
 fn quant_color(quant_level: u32, value: i32) -> u8 {
     table(quant_level, value.wrapping_mul(2).wrapping_add(1))
 }
 
+#[isa]
 /// `quant_color(quant_level, value, valuef)`: rounds up unless the residual is below -0.1.
 #[inline]
 fn quant_color_f(quant_level: u32, value: i32, valuef: f32) -> u8 {
@@ -48,6 +53,7 @@ fn quant_color_f(quant_level: u32, value: i32, valuef: f32) -> u8 {
     table(quant_level, index)
 }
 
+#[isa]
 /// `quant_color3(quant_level, value)`.
 fn quant_color3(quant_level: u32, value: Vint4) -> Vint4 {
     let index = value * 2 + 1;
@@ -59,6 +65,7 @@ fn quant_color3(quant_level: u32, value: Vint4) -> Vint4 {
     )
 }
 
+#[isa]
 /// `quant_color3(quant_level, value, valuef)`.
 fn quant_color3_f(quant_level: u32, value: Vint4, valuef: Vfloat4) -> Vint4 {
     let mut index = value * 2;
@@ -73,6 +80,7 @@ fn quant_color3_f(quant_level: u32, value: Vint4, valuef: Vfloat4) -> Vint4 {
     )
 }
 
+#[isa]
 /// `quantize_rgb`.
 fn quantize_rgb(
     mut color0: Vfloat4,
@@ -98,6 +106,7 @@ fn quantize_rgb(
     *color1_out = color1i;
 }
 
+#[isa]
 /// `quantize_rgba`.
 fn quantize_rgba(
     color0: Vfloat4,
@@ -113,6 +122,7 @@ fn quantize_rgba(
     color1_out.set_lane(3, quant_color_f(quant_level, flt2int_rtn(a1), a1) as i32);
 }
 
+#[isa]
 /// `color + (color - color.swz<2, 2, 2, 3>())` and the out of range test.
 fn blue_contract(color0: &mut Vfloat4, color1: &mut Vfloat4) -> bool {
     *color0 += *color0 - color0.swz4(2, 2, 2, 3);
@@ -122,6 +132,7 @@ fn blue_contract(color0: &mut Vfloat4, color1: &mut Vfloat4) -> bool {
     !(e0 | e1).any()
 }
 
+#[isa]
 /// `try_quantize_rgb_blue_contract`.
 fn try_quantize_rgb_blue_contract(
     mut color0: Vfloat4,
@@ -143,6 +154,7 @@ fn try_quantize_rgb_blue_contract(
     true
 }
 
+#[isa]
 /// `try_quantize_rgba_blue_contract`.
 fn try_quantize_rgba_blue_contract(
     color0: Vfloat4,
@@ -161,6 +173,7 @@ fn try_quantize_rgba_blue_contract(
     false
 }
 
+#[isa]
 /// Shared body of `try_quantize_rgb_delta` (`negative` false) and
 /// `try_quantize_rgb_delta_blue_contract` (`negative` true, after contraction).
 fn rgb_delta_core(
@@ -221,6 +234,7 @@ fn rgb_delta_core(
     true
 }
 
+#[isa]
 /// `try_quantize_rgb_delta`.
 fn try_quantize_rgb_delta(
     color0: Vfloat4,
@@ -232,6 +246,7 @@ fn try_quantize_rgb_delta(
     rgb_delta_core(color0, color1, c0, c1, quant_level, false)
 }
 
+#[isa]
 /// `try_quantize_rgb_delta_blue_contract`.
 fn try_quantize_rgb_delta_blue_contract(
     color0: Vfloat4,
@@ -248,6 +263,7 @@ fn try_quantize_rgb_delta_blue_contract(
     rgb_delta_core(color0, color1, c0, c1, quant_level, true)
 }
 
+#[isa]
 /// `try_quantize_alpha_delta`.
 fn try_quantize_alpha_delta(
     color0: Vfloat4,
@@ -290,6 +306,7 @@ fn try_quantize_alpha_delta(
     true
 }
 
+#[isa]
 /// `try_quantize_luminance_alpha_delta`.
 fn try_quantize_luminance_alpha_delta(
     color0: Vfloat4,
@@ -353,6 +370,7 @@ fn try_quantize_luminance_alpha_delta(
     true
 }
 
+#[isa]
 /// `try_quantize_rgba_delta`.
 fn try_quantize_rgba_delta(
     color0: Vfloat4,
@@ -365,6 +383,7 @@ fn try_quantize_rgba_delta(
         && try_quantize_alpha_delta(color0, color1, c0, c1, quant_level)
 }
 
+#[isa]
 /// `try_quantize_rgba_delta_blue_contract`.
 fn try_quantize_rgba_delta_blue_contract(
     color0: Vfloat4,
@@ -379,6 +398,7 @@ fn try_quantize_rgba_delta_blue_contract(
         && try_quantize_alpha_delta(color1, color0, c0, c1, quant_level)
 }
 
+#[isa]
 /// `quantize_rgbs`.
 fn quantize_rgbs(color: Vfloat4, output: &mut [u8], quant_level: u32) {
     let scale = 1.0f32 / 257.0f32;
@@ -398,6 +418,7 @@ fn quantize_rgbs(color: Vfloat4, output: &mut [u8], quant_level: u32) {
     output[3] = quant_color(quant_level, scale_idx);
 }
 
+#[isa]
 /// `quantize_rgbs_alpha`.
 fn quantize_rgbs_alpha(
     color0: Vfloat4,
@@ -413,6 +434,7 @@ fn quantize_rgbs_alpha(
     quantize_rgbs(color, output, quant_level);
 }
 
+#[isa]
 /// `quantize_luminance`.
 fn quantize_luminance(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant_level: u32) {
     let mut lum0 = color0.hadd_rgb_s() * (1.0f32 / 3.0f32);
@@ -426,6 +448,7 @@ fn quantize_luminance(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant
     output[1] = quant_color_f(quant_level, flt2int_rtn(lum1), lum1);
 }
 
+#[isa]
 /// `quantize_luminance_alpha`.
 fn quantize_luminance_alpha(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant_level: u32) {
     let lum0 = color0.hadd_rgb_s() * (1.0f32 / 3.0f32);
@@ -438,6 +461,7 @@ fn quantize_luminance_alpha(color0: Vfloat4, color1: Vfloat4, output: &mut [u8],
     output[3] = quant_color_f(quant_level, flt2int_rtn(a1), a1);
 }
 
+#[isa]
 /// `quantize_and_unquantize_retain_top_two_bits` / `_four_bits` (`mask` 0xC0 / 0xF0).
 fn quantize_retain_top_bits(quant_level: u32, mut value: u8, mask: u8) -> u8 {
     loop {
@@ -452,14 +476,17 @@ fn quantize_retain_top_bits(quant_level: u32, mut value: u8, mask: u8) -> u8 {
     }
 }
 
+#[isa]
 fn top2(quant_level: u32, value: u8) -> u8 {
     quantize_retain_top_bits(quant_level, value, 0xC0)
 }
 
+#[isa]
 fn top4(quant_level: u32, value: u8) -> u8 {
     quantize_retain_top_bits(quant_level, value, 0xF0)
 }
 
+#[isa]
 /// `quantize_hdr_rgbo`.
 fn quantize_hdr_rgbo(mut color: Vfloat4, output: &mut [u8], quant_level: u32) {
     color.set_lane(0, color.lane(0) + color.lane(3));
@@ -633,6 +660,7 @@ fn quantize_hdr_rgbo(mut color: Vfloat4, output: &mut [u8], quant_level: u32) {
     }
 }
 
+#[isa]
 /// `quantize_hdr_rgb`.
 fn quantize_hdr_rgb(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant_level: u32) {
     // Note: color*.lane<3> is not used so we can ignore it
@@ -850,6 +878,7 @@ fn quantize_hdr_rgb(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant_l
     }
 }
 
+#[isa]
 /// `quantize_hdr_rgb_ldr_alpha`.
 fn quantize_hdr_rgb_ldr_alpha(
     color0: Vfloat4,
@@ -865,6 +894,7 @@ fn quantize_hdr_rgb_ldr_alpha(
     quantize_hdr_rgb(color0, color1, output, quant_level);
 }
 
+#[isa]
 /// `quantize_hdr_luminance_large_range`.
 fn quantize_hdr_luminance_large_range(
     color0: Vfloat4,
@@ -915,6 +945,7 @@ fn quantize_hdr_luminance_large_range(
     output[1] = quant_color(quant_level, v1);
 }
 
+#[isa]
 /// `try_quantize_hdr_luminance_small_range`.
 fn try_quantize_hdr_luminance_small_range(
     color0: Vfloat4,
@@ -984,6 +1015,7 @@ fn try_quantize_hdr_luminance_small_range(
     true
 }
 
+#[isa]
 /// `quantize_hdr_alpha`.
 fn quantize_hdr_alpha(alpha0: f32, alpha1: f32, output: &mut [u8], quant_level: u32) {
     let alpha0 = clamp(alpha0, 0.0, 65280.0);
@@ -1029,6 +1061,7 @@ fn quantize_hdr_alpha(alpha0: f32, alpha1: f32, output: &mut [u8], quant_level: 
     output[1] = quant_color(quant_level, v7);
 }
 
+#[isa]
 /// `quantize_hdr_rgb_alpha`.
 fn quantize_hdr_rgb_alpha(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], quant_level: u32) {
     quantize_hdr_rgb(color0, color1, output, quant_level);
@@ -1040,26 +1073,31 @@ fn quantize_hdr_rgb_alpha(color0: Vfloat4, color1: Vfloat4, output: &mut [u8], q
     );
 }
 
+#[isa]
 fn to_arr(v: Vint4) -> [i32; 4] {
     v.m
 }
 
+#[isa]
 fn from_arr(a: [i32; 4]) -> Vint4 {
     Vint4 { m: a }
 }
 
+#[isa]
 /// `rgba_delta_unpack` on vector types.
 fn delta_unpack(c0: Vint4, c1: Vint4) -> (Vint4, Vint4) {
     let (a, b) = super::rgba_delta_unpack(to_arr(c0), to_arr(c1));
     (from_arr(a), from_arr(b))
 }
 
+#[isa]
 /// `rgba_unpack` on vector types.
 fn unpack(c0: Vint4, c1: Vint4) -> (Vint4, Vint4) {
     let (a, b) = super::rgba_unpack(to_arr(c0), to_arr(c1));
     (from_arr(a), from_arr(b))
 }
 
+#[isa]
 /// `pack_color_endpoints`: quantizes the endpoints into `output` and returns the actual
 /// endpoint format used.
 pub fn pack_color_endpoints(

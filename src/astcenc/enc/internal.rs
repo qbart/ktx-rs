@@ -6,6 +6,7 @@
 #![allow(clippy::large_stack_arrays)]
 
 use super::vecmath::Vfloat4;
+use ktx_macros::isa;
 
 pub const BLOCK_MAX_TEXELS: usize = 216;
 pub const BLOCK_MAX_COMPONENTS: usize = 4;
@@ -70,6 +71,7 @@ pub const QUANT_160: u32 = 18;
 pub const QUANT_192: u32 = 19;
 pub const QUANT_256: u32 = 20;
 
+#[isa]
 /// `get_quant_level`.
 pub fn get_quant_level(method: u32) -> u32 {
     const LEVELS: [u32; 21] = [
@@ -158,6 +160,7 @@ pub struct BlockMode {
 }
 
 impl BlockMode {
+    #[isa]
     pub fn get_weight_quant_mode(&self) -> u32 {
         self.quant_mode as u32
     }
@@ -173,16 +176,20 @@ pub struct DecimationMode {
 }
 
 impl DecimationMode {
+    #[isa]
     pub fn set_ref_1plane(&mut self, weight_quant: u32) {
         self.refprec_1plane |= 1 << weight_quant;
     }
+    #[isa]
     pub fn is_ref_1plane(&self, max_weight_quant: u32) -> bool {
         let mask = ((1u32 << (max_weight_quant + 1)) - 1) as u16;
         self.refprec_1plane & mask != 0
     }
+    #[isa]
     pub fn set_ref_2plane(&mut self, weight_quant: u32) {
         self.refprec_2planes |= 1 << weight_quant;
     }
+    #[isa]
     pub fn is_ref_2plane(&self, max_weight_quant: u32) -> bool {
         let mask = ((1u32 << (max_weight_quant + 1)) - 1) as u16;
         self.refprec_2planes & mask != 0
@@ -219,6 +226,7 @@ pub struct BlockSizeDescriptor {
 }
 
 impl BlockSizeDescriptor {
+    #[isa]
     /// Zero initialised descriptor.
     pub fn empty() -> Box<BlockSizeDescriptor> {
         Box::new(BlockSizeDescriptor {
@@ -248,20 +256,24 @@ impl BlockSizeDescriptor {
         })
     }
 
+    #[isa]
     /// `get_block_mode`.
     pub fn get_block_mode(&self, block_mode: usize) -> &BlockMode {
         let packed = self.block_mode_packed_index[block_mode] as usize;
         &self.block_modes[packed.min(WEIGHTS_MAX_BLOCK_MODES - 1)]
     }
 
+    #[isa]
     pub fn get_decimation_mode(&self, decimation_mode: usize) -> &DecimationMode {
         &self.decimation_modes[decimation_mode]
     }
 
+    #[isa]
     pub fn get_decimation_info(&self, decimation_mode: usize) -> &DecimationInfo {
         &self.decimation_tables[decimation_mode]
     }
 
+    #[isa]
     /// Start index in `partitionings` of `get_partition_table(partition_count)`.
     pub fn partition_table_base(partition_count: u32) -> usize {
         let pc = if partition_count == 1 {
@@ -272,6 +284,7 @@ impl BlockSizeDescriptor {
         (pc as usize - 2) * BLOCK_MAX_PARTITIONINGS
     }
 
+    #[isa]
     /// `get_partition_info`.
     pub fn get_partition_info(&self, partition_count: u32, index: u32) -> &PartitionInfo {
         let mut packed_index = 0usize;
@@ -283,6 +296,7 @@ impl BlockSizeDescriptor {
         &self.partitionings[i.min(self.partitionings.len() - 1)]
     }
 
+    #[isa]
     /// `get_raw_partition_info`.
     pub fn get_raw_partition_info(
         &self,
@@ -344,6 +358,7 @@ impl Default for ImageBlock {
 }
 
 impl ImageBlock {
+    #[isa]
     /// `texel(index)`.
     #[inline]
     pub fn texel(&self, i: usize) -> Vfloat4 {
@@ -354,11 +369,13 @@ impl ImageBlock {
             self.data_a[i],
         )
     }
+    #[isa]
     /// `texel3(index)`.
     #[inline]
     pub fn texel3(&self, i: usize) -> Vfloat4 {
         Vfloat4::new3(self.data_r[i], self.data_g[i], self.data_b[i])
     }
+    #[isa]
     /// The component plane `c` (0..4).
     #[inline]
     pub fn data(&self, c: usize) -> &[f32; BLOCK_DATA_LEN] {
@@ -369,6 +386,7 @@ impl ImageBlock {
             _ => &self.data_a,
         }
     }
+    #[isa]
     /// `get_default_alpha`.
     pub fn get_default_alpha(&self) -> f32 {
         if self.alpha_lns[0] != 0 {
@@ -377,6 +395,7 @@ impl ImageBlock {
             0xFFFF as f32
         }
     }
+    #[isa]
     /// `is_constant_channel`.
     pub fn is_constant_channel(&self, channel: usize) -> bool {
         let lane_mask =
@@ -384,6 +403,7 @@ impl ImageBlock {
         let color_mask = self.data_min.eq(self.data_max);
         (lane_mask & color_mask).any()
     }
+    #[isa]
     /// `is_luminance`.
     pub fn is_luminance(&self) -> bool {
         let default_alpha = self.get_default_alpha();
@@ -391,6 +411,7 @@ impl ImageBlock {
             self.data_min.lane(3) == default_alpha && self.data_max.lane(3) == default_alpha;
         self.grayscale && alpha1
     }
+    #[isa]
     /// `is_luminancealpha`.
     pub fn is_luminancealpha(&self) -> bool {
         let default_alpha = self.get_default_alpha();
@@ -558,6 +579,7 @@ impl Default for SymbolicCompressedBlock {
 }
 
 impl SymbolicCompressedBlock {
+    #[isa]
     /// `get_color_quant_mode`.
     pub fn get_color_quant_mode(&self) -> u32 {
         self.quant_mode

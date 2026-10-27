@@ -1,13 +1,16 @@
-//! 4-lane kernels of `astcenc_vecmathlib_sse_4.h` on `std::arch`. The vector types keep their
-//! array storage; each kernel casts to `__m128` / `__m128i` (`bytemuck`, free) and runs the
-//! intrinsic. SSE4.1 instructions are used when the build enables them, otherwise the SSE2
-//! sequences below give bit identical results.
+//! Kernels of `astcenc_vecmathlib_sse_4.h` / `astcenc_vecmathlib_avx2_8.h` on `std::arch`. The
+//! vector types keep their array storage; each kernel casts to `__m128` / `__m256` (`bytemuck`,
+//! free) and runs the intrinsic. The instruction set copy's `ISA` picks SSE4.1 and AVX2 forms;
+//! the baseline copy uses SSE2 sequences with bit identical results (8 lanes as two halves).
+//! Kernels have no `#[target_feature]`: they are `#[inline(always)]` into the copy's functions,
+//! which have it.
 //!
 //! On other architectures the same functions are plain lane loops.
 //
 // SAFETY (whole module): every intrinsic used here only requires SSE or SSE2, which are part of
-// the x86_64 baseline and therefore always available, or SSE4.1 / AVX2 behind
-// `cfg(target_feature = ...)`, i.e. only when the compiled-for CPU has them. None of them
+// the x86_64 baseline and therefore always available, or SSE4.1 / AVX2 behind the `SSE41` /
+// `AVX2` constants, which are only true in the instruction set copies compiled with (and only
+// run on CPUs with) those features, or when the build itself enables them. None of them
 // dereference pointers.
 #![allow(unsafe_code)]
 
@@ -19,6 +22,10 @@ pub type M4 = [u32; 4];
 mod imp {
     use super::{F4, I4, M4};
     use std::arch::x86_64::*;
+
+    /// SSE4.1 instructions are available in this copy (its `target_feature`s, or the build's).
+    #[allow(clippy::absurd_extreme_comparisons)] // ISA is a per-copy constant
+    const SSE41: bool = super::super::ISA >= 1 || cfg!(target_feature = "sse4.1");
 
     #[inline(always)]
     fn f(a: F4) -> __m128 {
@@ -125,12 +132,9 @@ mod imp {
     /// `_mm_blendv_ps` (`b` where the mask sign bit is set).
     #[inline(always)]
     pub fn blendv_ps(a: F4, b: F4, m: M4) -> F4 {
-        #[cfg(target_feature = "sse4.1")]
-        {
+        if SSE41 {
             of(unsafe { _mm_blendv_ps(f(a), f(b), bytemuck::cast(m)) })
-        }
-        #[cfg(not(target_feature = "sse4.1"))]
-        {
+        } else {
             of(unsafe {
                 _mm_castsi128_ps(blendv_si(
                     _mm_castps_si128(f(a)),
@@ -150,16 +154,13 @@ mod imp {
     #[inline(always)]
     fn blendv_si(a: __m128i, b: __m128i, m: __m128i) -> __m128i {
         unsafe {
-            #[cfg(target_feature = "sse4.1")]
-            {
+            if SSE41 {
                 _mm_castps_si128(_mm_blendv_ps(
                     _mm_castsi128_ps(a),
                     _mm_castsi128_ps(b),
                     _mm_castsi128_ps(m),
                 ))
-            }
-            #[cfg(not(target_feature = "sse4.1"))]
-            {
+            } else {
                 let m = _mm_srai_epi32::<31>(m);
                 _mm_or_si128(_mm_andnot_si128(m, a), _mm_and_si128(m, b))
             }
@@ -171,14 +172,11 @@ mod imp {
     #[inline(always)]
     pub fn round_ps(a: F4) -> F4 {
         unsafe {
-            #[cfg(target_feature = "sse4.1")]
-            {
+            if SSE41 {
                 of(_mm_round_ps::<
                     { _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC },
                 >(f(a)))
-            }
-            #[cfg(not(target_feature = "sse4.1"))]
-            {
+            } else {
                 let v = f(a);
                 let sign = _mm_set1_ps(-0.0);
                 let c = _mm_set1_ps(8388608.0);
@@ -195,12 +193,9 @@ mod imp {
     #[inline(always)]
     pub fn mullo_epi32(a: I4, b: I4) -> I4 {
         unsafe {
-            #[cfg(target_feature = "sse4.1")]
-            {
+            if SSE41 {
                 oi(_mm_mullo_epi32(i(a), i(b)))
-            }
-            #[cfg(not(target_feature = "sse4.1"))]
-            {
+            } else {
                 let (a, b) = (i(a), i(b));
                 let even = _mm_mul_epu32(a, b);
                 let odd = _mm_mul_epu32(_mm_srli_epi64::<32>(a), _mm_srli_epi64::<32>(b));
@@ -214,12 +209,9 @@ mod imp {
     /// `_mm_min_epi32`.
     #[inline(always)]
     pub fn min_epi32(a: I4, b: I4) -> I4 {
-        #[cfg(target_feature = "sse4.1")]
-        {
+        if SSE41 {
             oi(unsafe { _mm_min_epi32(i(a), i(b)) })
-        }
-        #[cfg(not(target_feature = "sse4.1"))]
-        {
+        } else {
             blendv_epi32(a, b, cmpgt_epi32(a, b))
         }
     }
@@ -227,12 +219,9 @@ mod imp {
     /// `_mm_max_epi32`.
     #[inline(always)]
     pub fn max_epi32(a: I4, b: I4) -> I4 {
-        #[cfg(target_feature = "sse4.1")]
-        {
+        if SSE41 {
             oi(unsafe { _mm_max_epi32(i(a), i(b)) })
-        }
-        #[cfg(not(target_feature = "sse4.1"))]
-        {
+        } else {
             blendv_epi32(a, b, cmplt_epi32(a, b))
         }
     }
@@ -469,89 +458,126 @@ impl LanesI for I4 {
     }
 }
 
-#[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
-mod wide8 {
-    //! 8 lanes as two 4-lane halves.
-    use super::*;
+/// AVX2 instructions are available in this copy (its `target_feature`s, or the build's).
+#[cfg(target_arch = "x86_64")]
+#[allow(clippy::absurd_extreme_comparisons)] // ISA is a per-copy constant
+const AVX2: bool = super::ISA >= 2 || cfg!(target_feature = "avx2");
 
+type F8 = [f32; 8];
+type I8 = [i32; 8];
+type M8 = [u32; 8];
+
+/// 8 lanes as two 4-lane halves.
+#[inline(always)]
+fn h2<T: Copy, U: Copy>(a: [T; 8], b: [T; 8], f: impl Fn([T; 4], [T; 4]) -> [U; 4]) -> [U; 8] {
+    let (ac, _) = a.as_chunks::<4>();
+    let (bc, _) = b.as_chunks::<4>();
+    let (lo, hi) = (f(ac[0], bc[0]), f(ac[1], bc[1]));
+    [lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]]
+}
+
+/// One-operand form of [`h2`].
+#[inline(always)]
+fn h1<T: Copy, U: Copy>(a: [T; 8], f: impl Fn([T; 4]) -> [U; 4]) -> [U; 8] {
+    h2(a, a, |x, _| f(x))
+}
+
+/// Select form of [`h2`].
+#[inline(always)]
+fn h3<T: Copy>(
+    a: [T; 8],
+    b: [T; 8],
+    m: M8,
+    f: impl Fn([T; 4], [T; 4], [u32; 4]) -> [T; 4],
+) -> [T; 8] {
+    let (ac, _) = a.as_chunks::<4>();
+    let (bc, _) = b.as_chunks::<4>();
+    let (mc, _) = m.as_chunks::<4>();
+    let (lo, hi) = (f(ac[0], bc[0], mc[0]), f(ac[1], bc[1], mc[1]));
+    [lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]]
+}
+
+macro_rules! wide2 {
+    ($tr:ident: $($f:ident -> $r:ty;)*) => {
+        $(#[inline(always)]
+        fn $f(self, b: Self) -> $r {
+            #[cfg(target_arch = "x86_64")]
+            if AVX2 {
+                return avx::$f(self, b);
+            }
+            h2(self, b, <[_; 4] as $tr>::$f)
+        })*
+    };
+}
+macro_rules! wide1 {
+    ($tr:ident: $($f:ident -> $r:ty;)*) => {
+        $(#[inline(always)]
+        fn $f(self) -> $r {
+            #[cfg(target_arch = "x86_64")]
+            if AVX2 {
+                return avx::$f(self);
+            }
+            h1(self, <[_; 4] as $tr>::$f)
+        })*
+    };
+}
+macro_rules! wide_shift {
+    ($($f:ident;)*) => {
+        $(#[inline(always)]
+        fn $f(self, s: u32) -> Self {
+            #[cfg(target_arch = "x86_64")]
+            if AVX2 {
+                return avx::$f(self, s);
+            }
+            h1(self, |x: I4| x.$f(s))
+        })*
+    };
+}
+
+impl Lanes for F8 {
+    type I = I8;
+    type M = M8;
+    wide2! { Lanes:
+        add_ps -> Self; sub_ps -> Self; mul_ps -> Self; div_ps -> Self; min_ps -> Self;
+        max_ps -> Self; cmpeq_ps -> M8; cmpneq_ps -> M8; cmplt_ps -> M8; cmpgt_ps -> M8;
+        cmple_ps -> M8; cmpge_ps -> M8;
+    }
+    wide1! { Lanes: sqrt_ps -> Self; round_ps -> Self; cvttps_epi32 -> I8; }
     #[inline(always)]
-    fn split<T: Copy>(a: [T; 8]) -> [[T; 4]; 2] {
-        let (c, _) = a.as_chunks::<4>();
-        [c[0], c[1]]
-    }
-    #[inline(always)]
-    fn join<T: Copy>(a: [T; 4], b: [T; 4]) -> [T; 8] {
-        [a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]]
-    }
-    macro_rules! halves {
-        ($($f:ident($($a:ident),*) -> $r:ty;)*) => {
-            $(#[inline(always)] fn $f(self $(, $a: Self)*) -> $r {
-                let [x0, x1] = split(self);
-                $(let $a = split($a);)*
-                join(x0.$f($($a[0]),*), x1.$f($($a[1]),*))
-            })*
-        };
-    }
-
-    impl Lanes for [f32; 8] {
-        type I = [i32; 8];
-        type M = [u32; 8];
-        halves! {
-            add_ps(b) -> Self; sub_ps(b) -> Self; mul_ps(b) -> Self; div_ps(b) -> Self;
-            min_ps(b) -> Self; max_ps(b) -> Self; sqrt_ps() -> Self; round_ps() -> Self;
-            cmpeq_ps(b) -> [u32; 8]; cmpneq_ps(b) -> [u32; 8]; cmplt_ps(b) -> [u32; 8];
-            cmpgt_ps(b) -> [u32; 8]; cmple_ps(b) -> [u32; 8]; cmpge_ps(b) -> [u32; 8];
-            cvttps_epi32() -> [i32; 8];
+    fn blendv_ps(self, b: Self, m: M8) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        if AVX2 {
+            return avx::blendv_ps(self, b, m);
         }
-        #[inline(always)]
-        fn blendv_ps(self, b: Self, m: [u32; 8]) -> Self {
-            let ([a0, a1], [b0, b1], [m0, m1]) = (split(self), split(b), split(m));
-            join(a0.blendv_ps(b0, m0), a1.blendv_ps(b1, m1))
-        }
-    }
-
-    impl LanesI for [i32; 8] {
-        type F = [f32; 8];
-        type M = [u32; 8];
-        halves! {
-            add_epi32(b) -> Self; sub_epi32(b) -> Self; mullo_epi32(b) -> Self;
-            and_si(b) -> Self; or_si(b) -> Self; xor_si(b) -> Self;
-            min_epi32(b) -> Self; max_epi32(b) -> Self;
-            cmpeq_epi32(b) -> [u32; 8]; cmplt_epi32(b) -> [u32; 8]; cmpgt_epi32(b) -> [u32; 8];
-            cvtepi32_ps() -> [f32; 8];
-        }
-        #[inline(always)]
-        fn blendv_epi32(self, b: Self, m: [u32; 8]) -> Self {
-            let ([a0, a1], [b0, b1], [m0, m1]) = (split(self), split(b), split(m));
-            join(a0.blendv_epi32(b0, m0), a1.blendv_epi32(b1, m1))
-        }
-        #[inline(always)]
-        fn sll_epi32(self, s: u32) -> Self {
-            let [a0, a1] = split(self);
-            join(a0.sll_epi32(s), a1.sll_epi32(s))
-        }
-        #[inline(always)]
-        fn srl_epi32(self, s: u32) -> Self {
-            let [a0, a1] = split(self);
-            join(a0.srl_epi32(s), a1.srl_epi32(s))
-        }
-        #[inline(always)]
-        fn sra_epi32(self, s: u32) -> Self {
-            let [a0, a1] = split(self);
-            join(a0.sra_epi32(s), a1.sra_epi32(s))
-        }
+        h3(self, b, m, <F4 as Lanes>::blendv_ps)
     }
 }
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
-mod wide8 {
-    //! `astcenc_vecmathlib_avx2_8.h` kernels (only built when AVX2 is enabled at compile time).
-    use super::*;
-    use std::arch::x86_64::*;
+impl LanesI for I8 {
+    type F = F8;
+    type M = M8;
+    wide2! { LanesI:
+        add_epi32 -> Self; sub_epi32 -> Self; mullo_epi32 -> Self; and_si -> Self;
+        or_si -> Self; xor_si -> Self; min_epi32 -> Self; max_epi32 -> Self;
+        cmpeq_epi32 -> M8; cmplt_epi32 -> M8; cmpgt_epi32 -> M8;
+    }
+    wide1! { LanesI: cvtepi32_ps -> F8; }
+    wide_shift! { sll_epi32; srl_epi32; sra_epi32; }
+    #[inline(always)]
+    fn blendv_epi32(self, b: Self, m: M8) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        if AVX2 {
+            return avx::blendv_epi32(self, b, m);
+        }
+        h3(self, b, m, <I4 as LanesI>::blendv_epi32)
+    }
+}
 
-    type F8 = [f32; 8];
-    type I8 = [i32; 8];
-    type M8 = [u32; 8];
+#[cfg(target_arch = "x86_64")]
+mod avx {
+    //! `astcenc_vecmathlib_avx2_8.h` kernels; only reached in copies compiled with AVX2.
+    use super::{F8, I8, M8};
+    use std::arch::x86_64::*;
 
     #[inline(always)]
     fn f(a: F8) -> __m256 {
@@ -583,107 +609,95 @@ mod wide8 {
     }
 
     macro_rules! f2 {
-        ($($name:ident => $e:expr;)*) => {
-            $(#[inline(always)] fn $name(self, b: Self) -> Self {
-                let (x, y) = (f(self), f(b));
-                of(unsafe { $e(x, y) })
+        ($($name:ident => $intr:ident;)*) => {
+            $(#[inline(always)]
+            pub fn $name(a: F8, b: F8) -> F8 {
+                of(unsafe { $intr(f(a), f(b)) })
             })*
         };
     }
     macro_rules! fc {
         ($($name:ident => $imm:ident;)*) => {
-            $(#[inline(always)] fn $name(self, b: Self) -> M8 {
-                om(unsafe { _mm256_cmp_ps::<$imm>(f(self), f(b)) })
+            $(#[inline(always)]
+            pub fn $name(a: F8, b: F8) -> M8 {
+                om(unsafe { _mm256_cmp_ps::<$imm>(f(a), f(b)) })
             })*
         };
     }
     macro_rules! i2 {
-        ($($name:ident => $e:expr;)*) => {
-            $(#[inline(always)] fn $name(self, b: Self) -> Self {
-                let (x, y) = (i(self), i(b));
-                oi(unsafe { $e(x, y) })
+        ($($name:ident => $intr:ident;)*) => {
+            $(#[inline(always)]
+            pub fn $name(a: I8, b: I8) -> I8 {
+                oi(unsafe { $intr(i(a), i(b)) })
+            })*
+        };
+    }
+    macro_rules! sh {
+        ($($name:ident => $intr:ident;)*) => {
+            $(#[inline(always)]
+            pub fn $name(a: I8, s: u32) -> I8 {
+                oi(unsafe { $intr(i(a), _mm_cvtsi32_si128(s as i32)) })
             })*
         };
     }
 
-    impl Lanes for F8 {
-        type I = I8;
-        type M = M8;
-        f2! {
-            add_ps => _mm256_add_ps; sub_ps => _mm256_sub_ps; mul_ps => _mm256_mul_ps;
-            div_ps => _mm256_div_ps; min_ps => _mm256_min_ps; max_ps => _mm256_max_ps;
-        }
-        fc! {
-            cmpeq_ps => _CMP_EQ_OQ; cmpneq_ps => _CMP_NEQ_UQ; cmplt_ps => _CMP_LT_OQ;
-            cmpgt_ps => _CMP_GT_OQ; cmple_ps => _CMP_LE_OQ; cmpge_ps => _CMP_GE_OQ;
-        }
-        #[inline(always)]
-        fn sqrt_ps(self) -> Self {
-            of(unsafe { _mm256_sqrt_ps(f(self)) })
-        }
-        #[inline(always)]
-        fn round_ps(self) -> Self {
-            of(unsafe {
-                _mm256_round_ps::<{ _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC }>(f(self))
-            })
-        }
-        #[inline(always)]
-        fn blendv_ps(self, b: Self, mk: M8) -> Self {
-            of(unsafe { _mm256_blendv_ps(f(self), f(b), m(mk)) })
-        }
-        #[inline(always)]
-        fn cvttps_epi32(self) -> I8 {
-            oi(unsafe { _mm256_cvttps_epi32(f(self)) })
-        }
+    f2! {
+        add_ps => _mm256_add_ps; sub_ps => _mm256_sub_ps; mul_ps => _mm256_mul_ps;
+        div_ps => _mm256_div_ps; min_ps => _mm256_min_ps; max_ps => _mm256_max_ps;
     }
+    fc! {
+        cmpeq_ps => _CMP_EQ_OQ; cmpneq_ps => _CMP_NEQ_UQ; cmplt_ps => _CMP_LT_OQ;
+        cmpgt_ps => _CMP_GT_OQ; cmple_ps => _CMP_LE_OQ; cmpge_ps => _CMP_GE_OQ;
+    }
+    i2! {
+        add_epi32 => _mm256_add_epi32; sub_epi32 => _mm256_sub_epi32;
+        mullo_epi32 => _mm256_mullo_epi32; and_si => _mm256_and_si256;
+        or_si => _mm256_or_si256; xor_si => _mm256_xor_si256;
+        min_epi32 => _mm256_min_epi32; max_epi32 => _mm256_max_epi32;
+    }
+    sh! { sll_epi32 => _mm256_sll_epi32; srl_epi32 => _mm256_srl_epi32; sra_epi32 => _mm256_sra_epi32; }
 
-    impl LanesI for I8 {
-        type F = F8;
-        type M = M8;
-        i2! {
-            add_epi32 => _mm256_add_epi32; sub_epi32 => _mm256_sub_epi32;
-            mullo_epi32 => _mm256_mullo_epi32; and_si => _mm256_and_si256;
-            or_si => _mm256_or_si256; xor_si => _mm256_xor_si256;
-            min_epi32 => _mm256_min_epi32; max_epi32 => _mm256_max_epi32;
-        }
-        #[inline(always)]
-        fn cmpeq_epi32(self, b: Self) -> M8 {
-            omi(unsafe { _mm256_cmpeq_epi32(i(self), i(b)) })
-        }
-        #[inline(always)]
-        fn cmplt_epi32(self, b: Self) -> M8 {
-            omi(unsafe { _mm256_cmpgt_epi32(i(b), i(self)) })
-        }
-        #[inline(always)]
-        fn cmpgt_epi32(self, b: Self) -> M8 {
-            omi(unsafe { _mm256_cmpgt_epi32(i(self), i(b)) })
-        }
-        #[inline(always)]
-        fn blendv_epi32(self, b: Self, mk: M8) -> Self {
-            oi(unsafe {
-                _mm256_castps_si256(_mm256_blendv_ps(
-                    _mm256_castsi256_ps(i(self)),
-                    _mm256_castsi256_ps(i(b)),
-                    m(mk),
-                ))
-            })
-        }
-        #[inline(always)]
-        fn sll_epi32(self, s: u32) -> Self {
-            oi(unsafe { _mm256_sll_epi32(i(self), _mm_cvtsi32_si128(s as i32)) })
-        }
-        #[inline(always)]
-        fn srl_epi32(self, s: u32) -> Self {
-            oi(unsafe { _mm256_srl_epi32(i(self), _mm_cvtsi32_si128(s as i32)) })
-        }
-        #[inline(always)]
-        fn sra_epi32(self, s: u32) -> Self {
-            oi(unsafe { _mm256_sra_epi32(i(self), _mm_cvtsi32_si128(s as i32)) })
-        }
-        #[inline(always)]
-        fn cvtepi32_ps(self) -> F8 {
-            of(unsafe { _mm256_cvtepi32_ps(i(self)) })
-        }
+    #[inline(always)]
+    pub fn sqrt_ps(a: F8) -> F8 {
+        of(unsafe { _mm256_sqrt_ps(f(a)) })
+    }
+    #[inline(always)]
+    pub fn round_ps(a: F8) -> F8 {
+        of(unsafe { _mm256_round_ps::<{ _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC }>(f(a)) })
+    }
+    #[inline(always)]
+    pub fn blendv_ps(a: F8, b: F8, mk: M8) -> F8 {
+        of(unsafe { _mm256_blendv_ps(f(a), f(b), m(mk)) })
+    }
+    #[inline(always)]
+    pub fn cvttps_epi32(a: F8) -> I8 {
+        oi(unsafe { _mm256_cvttps_epi32(f(a)) })
+    }
+    #[inline(always)]
+    pub fn cmpeq_epi32(a: I8, b: I8) -> M8 {
+        omi(unsafe { _mm256_cmpeq_epi32(i(a), i(b)) })
+    }
+    #[inline(always)]
+    pub fn cmplt_epi32(a: I8, b: I8) -> M8 {
+        omi(unsafe { _mm256_cmpgt_epi32(i(b), i(a)) })
+    }
+    #[inline(always)]
+    pub fn cmpgt_epi32(a: I8, b: I8) -> M8 {
+        omi(unsafe { _mm256_cmpgt_epi32(i(a), i(b)) })
+    }
+    #[inline(always)]
+    pub fn blendv_epi32(a: I8, b: I8, mk: M8) -> I8 {
+        oi(unsafe {
+            _mm256_castps_si256(_mm256_blendv_ps(
+                _mm256_castsi256_ps(i(a)),
+                _mm256_castsi256_ps(i(b)),
+                m(mk),
+            ))
+        })
+    }
+    #[inline(always)]
+    pub fn cvtepi32_ps(a: I8) -> F8 {
+        of(unsafe { _mm256_cvtepi32_ps(i(a)) })
     }
 }
 
@@ -803,7 +817,12 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::absurd_extreme_comparisons)] // ISA is a per-copy constant
     fn kernels_match_scalar() {
+        // This copy's kernels may use instructions the CPU running the tests lacks.
+        if (crate::astcenc::AstcencIsa::detect() as u8) < super::super::ISA {
+            return;
+        }
         let v = values();
         let mut x = 7u32;
         let mut next = || {

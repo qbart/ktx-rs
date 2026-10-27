@@ -12,7 +12,9 @@ use super::internal::*;
 use super::mathlib;
 use super::tables::QUANT_AND_XFER_TABLES;
 use super::vecmath::*;
+use ktx_macros::isa;
 
+#[isa]
 /// `unit2()`.
 #[allow(clippy::excessive_precision)]
 fn unit2() -> Vfloat4 {
@@ -20,6 +22,7 @@ fn unit2() -> Vfloat4 {
     Vfloat4::new(v, v, 0.0, 0.0)
 }
 
+#[isa]
 /// `unit3()`.
 #[allow(clippy::excessive_precision)]
 fn unit3() -> Vfloat4 {
@@ -27,17 +30,20 @@ fn unit3() -> Vfloat4 {
     Vfloat4::new(v, v, v, 0.0)
 }
 
+#[isa]
 /// `unit4()`.
 fn unit4() -> Vfloat4 {
     Vfloat4::splat(0.5)
 }
 
+#[isa]
 /// `loada` from a slice at `i` (missing lanes read as zero).
 #[inline]
 fn ld(p: &[f32], i: usize) -> Vfloat8 {
     Vfloat8::load(p.get(i..).unwrap_or_default())
 }
 
+#[isa]
 /// `storea` into a slice at `i` (lanes past the end are dropped).
 #[inline]
 fn st(v: Vfloat8, p: &mut [f32], i: usize) {
@@ -46,6 +52,7 @@ fn st(v: Vfloat8, p: &mut [f32], i: usize) {
     }
 }
 
+#[isa]
 /// `bilinear_infill_vla`.
 fn bilinear_infill_vla(di: &DecimationInfo, weights: &[f32], index: usize) -> Vfloat8 {
     let w = |k: usize| Vfloat8::gatherf_byte_inds(weights, &di.texel_weights_tr[k][index..]);
@@ -53,6 +60,7 @@ fn bilinear_infill_vla(di: &DecimationInfo, weights: &[f32], index: usize) -> Vf
     (w(0) * t(0) + w(1) * t(1)) + (w(2) * t(2) + w(3) * t(3))
 }
 
+#[isa]
 /// `bilinear_infill_vla_2`.
 fn bilinear_infill_vla_2(di: &DecimationInfo, weights: &[f32], index: usize) -> Vfloat8 {
     let w = |k: usize| Vfloat8::gatherf_byte_inds(weights, &di.texel_weights_tr[k][index..]);
@@ -60,6 +68,7 @@ fn bilinear_infill_vla_2(di: &DecimationInfo, weights: &[f32], index: usize) -> 
     w(0) * t(0) + w(1) * t(1)
 }
 
+#[isa]
 /// Shared tail of the per component ideal weight computations: the SIMD tail of the
 /// weight arrays is zeroed.
 fn zero_tail(ei: &mut EndpointsAndWeights, texel_count: usize) {
@@ -70,6 +79,7 @@ fn zero_tail(ei: &mut EndpointsAndWeights, texel_count: usize) {
     }
 }
 
+#[isa]
 /// Normalizes the line parameters of one partition into weights in [0, 1]; returns
 /// (lowparam, highparam, length_squared).
 fn normalize_params(
@@ -105,6 +115,7 @@ fn normalize_params(
     (lowparam, highparam)
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_1_comp`.
 fn compute_ideal_colors_and_weights_1_comp(
     blk: &ImageBlock,
@@ -156,6 +167,7 @@ fn compute_ideal_colors_and_weights_1_comp(
     ei.is_constant_weight_error_scale = is_constant_wes;
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_2_comp`.
 fn compute_ideal_colors_and_weights_2_comp(
     blk: &ImageBlock,
@@ -234,6 +246,7 @@ fn compute_ideal_colors_and_weights_2_comp(
     ei.is_constant_weight_error_scale = is_constant_wes;
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_3_comp`.
 fn compute_ideal_colors_and_weights_3_comp(
     blk: &ImageBlock,
@@ -326,6 +339,7 @@ fn compute_ideal_colors_and_weights_3_comp(
     ei.is_constant_weight_error_scale = is_constant_wes;
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_4_comp`.
 fn compute_ideal_colors_and_weights_4_comp(
     blk: &ImageBlock,
@@ -387,6 +401,7 @@ fn compute_ideal_colors_and_weights_4_comp(
     ei.is_constant_weight_error_scale = is_constant_wes;
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_1plane`.
 pub fn compute_ideal_colors_and_weights_1plane(
     blk: &ImageBlock,
@@ -401,6 +416,7 @@ pub fn compute_ideal_colors_and_weights_1plane(
     }
 }
 
+#[isa]
 /// `compute_ideal_colors_and_weights_2planes`.
 pub fn compute_ideal_colors_and_weights_2planes(
     bsd: &BlockSizeDescriptor,
@@ -447,6 +463,7 @@ pub fn compute_ideal_colors_and_weights_2planes(
     }
 }
 
+#[isa]
 /// The infilled (or direct) weights of 8 texels at `i`.
 fn infill(di: &DecimationInfo, w: &[f32], i: usize) -> Vfloat8 {
     if di.max_texel_weight_count > 2 {
@@ -458,6 +475,7 @@ fn infill(di: &DecimationInfo, w: &[f32], i: usize) -> Vfloat8 {
     }
 }
 
+#[isa]
 /// `compute_error_of_weight_set_1plane`.
 pub fn compute_error_of_weight_set_1plane(
     eai: &EndpointsAndWeights,
@@ -479,6 +497,7 @@ pub fn compute_error_of_weight_set_1plane(
     error_summav.hadd_s()
 }
 
+#[isa]
 /// `compute_error_of_weight_set_2planes`.
 pub fn compute_error_of_weight_set_2planes(
     eai1: &EndpointsAndWeights,
@@ -507,6 +526,7 @@ pub fn compute_error_of_weight_set_2planes(
     error_summav.hadd_s()
 }
 
+#[isa]
 /// `compute_ideal_weights_for_decimation`.
 pub fn compute_ideal_weights_for_decimation(
     ei: &EndpointsAndWeights,
@@ -600,6 +620,7 @@ pub fn compute_ideal_weights_for_decimation(
     }
 }
 
+#[isa]
 /// `compute_quantized_weights_for_decimation`.
 pub fn compute_quantized_weights_for_decimation(
     di: &DecimationInfo,
@@ -668,6 +689,7 @@ pub fn compute_quantized_weights_for_decimation(
     }
 }
 
+#[isa]
 /// `compute_rgbo_vector`.
 fn compute_rgbo_vector(
     rgba_weight_sum: Vfloat4,
@@ -712,6 +734,7 @@ fn compute_rgbo_vector(
     )
 }
 
+#[isa]
 /// Unquantized weights as floats (`int_to_float(vint(dec_weights_uquant + i)) / 64`).
 fn dequant_weights(dec_weights_uquant: &[u8], weight_count: usize, out: &mut [f32]) {
     let mut i = 0;
@@ -722,6 +745,7 @@ fn dequant_weights(dec_weights_uquant: &[u8], weight_count: usize, out: &mut [f3
     }
 }
 
+#[isa]
 /// `recompute_ideal_colors_1plane`.
 pub fn recompute_ideal_colors_1plane(
     blk: &ImageBlock,
@@ -888,6 +912,7 @@ pub fn recompute_ideal_colors_1plane(
     }
 }
 
+#[isa]
 /// `recompute_ideal_colors_2planes`.
 pub fn recompute_ideal_colors_2planes(
     blk: &ImageBlock,
