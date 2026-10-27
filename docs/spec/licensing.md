@@ -19,8 +19,8 @@ The port is a translation, so each file keeps the copyright and license of its s
   upstream's `REUSE.toml`.
 - `NOTICE.md` lists the components and carries the Basis Universal NOTICE (§4(d)).
 - `Cargo.toml`: `license = "Apache-2.0 AND BSD-3-Clause AND MIT AND Zlib"`. `include` keeps
-  `tests/`, `scripts/` and `docs/` out of the package. There is no `repository` field, so the
-  crate doesn't point at the Khronos repository.
+  `tests/`, `scripts/` and `docs/` out of the package. `repository` is
+  github.com/qbart/ktx-rs, not the Khronos repository.
 - Left out: `hi_mark.ktx` and `hi_mark_sq.ktx` (LicenseRef-HI-Trademark, not open source).
   Their sections were removed from `tests/resources/golden/info.txt`. Ericsson `etcdec` is never
   vendored; `scripts/golden/gen_etcunpack_golden.sh` compiles it from `./ref` only to create
