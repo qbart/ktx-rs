@@ -100,7 +100,16 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
 - [x] Encoder threads run inline on wasm (`scoped.rs`), output unchanged
 - [x] astcenc sin/cos tables embedded (glibc values): output identical on every platform
 - [x] Test suite under wasmtime (`make test-wasm`), CTS excluded (no process spawning)
-- [ ] wasm-bindgen / JS API (separate crate)
+- JS API: see "JS binding" below
+
+## JS binding (`bindings/js`, `ktx-rs-wasm`, docs/spec/js_binding.md)
+- [ ] Crate scaffold (wasm-bindgen), embind-compatible JS layer (factory promise, enum objects
+  with `.value`, `.delete()`)
+- [ ] `msc_basis_transcoder.js` (`transcoder_wrapper.cpp`)
+- [ ] `libktx_read.js` (`ktx_wrapper.cpp` read-only: texture, transcode, WebGL upload)
+- [ ] `libktx.js` (`ktx_wrapper.cpp` with `KTX_FEATURE_WRITE`: create, compress, write)
+- [ ] `tests/webgl` demo pages
+- Java (`interface/java_binding`) and Python (`interface/python_binding`) bindings: not ported yet
 
 ## Performance (docs/spec/performance.md)
 - [x] benchmark vs the C++ `ktx` (`scripts/bench/bench.sh`, outputs compared byte for byte)

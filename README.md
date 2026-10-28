@@ -20,8 +20,10 @@ it tracks is recorded in [LATEST_REFERENCE.md](LATEST_REFERENCE.md).
 - The `ktx` CLI: `create`, `convert`, `encode`, `deflate`, `transcode`, `extract`, `info`,
   `validate`, `compare`, `help`.
 
-Not ported: the legacy tools (`toktx`, `ktx2check`, ...), language bindings, OpenCL encoding, and
-ASTC HDR encoding (broken upstream; deferred). See [ROADMAP.md](ROADMAP.md) for the full status.
+In progress: the JS binding (`libktx.js`, `msc_basis_transcoder.js`) as the `ktx-rs-wasm` crate.
+
+Not ported: the legacy tools (`toktx`, `ktx2check`, ...), the Java and Python bindings (not ported
+yet), OpenCL encoding, and ASTC HDR encoding (broken upstream; deferred). See [ROADMAP.md](ROADMAP.md) for the full status.
 
 ## Building and installing the CLI
 

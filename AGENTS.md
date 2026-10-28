@@ -2,9 +2,13 @@
 
 KTX is a Rust library as pure rust port of KTX-software in C++ https://github.com/KhronosGroup/KTX-Software.
 
-Library port focues only on two components, rest is ignored:
+Library port focues only on these components, rest is ignored:
 - libktx
 - ktx cli
+- JS binding (`interface/js_binding`: `libktx.js`, `libktx_read.js`, `msc_basis_transcoder.js`)
+  via wasm-bindgen in the `ktx-rs-wasm` crate (`bindings/js`)
+
+Other language bindings (Java, Python) are not ported yet.
 
 The only C bindings that are allowed:
 - Vulkan
