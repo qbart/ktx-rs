@@ -1,4 +1,11 @@
-# OpenGL loader (`glloader.c`, `gl_funcs.c`, `gl_funclist.inl`) -> `src/glloader.rs`
+# OpenGL loader (`glloader.c`, `gl_funcs.c`, `gl_funclist.inl`) -> `src/glloader.rs`, `src/glupload.rs`
+
+Split: `glupload.rs` (always built, no `unsafe`) holds the GL independent `glloader.c` logic
+(capability discovery, image callbacks, `ktxTexture*_GLUpload`) over a `GlCommands` trait and a
+caller owned `GlContextCaps` (`gl_upload_with`); `glloader.rs` is the native backend (loaded
+function pointers, process global commands + capabilities, the `unsafe` `gl_upload` API). The
+JS binding implements `GlCommands` on WebGL (docs/spec/js_binding.md). Optional commands zeroed
+for ES < 3 are recorded in `GlContextCaps` instead of clearing the pointers.
 
 Feature `opengl` (opt-in; upstream `LIBKTX_FEATURE_GL_UPLOAD`). OpenGL is the second allowed C
 binding (AGENTS.md): plain `extern "system"` function pointer types, no GL crate; `libloading`
