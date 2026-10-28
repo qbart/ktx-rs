@@ -15,7 +15,7 @@ use super::piz::decompress_piz;
 use super::*;
 
 /// Largest single buffer the decoder allocates (C would `malloc` / throw).
-const MAX_ALLOC: usize = 1 << 32;
+const MAX_ALLOC: u64 = 1 << 32;
 
 /// `TINYEXR_DIMENSION_THRESHOLD`.
 const TINYEXR_DIMENSION_THRESHOLD: i64 = 1024 * 8192;
@@ -46,7 +46,7 @@ fn rd_u64(mem: &[u8], pos: u64) -> u64 {
 
 /// Zero filled buffer, `None` when it cannot be allocated.
 fn try_zeroed<T: Clone + Default>(n: usize) -> Option<Vec<T>> {
-    if n.checked_mul(size_of::<T>())? > MAX_ALLOC {
+    if n.checked_mul(size_of::<T>())? as u64 > MAX_ALLOC {
         return None;
     }
     let mut v = Vec::new();
