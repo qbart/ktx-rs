@@ -50,6 +50,11 @@ Target: KTX's AVX2 build with invariance on (`vfloat` = 8 lanes, `vfloatacc` = 4
 - `weight_align.rs`: angular endpoints (sin/cos tables, lowest / highest weights per step
   count, per quant level selection); entry points take `compression_working_buffers` and read
   the ideal weights from `tmpbuf.dec_weights_ideal` (what every C++ caller passes).
+  Deviation: C++ fills the sin/cos tables with the platform `sinf` / `cosf`, which differ in the
+  last bit between libms (glibc is 1 ulp off in 48 of 2048 entries; musl/wasm is correctly
+  rounded), breaking astcenc's cross-platform invariance claim. The port embeds glibc's values
+  (`sincos_tables.rs`, `scripts/gen_astcenc_sincos.py`), so output matches upstream on Linux
+  everywhere.
 - `color_quantize.rs`: `pack_color_endpoints` for all 16 formats incl. blue contraction, delta /
   offset encodings, the LDR quant nudge loops and the HDR submode searches.
 - `find_best_partitioning.rs`: k-means seeded partition ordering, mismatch bit counting and the

@@ -95,6 +95,13 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
 - [x] OpenGL loader (`glloader.c`, `gl_funcs.c`): opt-in feature `opengl`, desktop + ES context
   capabilities, ETC software fallback, tested on Mesa llvmpipe via EGL (docs/spec/glloader.md)
 
+## wasm32 (docs/spec/wasm.md)
+- [x] Library builds for `wasm32-unknown-unknown` / `wasm32-wasip1` (GPU loader features no-ops)
+- [x] Encoder threads run inline on wasm (`scoped.rs`), output unchanged
+- [x] astcenc sin/cos tables embedded (glibc values): output identical on every platform
+- [x] Test suite under wasmtime (`make test-wasm`), CTS excluded (no process spawning)
+- [ ] wasm-bindgen / JS API (separate crate)
+
 ## Performance (docs/spec/performance.md)
 - [x] benchmark vs the C++ `ktx` (`scripts/bench/bench.sh`, outputs compared byte for byte)
 - [x] basisu job pool (`job_pool.rs`); UASTC LDR block encode threaded
@@ -147,7 +154,8 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
 
 ## Not covered
 - Vulkan / OpenGL loaders tested only on Mesa software drivers (lavapipe, llvmpipe), not on GPUs.
-- Tested on Linux x86-64 only (aarch64 compiles); Windows and macOS untested.
+- Tested on Linux x86-64 and wasm32-wasip1 (wasmtime) only (aarch64 compiles); Windows and
+  macOS untested.
 - BasisLZ video (P-frame) transcoding ported but untested: no video files in the test data.
 - No fuzzing of the parsers (KTX1/KTX2, BasisLZ, zstd/zlib, PNG/EXR/JPEG); relevant only for
   untrusted input.

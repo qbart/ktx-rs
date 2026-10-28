@@ -15,6 +15,8 @@ it tracks is recorded in [LATEST_REFERENCE.md](LATEST_REFERENCE.md).
 - ASTC encoding and decoding (astcenc port), ETC unpack, PNG / JPEG / EXR input.
 - GPU upload: Vulkan loader (feature `vulkan`, default) and OpenGL / OpenGL ES loader (feature
   `opengl`, opt in).
+- WebAssembly: the library builds for `wasm32-unknown-unknown` / `wasm32-wasip1` (single
+  threaded, GPU loaders compiled out); see [docs/spec/wasm.md](docs/spec/wasm.md).
 - The `ktx` CLI: `create`, `convert`, `encode`, `deflate`, `transcode`, `extract`, `info`,
   `validate`, `compare`, `help`.
 
