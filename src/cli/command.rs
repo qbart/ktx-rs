@@ -577,6 +577,8 @@ impl OutputStream {
 }
 
 impl Drop for OutputStream {
+    // `File` has no `Drop` on wasm.
+    #[cfg_attr(target_family = "wasm", allow(clippy::drop_non_drop))]
     fn drop(&mut self) {
         if let Some(f) = self.file.take() {
             drop(f);
