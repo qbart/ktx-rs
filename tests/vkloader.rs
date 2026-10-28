@@ -6,7 +6,7 @@
 //! `ktxTexture_VkUploadEx_WithSuballocator` (optimal tiling fast / padded path, linear fast /
 //! padded path, mipmap generation, suballocator) to the first Vulkan device (lavapipe works),
 //! read back and compared with the source images.
-#![cfg(feature = "vulkan")]
+#![cfg(all(feature = "vulkan", not(target_family = "wasm")))]
 #![allow(unsafe_code, clippy::panic)]
 
 use std::collections::HashMap;

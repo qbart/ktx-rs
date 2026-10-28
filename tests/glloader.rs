@@ -5,7 +5,7 @@
 //! surfaceless EGL), commands loaded with `eglGetProcAddress`. Not in the C suite (only the
 //! interactive `glloadtests`): every upload is read back with `glGetTexImage` and compared.
 //! One test function: libktx keeps the loaded commands and context capabilities per process.
-#![cfg(feature = "opengl")]
+#![cfg(all(feature = "opengl", not(target_family = "wasm")))]
 #![allow(unsafe_code, clippy::panic)]
 
 mod common;
