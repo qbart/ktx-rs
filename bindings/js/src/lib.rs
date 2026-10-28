@@ -5,11 +5,17 @@
 //! upstream Emscripten module (docs/spec/js_binding.md); the embind-compatible JS API is built
 //! by `js/embind.js` and `js/<module>.js` on top of these exports.
 
+#[cfg(feature = "read")]
+pub mod libktx;
+#[cfg(feature = "write")]
+pub mod libktx_write;
 #[cfg(feature = "msc")]
 pub mod msc;
+#[cfg(feature = "write")]
+mod vk_format;
 
 /// `{name: value, ...}` for one enum, turned into an embind-style enum by `js/embind.js`.
-#[cfg(feature = "msc")]
+#[cfg(any(feature = "msc", feature = "read"))]
 fn enum_object(values: &[(&str, u32)]) -> wasm_bindgen::JsValue {
     use js_sys::{Object, Reflect};
     use wasm_bindgen::JsValue;

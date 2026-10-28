@@ -9,7 +9,9 @@ cargo feature per upstream module, each built as its own `.wasm`:
 | `read` | `ktx_js_read` (`ktx_wrapper.cpp`) | `libktx_read.{js,wasm}` | `createKtxReadModule` |
 | `write` | `ktx_js` (`ktx_wrapper.cpp`, `KTX_FEATURE_WRITE`) | `libktx.{js,wasm}` | `createKtxModule` |
 
-`make js` builds `bindings/js/dist/`, `make test-js` runs the node tests.
+`make js` builds `bindings/js/dist/`, `make test-js` runs the node tests. Upstream's
+`class_compat.js` (aliases set from `onRuntimeInitialized`, replacing the user's callback) and
+`module_create_compat.js` (`var LIBKTX`) are reproduced for the libktx builds.
 
 ## JS layer (embind compatibility)
 
@@ -22,7 +24,9 @@ wasm-bindgen's `--target no-modules` glue is concatenated with `js/embind.js` an
   taking enums accept the entry or a plain number.
 - Objects have `delete()` / `isDeleted()` (embind) on top of wasm-bindgen's `free()`.
 - Returned memory views are copies (`Uint8Array`) instead of views into the wasm heap; they stay
-  valid after `delete()`.
+  valid after `delete()`. Rust `None` is mapped back to `null` where C++ returns `val::null()`.
+- Enum entries sharing a value: `values[n]` is the last registered entry, as in embind (e.g.
+  `khr_df_primaries.values[1]` is `SRGB`, not `BT709`).
 
 ## msc_basis_transcoder
 
@@ -39,3 +43,33 @@ wasm-bindgen's `--target no-modules` glue is concatenated with `js/embind.js` an
 - Kept C++ behaviour: output size from `getTranscodedImageByteLength` in `uint32_t` (PVRTC1
   padded to 8x8); the byte size is passed as `output_blocks_buf_size_in_blocks_or_pixels`; each
   transcoder object keeps its own default `basisu_transcoder_state`.
+
+## libktx_read / libktx (ktx_wrapper.cpp)
+
+- `texture(data)` (`ktxTexture_CreateFromMemory`, image data loaded), `texture(createInfo,
+  storage)` (write build, `ktxTexture2_Create`); overload picked by argument count like embind.
+- Properties: `dataSize`, `baseWidth`, `baseHeight`, `colorModel`, `transferFunction`, `oetf`,
+  `primaries` (setters in the write build, results ignored), `isSrgb`, `isHDR`,
+  `isPremultiplied`, `isTranscodable`, `needsTranscoding`, `numComponents`, `orientation`
+  (value_object of enum entries), `supercompressScheme` (upstream spelling), `vkFormat`.
+- Methods: `createCopy`, `findKeyValue`, `getImage`, `transcodeBasis`, `decodeAstc`; write
+  build: `compressAstc` (1 thread), `compressBasis` (1 thread, `noSSE`), `deflateZstd`,
+  `deflateZLIB`, `addKVPairString` (value stored with its NUL), `addKVPairByte`,
+  `deleteKVPair`, `setImageFromMemory`, `writeToMemory`. Results are `error_code` entries.
+- Write build: `textureCreateInfo`, `astcParams`, `basisParams` (zeroed like embind's
+  `constructor<>()`; enum typed fields set with entries, read as numbers; `inputSwizzle` as a
+  4 character string), the write enums, `VkFormat` (230 names, generated from `vk_format.inl` by
+  `scripts/gen_js_vkformat.py`) and the constants (`FACESLICE_WHOLE_lEVEL` spelling kept).
+- Kept C++ behaviour: `error_code.FILE_UNEXPECTED_ERROR` is `KTX_FILE_UNEXPECTED_EOF`; enum
+  getters give `undefined` for unregistered values (`colorModel` of ETC1S); `numComponents` /
+  `vkFormat` log and return 0 for KTX1; `ERROR: ...` messages go to `console.log` (stdout).
+- Deviation: a texture whose creation failed holds no `ktxTexture` (C++ dereferences a null
+  pointer); its getters return 0 / false and its methods `INVALID_OPERATION` / `null`.
+  `decodeAstc` / `compressAstc` / `compressBasis` on KTX1 return `INVALID_OPERATION` (C++
+  casts to `ktxTexture2`).
+- Not yet ported: `glUpload` (WebGL upload, `ktxTexture_GLUpload` on the preinitialized
+  context).
+
+Tests (`bindings/js/tests`, node): API surface of all three modules, `transcodeBasis` /
+`getImage` of every image vs `golden/transcode.tsv`, and the write scenarios vs
+`golden/write.tsv`, both written by `cargo run -p ktx-rs-wasm --example js_golden [write]`.

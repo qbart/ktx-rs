@@ -1,14 +1,23 @@
 // SPDX-FileCopyrightText: 2026 KTX Rust port contributors
 // SPDX-License-Identifier: Apache-2.0
 // Part of the Rust port of KTX-Software; see NOTICE.md.
-//! Writes the golden transcodes of the JS binding tests (bindings/js/tests/golden/transcode.tsv)
-//! with the native library: `ktxTexture2_TranscodeBasis` per target, one FNV-1a 64 hash per
-//! image (level, layer, face). The ported transcode tests check that path against C++.
+//! Writes the goldens of the JS binding tests with the native library (whose paths the ported
+//! tests check against C++):
+//! - `transcode.tsv`: `ktxTexture2_TranscodeBasis` per target, one FNV-1a 64 hash per image
+//!   (level, layer, face);
+//! - `write.tsv`: the `libktx.js` write scenarios of `tests/libktx.test.js`, done the way
+//!   `ktx_wrapper.cpp` calls libktx (zeroed params, one thread), hash of `writeToMemory`.
 //!
 //! cargo run -p ktx-rs-wasm --example js_golden > bindings/js/tests/golden/transcode.tsv
+//! cargo run -p ktx-rs-wasm --example js_golden write > bindings/js/tests/golden/write.tsv
 
+use ktx::encode_params::{AstcParams, BasisParams, KTX_ASTC_PARAMS_SIZE, KTX_BASIS_PARAMS_SIZE};
 use ktx::texture::KtxTexture;
-use ktx::{KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, Texture2, TranscodeFmt};
+use ktx::vkformat::VkFormat;
+use ktx::{
+    KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, KtxResult, Texture2, TextureCreateInfo,
+    TextureCreateStorage, TranscodeFmt,
+};
 
 /// Paths relative to the repository root.
 const FILES: [&str; 4] = [
@@ -49,7 +58,103 @@ fn fnv1a64(data: &[u8]) -> u64 {
     h
 }
 
+/// The 32x32 R8G8B8A8_SRGB source image of the write scenarios.
+fn source_image() -> Vec<u8> {
+    (0..32 * 32 * 4u32)
+        .map(|i| ((i * 7 + (i >> 7)) & 0xff) as u8)
+        .collect()
+}
+
+/// `new texture(createInfo, ALLOC_STORAGE)`, `setImageFromMemory`,
+/// `addKVPairString(ORIENTATION_KEY, "rd")`.
+fn raw_texture() -> KtxResult<Texture2> {
+    let info = TextureCreateInfo {
+        vk_format: VkFormat::R8G8B8A8_SRGB,
+        base_width: 32,
+        base_height: 32,
+        base_depth: 1,
+        num_dimensions: 2,
+        num_levels: 1,
+        num_layers: 1,
+        num_faces: 1,
+        ..Default::default()
+    };
+    let mut t = Texture2::create(&info, TextureCreateStorage::AllocStorage)?;
+    t.set_image_from_memory(0, 0, 0, &source_image())?;
+    t.kv_data_head.add_kv_pair("KTXorientation", b"rd\0")?;
+    Ok(t)
+}
+
+/// `compressBasis` as `ktx_wrapper.cpp` calls it.
+fn compress_basis(t: &mut Texture2, mut p: BasisParams) -> KtxResult<()> {
+    p.struct_size = KTX_BASIS_PARAMS_SIZE;
+    p.thread_count = 1;
+    p.verbose = false;
+    p.no_sse = true;
+    t.compress_basis_ex(&p)
+}
+
+fn write_scenarios() -> KtxResult<()> {
+    let out = |name: &str, t: &mut Texture2| -> KtxResult<()> {
+        let data = t.write_to_memory()?;
+        println!("{name}\t{}\t{:016x}", data.len(), fnv1a64(&data));
+        Ok(())
+    };
+    out("raw", &mut raw_texture()?)?;
+
+    let mut t = raw_texture()?;
+    let p = BasisParams {
+        codec: 1,
+        quality_level: 128,
+        etc1s_compression_level: 2,
+        ..Default::default()
+    };
+    compress_basis(&mut t, p)?;
+    out("etc1s", &mut t)?;
+
+    let mut t = raw_texture()?;
+    let p = BasisParams {
+        codec: 2,
+        uastc_flags: 0,
+        ..Default::default()
+    };
+    compress_basis(&mut t, p)?;
+    t.deflate_zstd(5)?;
+    out("uastc_zstd", &mut t)?;
+
+    let mut t = raw_texture()?;
+    let p = AstcParams {
+        struct_size: KTX_ASTC_PARAMS_SIZE,
+        thread_count: 1,
+        block_dimension: 4,
+        mode: 1,
+        quality_level: 10,
+        ..Default::default()
+    };
+    t.compress_astc_ex(&p)?;
+    t.deflate_zlib(3)?;
+    out("astc_zlib", &mut t)?;
+
+    let mut t = raw_texture()?;
+    t.kv_data_head.add_kv_pair("mykey", &[1, 2, 3])?;
+    t.kv_data_head.delete_kv_pair("KTXorientation")?;
+    // The JS property setter ignores the result (LINEAR is refused for an sRGB format).
+    let _ = t.set_oetf(1);
+    t.set_primaries(10)?;
+    out("kv_colorspace", &mut t)?;
+    Ok(())
+}
+
 fn main() -> std::process::ExitCode {
+    if std::env::args().nth(1).as_deref() == Some("write") {
+        return match write_scenarios() {
+            Ok(()) => std::process::ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("{e:?}");
+                std::process::ExitCode::FAILURE
+            }
+        };
+    }
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
     for file in FILES {
         for (name, value) in TARGETS {

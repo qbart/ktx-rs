@@ -20,7 +20,7 @@ it tracks is recorded in [LATEST_REFERENCE.md](LATEST_REFERENCE.md).
 - The `ktx` CLI: `create`, `convert`, `encode`, `deflate`, `transcode`, `extract`, `info`,
   `validate`, `compare`, `help`.
 
-JS binding: `ktx-rs-wasm` (see below); `msc_basis_transcoder.js` done, `libktx.js` in progress.
+JS binding: `ktx-rs-wasm` (see below); all three modules done except WebGL upload.
 
 Not ported: the legacy tools (`toktx`, `ktx2check`, ...), the Java and Python bindings (not ported
 yet), OpenCL encoding, and ASTC HDR encoding (broken upstream; deferred). See [ROADMAP.md](ROADMAP.md) for the full status.
@@ -84,8 +84,8 @@ MSC_TRANSCODER().then((module) => {
 });
 ```
 
-Done: `msc_basis_transcoder.js`. In progress: `libktx.js` / `libktx_read.js`. See
-[docs/spec/js_binding.md](docs/spec/js_binding.md).
+Done: `msc_basis_transcoder.js`, `libktx.js` and `libktx_read.js` except `texture.glUpload`
+(WebGL upload, in progress). See [docs/spec/js_binding.md](docs/spec/js_binding.md).
 
 ## Design notes
 - Pure Rust except the allowed C bindings: Vulkan (`ash`) and, behind `opengl`, OpenGL.

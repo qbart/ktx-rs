@@ -29,7 +29,7 @@ fn tex_format(v: u32) -> Option<BasisTexFormat> {
 
 /// The `TranscodeTarget`, `TextureFormat` and `TranscodeFlagBits` enums (`enum_<...>` in
 /// `EMSCRIPTEN_BINDINGS`).
-#[wasm_bindgen(js_name = __enums)]
+#[wasm_bindgen(js_name = __mscEnums)]
 pub fn enums() -> JsValue {
     let obj = Object::new();
     let targets = super::enum_object(&[

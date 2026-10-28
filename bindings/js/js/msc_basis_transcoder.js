@@ -8,7 +8,7 @@
 return function MSC_TRANSCODER(moduleArg) {
   return __ktxModule('msc_basis_transcoder', moduleArg, (Module) => {
     const g = wasm_bindgen;
-    const enums = g.__enums();
+    const enums = g.__mscEnums();
     Module.TranscodeTarget = __ktxEnum('TranscodeTarget', enums.TranscodeTarget);
     Module.TextureFormat = __ktxEnum('TextureFormat', enums.TextureFormat);
     Module.TranscodeFlagBits = __ktxEnum('TranscodeFlagBits', enums.TranscodeFlagBits);

@@ -28,6 +28,8 @@ test-wasm:
 # JS binding (bindings/js/dist): needs wasm-bindgen-cli matching the wasm-bindgen crate version.
 js:
 	bindings/js/build.sh msc msc_basis_transcoder MSC_TRANSCODER
+	bindings/js/build.sh read libktx_read createKtxReadModule libktx_common.js module_create_compat.js
+	bindings/js/build.sh write libktx createKtxModule libktx_common.js module_create_compat.js
 
 test-js: js
 	node --test bindings/js/tests/

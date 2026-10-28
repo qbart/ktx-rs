@@ -4,9 +4,11 @@
 #
 # Builds one JS module into bindings/js/dist: <name>.js (wasm-bindgen no-modules glue +
 # js/embind.js + js/<name>.js inside the factory scope) and <name>.wasm.
-# Usage: build.sh <cargo feature> <module name> <factory name>
+# Usage: build.sh <cargo feature> <module name> <factory name> [scope js files] [post js files]
+# Scope files (js/, space separated) go between embind.js and js/<name>.js; post files are
+# appended after the factory (Emscripten --extern-post-js).
 set -eu
-feature=$1 name=$2 factory=$3
+feature=$1 name=$2 factory=$3 scope=${4:-} post=${5:-}
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 out=$here/dist
@@ -21,7 +23,9 @@ wasm-bindgen --target no-modules --no-typescript --out-dir "$tmp" --out-name "$n
   echo "// $name.js: ktx-rs-wasm $(sed -n 's/^version = "\(.*\)"/\1/p' "$here/Cargo.toml" | head -1), port of KTX-Software interface/js_binding."
   echo "// SPDX-License-Identifier: Apache-2.0"
   echo "var $factory = (() => {"
-  cat "$tmp/$name.js" "$here/js/embind.js" "$here/js/$name.js"
+  cat "$tmp/$name.js" "$here/js/embind.js"
+  for f in $scope; do cat "$here/js/$f"; done
+  cat "$here/js/$name.js"
   echo "})();"
   echo "if (typeof exports === 'object' && typeof module === 'object') {"
   echo "  module.exports = $factory;"
@@ -29,6 +33,7 @@ wasm-bindgen --target no-modules --no-typescript --out-dir "$tmp" --out-name "$n
   echo "} else if (typeof define === 'function' && define['amd']) {"
   echo "  define([], () => $factory);"
   echo "}"
+  for f in $post; do cat "$here/js/$f"; done
 } > "$out/$name.js"
 cp "$tmp/${name}_bg.wasm" "$out/$name.wasm"
 rm -rf "$tmp"

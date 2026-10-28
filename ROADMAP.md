@@ -107,8 +107,11 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
   with `.value`, `.delete()`), `make js` / `make test-js` (node)
 - [x] `msc_basis_transcoder.js` (`transcoder_wrapper.cpp`): every image of 4 ETC1S / UASTC files
   to 18 targets matches libktx `TranscodeBasis` (`bindings/js/tests`)
-- [ ] `libktx_read.js` (`ktx_wrapper.cpp` read-only: texture, transcode, WebGL upload)
-- [ ] `libktx.js` (`ktx_wrapper.cpp` with `KTX_FEATURE_WRITE`: create, compress, write)
+- [~] `libktx_read.js` (`ktx_wrapper.cpp` read-only): texture, properties, transcode, getImage,
+  findKeyValue; transcodes match libktx. Missing: `glUpload` (WebGL)
+- [x] `libktx.js` (`ktx_wrapper.cpp` with `KTX_FEATURE_WRITE`): create, setImageFromMemory,
+  compressBasis / compressAstc, deflate, KV data, colour space, writeToMemory; byte exact vs
+  the native library
 - [ ] `tests/webgl` demo pages
 - Java (`interface/java_binding`) and Python (`interface/python_binding`) bindings: not ported yet
 
