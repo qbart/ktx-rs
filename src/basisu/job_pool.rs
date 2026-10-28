@@ -32,7 +32,7 @@ pub fn map_jobs<R: Send>(
         }
         done
     };
-    let parts = std::thread::scope(|s| {
+    let parts = crate::scoped::scope(|s| {
         let handles: Vec<_> = (1..threads).map(|_| s.spawn(worker)).collect();
         let mut parts = vec![Some(worker())];
         for h in handles {
@@ -76,7 +76,7 @@ pub fn for_each_chunk_mut<T: Send>(
             job(j * chunk_len, chunk);
         }
     };
-    std::thread::scope(|s| {
+    crate::scoped::scope(|s| {
         let handles: Vec<_> = (1..threads).map(|_| s.spawn(worker)).collect();
         worker();
         handles.into_iter().all(|h| h.join().is_ok())

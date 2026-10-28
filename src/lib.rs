@@ -20,13 +20,14 @@ pub mod etcunpack;
 pub mod formatsize;
 pub mod gl_format;
 pub mod glformat_str;
-#[cfg(feature = "opengl")]
+#[cfg(all(feature = "opengl", not(target_family = "wasm")))]
 pub mod glloader;
 pub mod hashlist;
 pub mod info;
 pub mod jpgd;
 pub mod ktxint;
 pub mod lodepng;
+mod scoped;
 pub mod stream;
 pub mod strings;
 pub mod swap;
@@ -39,7 +40,7 @@ pub mod version;
 pub mod vk2gl;
 pub mod vk_format;
 pub mod vkformat;
-#[cfg(feature = "vulkan")]
+#[cfg(all(feature = "vulkan", not(target_family = "wasm")))]
 pub mod vkloader;
 pub mod writer1;
 pub mod writer2;

@@ -33,7 +33,7 @@ fn launch_threads(
     if thread_count <= 1 {
         return func(0);
     }
-    std::thread::scope(|s| {
+    crate::scoped::scope(|s| {
         let handles: Vec<_> = (0..thread_count)
             .map(|thread_id| {
                 let func = &func;

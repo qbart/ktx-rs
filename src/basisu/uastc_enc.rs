@@ -2424,7 +2424,7 @@ pub fn uastc_rdo(
         return (ok, stats);
     }
     let per = blocks_per_job as usize;
-    let all = std::thread::scope(|s| {
+    let all = crate::scoped::scope(|s| {
         let handles: Vec<_> = blocks
             .chunks_mut(per)
             .enumerate()

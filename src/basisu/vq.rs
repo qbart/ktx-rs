@@ -766,7 +766,7 @@ fn generate_hierarchical_codebook_threaded_internal<const N: usize>(
         Some((local_clusters, local_parent_clusters))
     };
 
-    let results: Vec<Option<JobClusters>> = std::thread::scope(|s| {
+    let results: Vec<Option<JobClusters>> = crate::scoped::scope(|s| {
         let handles: Vec<_> = initial_codebook[..max_threads as usize]
             .iter()
             .map(|c| s.spawn(move || job(c)))
