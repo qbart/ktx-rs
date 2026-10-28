@@ -13,6 +13,8 @@ pub mod libktx_write;
 pub mod msc;
 #[cfg(feature = "write")]
 mod vk_format;
+#[cfg(feature = "read")]
+pub mod webgl;
 
 /// `{name: value, ...}` for one enum, turned into an embind-style enum by `js/embind.js`.
 #[cfg(any(feature = "msc", feature = "read"))]

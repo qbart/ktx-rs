@@ -15,6 +15,24 @@ function __ktxLibktxPopulate(Module) {
   const err = (code) => Module.error_code.values[code];
   // Rust None comes back as undefined; the C++ returns val::null().
   const orNull = (v) => (v === undefined ? null : v);
+  // Module.GL (Emscripten GL emulation, js/gl.js) and the commands glUpload runs on. A WebGL
+  // exception is kept until the upload returns so it never unwinds through the wasm frames.
+  const { GL, commands } = __ktxGL(Module);
+  Module.GL = GL;
+  let pendingException = null;
+  const guardedCommands = {};
+  for (const [name, f] of Object.entries(commands)) {
+    guardedCommands[name] = (...args) => {
+      try {
+        return f(...args);
+      } catch (e) {
+        if (pendingException === null) pendingException = e;
+        GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+        return undefined;
+      }
+    };
+  }
+
   const readOnly = (name) => () => {
     throw new Error(`texture.${name} is a read-only property`);
   };
@@ -75,6 +93,23 @@ function __ktxLibktxPopulate(Module) {
     }
     getImage(level, layer, faceSlice) {
       return orNull(super.getImage(level, layer, faceSlice));
+    }
+
+    // NOTE: WebGLTexture objects are completely opaque so the option of passing in the
+    // texture to use is not viable.
+    glUpload() {
+      if (!GL.currentContext) {
+        throw new Error('glUpload: no current WebGL context; call GL.makeContextCurrent(' +
+          'GL.createContext(canvas, attributes)) first');
+      }
+      pendingException = null;
+      const [texname, target, error] = this._gl_upload(guardedCommands);
+      if (pendingException !== null) {
+        const e = pendingException;
+        pendingException = null;
+        throw e;
+      }
+      return { object: GL.textures[texname], target, error };
     }
 
     transcodeBasis(targetFormat, decodeFlags) {

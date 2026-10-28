@@ -24,6 +24,8 @@ identifier of the code it was translated from. Files without a header are annota
 | `src/lodepng` | LodePNG | Lode Vandevenne | Zlib |
 | `src/tinyexr` | tinyexr (with OpenEXR code) | Syoyo Fujita and contributors; Industrial Light & Magic | BSD-3-Clause |
 | `src/cli/options.rs` | cxxopts | Jarryd Beck | MIT |
+| `bindings/js` | KTX-Software `interface/js_binding` | Khronos Group, Inc. and KTX-Software contributors | Apache-2.0 |
+| `bindings/js/js/gl.js` | Emscripten `src/library_webgl.js` (GL emulation subset) | Emscripten authors | MIT |
 
 `src/etcunpack.rs` decodes ETC2/EAC following the Khronos Data Format Specification. It does
 not contain code from `etcdec.cxx` (Ericsson AB), which is not open source and is not part of

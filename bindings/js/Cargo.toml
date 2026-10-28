@@ -3,7 +3,7 @@ name = "ktx-rs-wasm"
 version = "4.4.2"
 edition = "2024"
 description = "JS / WebAssembly binding of ktx-rs (port of KTX-Software interface/js_binding)"
-license = "Apache-2.0"
+license = "Apache-2.0 AND MIT"
 repository = "https://github.com/qbart/ktx-rs"
 
 [lib]

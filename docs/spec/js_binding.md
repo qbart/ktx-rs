@@ -67,9 +67,24 @@ wasm-bindgen's `--target no-modules` glue is concatenated with `js/embind.js` an
   pointer); its getters return 0 / false and its methods `INVALID_OPERATION` / `null`.
   `decodeAstc` / `compressAstc` / `compressBasis` on KTX1 return `INVALID_OPERATION` (C++
   casts to `ktxTexture2`).
-- Not yet ported: `glUpload` (WebGL upload, `ktxTexture_GLUpload` on the preinitialized
-  context).
+- `glUpload()`: `ktxTexture_GLUpload` (the `glupload` core shared with the native loader) on
+  `js/gl.js`, a port of the part of Emscripten's `library_webgl.js` libktx uses (MIT, see
+  NOTICE.md): `Module.GL` (`createContext` honouring `preinitializedWebGLContext`,
+  `registerContext`, `makeContextCurrent`, `getContext`, `deleteContext`, the shared
+  `getNewId` name counter, `GL.textures`), `glGetString(GL_VERSION)` = `OpenGL ES 3.0 (...)`,
+  `GL_MAJOR/MINOR_VERSION` = 3 / 0 (`INVALID_ENUM` on WebGL 1), extensions listed plain and
+  `GL_` prefixed, pixel data as the typed array `heapObjectForWebGLType` picks, every GLES
+  command present except the 1D ones. Returns `{object: GL.textures[name], target, error}`;
+  the capability statics live once per module instance.
+- glUpload deviations: without a current context it throws a descriptive `Error` (Emscripten
+  fails on the null `GLctx`); a WebGL exception is held until the upload returns and then
+  rethrown, so it never unwinds through the wasm frames.
 
 Tests (`bindings/js/tests`, node): API surface of all three modules, `transcodeBasis` /
 `getImage` of every image vs `golden/transcode.tsv`, and the write scenarios vs
 `golden/write.tsv`, both written by `cargo run -p ktx-rs-wasm --example js_golden [write]`.
+`tests/browser` (`make test-js-browser`, chromedriver + headless Chrome, WebGL 2 on
+SwiftShader): `glUpload` of 2D mipmapped, 2D array, 3D, cube map (built with the write API),
+transcoded ETC1S (`libktx_read.js`) and KTX1 textures, every image read back through a
+framebuffer and compared with `getImage`; ETC2 without the WebGL extension (software unpack
+fallback); unpack alignment restored; untranscoded BasisLZ refused.

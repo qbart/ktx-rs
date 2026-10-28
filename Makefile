@@ -1,4 +1,4 @@
-.PHONY: build install wasm test-wasm js test-js publish publish-macros publish-ktx
+.PHONY: build install wasm test-wasm js test-js test-js-browser publish publish-macros publish-ktx
 
 PREFIX ?= $(HOME)
 
@@ -28,11 +28,16 @@ test-wasm:
 # JS binding (bindings/js/dist): needs wasm-bindgen-cli matching the wasm-bindgen crate version.
 js:
 	bindings/js/build.sh msc msc_basis_transcoder MSC_TRANSCODER
-	bindings/js/build.sh read libktx_read createKtxReadModule libktx_common.js module_create_compat.js
-	bindings/js/build.sh write libktx createKtxModule libktx_common.js module_create_compat.js
+	bindings/js/build.sh read libktx_read createKtxReadModule "gl.js libktx_common.js" module_create_compat.js
+	bindings/js/build.sh write libktx createKtxModule "gl.js libktx_common.js" module_create_compat.js
 
 test-js: js
 	node --test bindings/js/tests/
+
+# glUpload on real WebGL 2: headless Chrome through chromedriver (CHROMEDRIVER=, CHROME= paths;
+# Chrome for Testing's chrome-headless-shell works).
+test-js-browser: js
+	node bindings/js/tests/browser/run.js
 
 # crates.io: ktx-rs depends on ktx-rs-macros, so the macros crate goes first.
 publish:

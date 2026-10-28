@@ -129,6 +129,16 @@ for (const name of ['libktx', 'libktx_read']) {
     bad.delete();
 
     assert.throws(() => new ktx.texture(), /invalid number of parameters/);
+
+    // Module.GL (Emscripten GL emulation); glUpload needs a current context (run in a browser
+    // by tests/browser).
+    for (const f of ['createContext', 'makeContextCurrent', 'registerContext', 'getContext']) {
+      assert.strictEqual(typeof ktx.GL[f], 'function', f);
+    }
+    assert.ok(Array.isArray(ktx.GL.textures));
+    const g = new ktx.texture(load('tests/resources/ktx2/r8g8b8a8_srgb_mip.ktx2'));
+    assert.throws(() => g.glUpload(), /no current WebGL context/);
+    g.delete();
     if (!write) {
       const r = new ktx.texture(load('tests/resources/ktx2/kodim17_blze.ktx2'));
       assert.throws(() => { r.oetf = ktx.khr_df_transfer.LINEAR; }, /read-only/);
