@@ -103,9 +103,10 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
 - JS API: see "JS binding" below
 
 ## JS binding (`bindings/js`, `ktx-rs-wasm`, docs/spec/js_binding.md)
-- [ ] Crate scaffold (wasm-bindgen), embind-compatible JS layer (factory promise, enum objects
-  with `.value`, `.delete()`)
-- [ ] `msc_basis_transcoder.js` (`transcoder_wrapper.cpp`)
+- [x] Crate scaffold (wasm-bindgen), embind-compatible JS layer (factory promise, enum objects
+  with `.value`, `.delete()`), `make js` / `make test-js` (node)
+- [x] `msc_basis_transcoder.js` (`transcoder_wrapper.cpp`): every image of 4 ETC1S / UASTC files
+  to 18 targets matches libktx `TranscodeBasis` (`bindings/js/tests`)
 - [ ] `libktx_read.js` (`ktx_wrapper.cpp` read-only: texture, transcode, WebGL upload)
 - [ ] `libktx.js` (`ktx_wrapper.cpp` with `KTX_FEATURE_WRITE`: create, compress, write)
 - [ ] `tests/webgl` demo pages

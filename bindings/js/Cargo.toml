@@ -1,0 +1,32 @@
+[package]
+name = "ktx-rs-wasm"
+version = "4.4.2"
+edition = "2024"
+description = "JS / WebAssembly binding of ktx-rs (port of KTX-Software interface/js_binding)"
+license = "Apache-2.0"
+repository = "https://github.com/qbart/ktx-rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# One feature per upstream Emscripten module; each is built as its own .wasm (docs/spec/js_binding.md).
+# msc_basis_transcoder.js (transcoder_wrapper.cpp).
+msc = []
+# libktx_read.js (ktx_wrapper.cpp).
+read = []
+# libktx.js (ktx_wrapper.cpp with KTX_FEATURE_WRITE).
+write = ["read"]
+
+[dependencies]
+ktx-rs = { path = "../..", version = "4.4.2", default-features = false }
+wasm-bindgen = "0.2.129"
+js-sys = "0.3.106"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

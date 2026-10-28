@@ -21,7 +21,7 @@ vulkan = ["dep:ash", "dep:libloading"]
 opengl = ["dep:libloading"]
 
 [workspace]
-members = ["macros"]
+members = ["macros", "bindings/js"]
 
 [dependencies]
 bytemuck = "1.25.2"

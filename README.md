@@ -20,7 +20,7 @@ it tracks is recorded in [LATEST_REFERENCE.md](LATEST_REFERENCE.md).
 - The `ktx` CLI: `create`, `convert`, `encode`, `deflate`, `transcode`, `extract`, `info`,
   `validate`, `compare`, `help`.
 
-In progress: the JS binding (`libktx.js`, `msc_basis_transcoder.js`) as the `ktx-rs-wasm` crate.
+JS binding: `ktx-rs-wasm` (see below); `msc_basis_transcoder.js` done, `libktx.js` in progress.
 
 Not ported: the legacy tools (`toktx`, `ktx2check`, ...), the Java and Python bindings (not ported
 yet), OpenCL encoding, and ASTC HDR encoding (broken upstream; deferred). See [ROADMAP.md](ROADMAP.md) for the full status.
@@ -67,6 +67,25 @@ fn transcode_to_bc7(src: &str, dst: &str) -> KtxResult<()> {
 Functions keep their libktx names in snake case (`ktxTexture2_TranscodeBasis` is
 `Texture2::transcode_basis`) and return `KtxResult<T>`, whose error is the libktx `ErrorCode`.
 The library never panics on bad input (`unwrap`, `expect` and `panic!` are denied).
+
+## JavaScript / WebAssembly
+
+`bindings/js` (crate `ktx-rs-wasm`) ports KTX-Software's Emscripten JS binding to wasm-bindgen
+with the same JS API (factory promise, embind-style enums and `delete()`), so existing code
+keeps working. `make js` builds `bindings/js/dist/` (needs `wasm-bindgen-cli` matching the
+`wasm-bindgen` crate version); `make test-js` runs the node tests.
+
+```js
+const MSC_TRANSCODER = require('./msc_basis_transcoder.js');
+MSC_TRANSCODER().then((module) => {
+  module.initTranscoders();
+  const uit = new module.UastcImageTranscoder();
+  // ... uit.transcodeImage(module.TranscodeTarget.BC7_RGBA, data, imageInfo, 0, hasAlpha)
+});
+```
+
+Done: `msc_basis_transcoder.js`. In progress: `libktx.js` / `libktx_read.js`. See
+[docs/spec/js_binding.md](docs/spec/js_binding.md).
 
 ## Design notes
 - Pure Rust except the allowed C bindings: Vulkan (`ash`) and, behind `opengl`, OpenGL.
