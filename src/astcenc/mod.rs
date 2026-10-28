@@ -13,6 +13,7 @@
 //! compiled once per instruction set and picked at context creation.
 
 pub mod percentile_tables;
+pub mod sincos_tables;
 pub mod tables;
 
 // The compressor (`enc/`) is compiled once per instruction set: `#[isa]` on its functions

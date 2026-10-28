@@ -8,6 +8,7 @@
 
 use std::sync::OnceLock;
 
+use super::super::sincos_tables::{COS_TABLE, SIN_TABLE};
 use super::internal::*;
 use super::vecmath::*;
 use ktx_rs_macros::isa;
@@ -22,23 +23,14 @@ struct SinCos {
 }
 
 #[isa]
-/// `prepare_angular_tables` (computed once).
+/// `prepare_angular_tables` (computed once). The C++ fills the tables with `sinf` / `cosf`,
+/// which differ between libms in the last bit; the port embeds glibc's values
+/// (`scripts/gen_astcenc_sincos.py`) so the encoder output is the same on every platform.
 fn tables() -> &'static SinCos {
     static TABLES: OnceLock<SinCos> = OnceLock::new();
-    TABLES.get_or_init(|| {
-        let mut t = SinCos {
-            sin_table: [[0.0; ANGULAR_STEPS]; SINCOS_STEPS],
-            cos_table: [[0.0; ANGULAR_STEPS]; SINCOS_STEPS],
-        };
-        for i in 0..ANGULAR_STEPS {
-            let angle_step = (i + 1) as f32;
-            for j in 0..SINCOS_STEPS {
-                let a = (2.0 * PI / (SINCOS_STEPS as f32 - 1.0)) * angle_step * j as f32;
-                t.sin_table[j][i] = a.sin();
-                t.cos_table[j][i] = a.cos();
-            }
-        }
-        t
+    TABLES.get_or_init(|| SinCos {
+        sin_table: SIN_TABLE,
+        cos_table: COS_TABLE,
     })
 }
 
