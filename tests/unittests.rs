@@ -201,7 +201,7 @@ mod file_stream_test {
 
     #[test]
     fn write_then_read() {
-        let dir = std::env::temp_dir().join(format!("ktx-rs-fs-{}", std::process::id()));
+        let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("ktx-rs-fs");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("stream.bin");
         {

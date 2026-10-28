@@ -132,7 +132,12 @@ fn compress_matches_astcenc() {
                         panic!("config_init")
                     };
                     // 1..=4 threads sharing the context; the output must not depend on it.
-                    let threads = (n % 4) as u32 + 1;
+                    // wasm has no threads.
+                    let threads = if cfg!(target_family = "wasm") {
+                        1
+                    } else {
+                        (n % 4) as u32 + 1
+                    };
                     let dx = s[0] * 2 + 1;
                     let dy = s[1] * 2 - 1;
                     let dz = if s[2] == 1 { 1 } else { s[2] + 1 };
@@ -185,22 +190,28 @@ fn compress_matches_astcenc() {
                         let blocks = dx.div_ceil(s[0]) * dy.div_ceil(s[1]) * dz.div_ceil(s[2]);
                         let mut out = vec![0u8; blocks as usize * 16];
                         let shared = std::sync::Mutex::new(out.as_mut_slice());
-                        std::thread::scope(|sc| {
-                            let hs: Vec<_> = (0..threads)
-                                .map(|t| {
-                                    let (ctx, img, swz, shared) = (&ctx, &img, &swz, &shared);
-                                    sc.spawn(move || {
-                                        astcenc_compress_image(ctx, img, swz, shared, t)
-                                    })
-                                })
-                                .collect();
-                            for h in hs {
-                                match h.join() {
-                                    Ok(Ok(())) => {}
-                                    other => panic!("compress: {other:?}"),
-                                }
+                        if cfg!(target_family = "wasm") {
+                            if let Err(e) = astcenc_compress_image(&ctx, &img, &swz, &shared, 0) {
+                                panic!("compress: {e:?}");
                             }
-                        });
+                        } else {
+                            std::thread::scope(|sc| {
+                                let hs: Vec<_> = (0..threads)
+                                    .map(|t| {
+                                        let (ctx, img, swz, shared) = (&ctx, &img, &swz, &shared);
+                                        sc.spawn(move || {
+                                            astcenc_compress_image(ctx, img, swz, shared, t)
+                                        })
+                                    })
+                                    .collect();
+                                for h in hs {
+                                    match h.join() {
+                                        Ok(Ok(())) => {}
+                                        other => panic!("compress: {other:?}"),
+                                    }
+                                }
+                            });
+                        }
                         let key = format!("s{si} p{pi} q{qi} f{fi} {isa:?}");
                         let got = format!("{:016x}", fnv(&out));
                         match golden.get(&format!("s{si} p{pi} q{qi} f{fi}")) {

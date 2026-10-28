@@ -704,6 +704,11 @@ fn decode_matches_lodepng() {
         );
         match golden.get(name.as_str()) {
             Some(want) if *want == got => {}
+            // lodepng_pixel_overflow checks in size_t: corrupt headers with huge dimensions
+            // overflow on 32-bit targets (wasm32) before reaching the 64-bit golden's error.
+            Some(_)
+                if cfg!(target_pointer_width = "32") && e == 92 && name.starts_with("corrupt_") => {
+            }
             want => failures.push(format!("{name}: got {got}, want {want:?}\n  {info}")),
         }
         checked += 1;

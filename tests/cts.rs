@@ -8,6 +8,8 @@
 //! `` `regex` `` sections). Every argument combination (subcase) is run against
 //! the `ktx` binary of this crate from the `tests/resources/cts` directory.
 //! Data comes from KTX-Software-CTS 59f0a653 (Apache-2.0, see LICENSE there).
+// WASI cannot spawn the `ktx` process.
+#![cfg(not(target_family = "wasm"))]
 #![allow(clippy::panic)]
 
 mod common;

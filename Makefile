@@ -1,4 +1,4 @@
-.PHONY: build install publish publish-macros publish-ktx
+.PHONY: build install wasm test-wasm publish publish-macros publish-ktx
 
 PREFIX ?= $(HOME)
 
@@ -13,6 +13,17 @@ install: build
 	mkdir -p $(PREFIX)/bin $(PREFIX)/share/man/man1
 	cp bin/ktx $(PREFIX)/bin/ktx
 	cp man/*.1 $(PREFIX)/share/man/man1/
+
+# wasm32: the library builds without threads or SIMD; the GPU loader features are no-ops there.
+wasm:
+	cargo build --lib --target wasm32-unknown-unknown
+	cargo build --lib --all-features --target wasm32-unknown-unknown
+
+# Runs the test suite under wasmtime (WASI preview 1); WASMTIME overrides the runner binary.
+WASMTIME ?= wasmtime
+test-wasm:
+	CARGO_TARGET_WASM32_WASIP1_RUNNER="$(WASMTIME) run --dir=. --dir=$(CURDIR) --dir=/tmp --" \
+		cargo test --release --target wasm32-wasip1 $(ARGS)
 
 # crates.io: ktx-rs depends on ktx-rs-macros, so the macros crate goes first.
 publish:

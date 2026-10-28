@@ -2231,7 +2231,7 @@ fn block_dimension_to_format(block_dimension: u32, srgb: bool) -> VkFormat {
 fn astc_ldr_encode_decode<const IF: u32>(block_dimension: u32, testname: &str) {
     let f = TextureTestBase::<u8, 4, IF>::new(FormatVersion::Two);
     let is_srgb = IF == GL_SRGB8_ALPHA8 || IF == GL_SRGB8;
-    let tmp_dir = std::env::temp_dir();
+    let tmp_dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"));
     let original = tmp_dir.join(format!("{testname}_original.ktx2"));
     let decoded = tmp_dir.join(format!("{testname}_decoded.ktx2"));
 
