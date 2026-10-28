@@ -20,9 +20,9 @@ pub mod etcunpack;
 pub mod formatsize;
 pub mod gl_format;
 pub mod glformat_str;
-pub mod glupload;
 #[cfg(all(feature = "opengl", not(target_family = "wasm")))]
 pub mod glloader;
+pub mod glupload;
 pub mod hashlist;
 pub mod info;
 pub mod jpgd;
