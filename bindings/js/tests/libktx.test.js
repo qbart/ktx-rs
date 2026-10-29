@@ -243,5 +243,11 @@ test('libktx: write scenarios match the native library', () => {
   t.primaries = ktx.khr_df_primaries.DISPLAYP3;
   assert.strictEqual(t.primaries, ktx.khr_df_primaries.DISPLAYP3);
   assert.deepStrictEqual(Array.from(t.findKeyValue('mykey')), [1, 2, 3]);
+  // Any ArrayBufferView is stored as its bytes (tests/webgl libktx-test.js animData).
+  assert.strictEqual(t.addKVPairByte('u32', new Uint32Array([20, 1000, 10])), SUCCESS);
+  const u32 = t.findKeyValue('u32');
+  assert.deepStrictEqual(Array.from(new Uint32Array(u32.buffer, u32.byteOffset, 3)),
+    [20, 1000, 10]);
+  assert.strictEqual(t.deleteKVPair('u32'), SUCCESS);
   check('kv_colorspace', t);
 });

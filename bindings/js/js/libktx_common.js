@@ -137,8 +137,12 @@ function __ktxLibktxPopulate(Module) {
       addKVPairString(key, value) {
         return err(this._add_kv_pair_string(key, value));
       },
+      // Like the C++ copy through a view of the value's own type: the bytes of any
+      // ArrayBufferView (wasm-bindgen would convert element-wise).
       addKVPairByte(key, value) {
-        return err(this._add_kv_pair_byte(key, value));
+        const bytes = ArrayBuffer.isView(value)
+          ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength) : value;
+        return err(this._add_kv_pair_byte(key, bytes));
       },
       deleteKVPair(key) {
         return err(this._delete_kv_pair(key));
