@@ -115,7 +115,8 @@ Open: ASTC HDR encoding (deferred, see below), optional performance work, and th
 - [x] `libktx.js` (`ktx_wrapper.cpp` with `KTX_FEATURE_WRITE`): create, setImageFromMemory,
   compressBasis / compressAstc, deflate, KV data, colour space, writeToMemory; byte exact vs
   the native library
-- [ ] `tests/webgl` demo pages
+- [x] `tests/webgl` demo pages (copied unchanged; `make webgl` serves them, `make test-js-browser`
+  drives libktx-webgl, libktx-read-webgl and llt-three; libktx-gltf is non-functional upstream)
 - Java (`interface/java_binding`) and Python (`interface/python_binding`) bindings: not ported yet
 
 ## Performance (docs/spec/performance.md)

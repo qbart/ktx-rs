@@ -26,6 +26,8 @@ identifier of the code it was translated from. Files without a header are annota
 | `src/cli/options.rs` | cxxopts | Jarryd Beck | MIT |
 | `bindings/js` | KTX-Software `interface/js_binding` | Khronos Group, Inc. and KTX-Software contributors | Apache-2.0 |
 | `bindings/js/js/gl.js` | Emscripten `src/library_webgl.js` (GL emulation subset) | Emscripten authors | MIT |
+| `bindings/js/tests/webgl` | KTX-Software `tests/webgl` demo pages, copied unchanged | Mark Callow; MDN contributors (`*-test.js`); Don McCurdy, Austin Eng, Shrek Shao (`libktx-gltf`) | Apache-2.0, CC0-1.0 (`index.html`, `*-test.js`), per upstream `REUSE.toml` |
+| `bindings/js/tests/webgl/gl-matrix.js` | gl-matrix 2.4.0 (vendored by KTX-Software) | Brandon Jones, Colin MacKenzie IV | MIT |
 
 `src/etcunpack.rs` decodes ETC2/EAC following the Khronos Data Format Specification. It does
 not contain code from `etcdec.cxx` (Ericsson AB), which is not open source and is not part of

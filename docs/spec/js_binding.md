@@ -76,6 +76,9 @@ wasm-bindgen's `--target no-modules` glue is concatenated with `js/embind.js` an
   `GL_` prefixed, pixel data as the typed array `heapObjectForWebGLType` picks, every GLES
   command present except the 1D ones. Returns `{object: GL.textures[name], target, error}`;
   the capability statics live once per module instance.
+- `addKVPairByte` stores the bytes of any `ArrayBufferView` (C++ copies through a view of the
+  value's own type); the JS layer passes a `Uint8Array` over them, as wasm-bindgen's `&[u8]`
+  would convert element-wise.
 - glUpload deviations: without a current context it throws a descriptive `Error` (Emscripten
   fails on the null `GLctx`); a WebGL exception is held until the upload returns and then
   rethrown, so it never unwinds through the wasm frames.
@@ -88,3 +91,10 @@ SwiftShader): `glUpload` of 2D mipmapped, 2D array, 3D, cube map (built with the
 transcoded ETC1S (`libktx_read.js`) and KTX1 textures, every image read back through a
 framebuffer and compared with `getImage`; ETC2 without the WebGL extension (software unpack
 fallback); unpack alignment restored; untranscoded BasisLZ refused.
+
+`tests/webgl`: upstream's demo pages, unchanged; `make js` copies the modules next to them like
+upstream's CMake, `make webgl` serves them on port 8000. `make test-js-browser` also runs
+`libktx-webgl` (Run Tests, every result PASSED), `libktx-read-webgl` (BasisLZ file, then the
+UASTC one via `replaceTexture`) and `llt-three` (needs unpkg.com, skipped offline), failing on
+any `alert`, uncaught error or `console.error` (hook injected by the test server).
+`libktx-gltf` is marked non-functional upstream and not run.
