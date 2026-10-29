@@ -290,6 +290,19 @@ impl Texture2 {
             .map(|c| LevelIndexEntry::from_bytes(c).unwrap_or_default())
             .collect();
 
+        // 32-bit targets (wasm32): every level range must be addressable, as the
+        // `as usize` casts below assume. Not in C, where `size_t` truncates; on
+        // 64-bit targets this cannot fail and is compiled out.
+        #[cfg(target_pointer_width = "32")]
+        for e in &this.private.level_index {
+            let end = e.byte_offset.checked_add(e.byte_length);
+            if end.is_none_or(|end| usize::try_from(end).is_err())
+                || usize::try_from(e.uncompressed_byte_length).is_err()
+            {
+                return Err(ErrorCode::FileOverflow);
+            }
+        }
+
         // Check that the data the header and level index declare is within the
         // file before memory is allocated for it. Pipes have no known size.
         if let Ok(file_size) = stream.getsize() {
