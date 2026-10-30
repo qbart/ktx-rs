@@ -1,4 +1,4 @@
-.PHONY: build install wasm test-wasm js test-js test-js-browser webgl publish publish-macros publish-ktx
+.PHONY: build install wasm test-wasm js test-js test-js-browser webgl js-zip publish publish-macros publish-ktx
 
 PREFIX ?= $(HOME)
 
@@ -32,7 +32,10 @@ js:
 	bindings/js/build.sh write libktx createKtxModule "gl.js libktx_common.js" module_create_compat.js
 	cp bindings/js/dist/*.js bindings/js/dist/*.wasm bindings/js/tests/webgl/
 
+# The goldens come from the native library at the same commit (KTXwriter carries the version).
 test-js: js
+	cargo run -q --release -p ktx-rs-wasm --example js_golden > bindings/js/tests/golden/transcode.tsv
+	cargo run -q --release -p ktx-rs-wasm --example js_golden write > bindings/js/tests/golden/write.tsv
 	node --test bindings/js/tests/*.test.js
 
 # glUpload on real WebGL 2: headless Chrome through chromedriver (CHROMEDRIVER=, CHROME= paths;
@@ -40,6 +43,21 @@ test-js: js
 # Also drives the tests/webgl demo pages (llt-three needs unpkg.com, skipped when offline).
 test-js-browser: js
 	node bindings/js/tests/browser/run.js
+
+# Release archive of the JS modules for a GitHub release (upstream's KTX-Software-<ver>-Web):
+# bindings/js/dist/ktx-rs-<version>-Web.zip, built and tested from a clean dist.
+JS_VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+JS_PKG := ktx-rs-$(JS_VERSION)-Web
+js-zip:
+	rm -rf bindings/js/dist
+	$(MAKE) test-js
+	mkdir -p bindings/js/dist/$(JS_PKG)/LICENSES
+	cp bindings/js/dist/*.js bindings/js/dist/*.wasm bindings/js/README.md LICENSE NOTICE.md \
+		bindings/js/dist/$(JS_PKG)/
+	cp LICENSES/Apache-2.0.txt LICENSES/BSD-3-Clause.txt LICENSES/MIT.txt LICENSES/Zlib.txt \
+		bindings/js/dist/$(JS_PKG)/LICENSES/
+	cd bindings/js/dist && zip -qrX $(JS_PKG).zip $(JS_PKG)
+	@echo "bindings/js/dist/$(JS_PKG).zip"
 
 # Serves the tests/webgl demo pages on http://localhost:8000/ (upstream tests/webgl).
 webgl: js

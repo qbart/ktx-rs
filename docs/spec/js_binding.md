@@ -85,7 +85,8 @@ wasm-bindgen's `--target no-modules` glue is concatenated with `js/embind.js` an
 
 Tests (`bindings/js/tests`, node): API surface of all three modules, `transcodeBasis` /
 `getImage` of every image vs `golden/transcode.tsv`, and the write scenarios vs
-`golden/write.tsv`, both written by `cargo run -p ktx-rs-wasm --example js_golden [write]`.
+`golden/write.tsv`, both written by `cargo run -p ktx-rs-wasm --example js_golden [write]`,
+which `make test-js` reruns first (the write outputs carry `KTXwriter`, i.e. the version).
 `tests/browser` (`make test-js-browser`, chromedriver + headless Chrome, WebGL 2 on
 SwiftShader): `glUpload` of 2D mipmapped, 2D array, 3D, cube map (built with the write API),
 transcoded ETC1S (`libktx_read.js`) and KTX1 textures, every image read back through a
