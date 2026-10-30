@@ -150,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "ktx-rs"
-version = "4.4.2"
+version = "4.4.3"
 dependencies = [
  "ash",
  "bytemuck",
@@ -167,11 +167,11 @@ dependencies = [
 
 [[package]]
 name = "ktx-rs-macros"
-version = "4.4.2"
+version = "4.4.3"
 
 [[package]]
 name = "ktx-rs-wasm"
-version = "4.4.2"
+version = "4.4.3"
 dependencies = [
  "js-sys",
  "ktx-rs",

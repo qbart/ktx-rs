@@ -1,6 +1,6 @@
 [package]
 name = "ktx-rs-macros"
-version = "4.4.2"
+version = "4.4.3"
 edition = "2024"
 description = "Internal proc macros of the ktx-rs crate"
 license = "Apache-2.0"

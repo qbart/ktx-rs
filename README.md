@@ -47,7 +47,7 @@ The package is `ktx-rs`; the library is imported as `ktx`:
 
 ```toml
 [dependencies]
-ktx-rs = "4.4"
+ktx-rs = "4.4.3"
 ```
 
 ```rust
